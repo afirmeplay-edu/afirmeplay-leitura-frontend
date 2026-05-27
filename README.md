@@ -1,118 +1,164 @@
-# afirmeplay-leitura-frontend
+# Afirme Play — Leitura (frontend)
 
-Base inicial em Next.js para o sistema de leitura da Afirme Play.
+Interface web do **Sistema de Leitura Afirme Play**, construida com Next.js 15 (App Router), TypeScript, Tailwind CSS e shadcn/ui.
+
+Integra-se ao repositorio `afirmeplay_backend` para autenticacao e dados.
+
+## Funcionalidades atuais
+
+| Area | Rota | Status |
+|------|------|--------|
+| Login com selecao de municipio | `/login` | Ativo |
+| Boas-vindas | `/app` | Ativo |
+| Avaliacao fluencia | `/app/avaliacao-fluencia` | Em desenvolvimento |
+| Avaliacao leitura guiada | `/app/avaliacao-leitura-guiada` | Em desenvolvimento |
+| Configuracao avaliacao | `/app/configuracao-avaliacao` | Em desenvolvimento |
+
+## Requisitos
+
+- **Node.js** 20 ou superior
+- **npm** 10+
+- **afirmeplay_backend** rodando localmente (porta 5000 por padrao)
+
+## Inicio rapido
+
+```bash
+# 1. Instalar dependencias
+npm install
+
+# 2. Configurar variaveis de ambiente
+cp .env.example .env
+# Edite .env com os valores do seu ambiente (nao commite o arquivo .env)
+
+# 3. Subir o backend (em outro terminal)
+cd ../afirmeplay_backend
+python run.py
+
+# 4. Subir o frontend
+npm run dev
+```
+
+A aplicacao ficara disponivel em [http://localhost:3000](http://localhost:3000).
+
+## Variaveis de ambiente
+
+O arquivo `.env` **nao deve ser versionado** (ja esta no `.gitignore`). Use `.env.example` como referencia.
+
+### Obrigatorias para desenvolvimento local
+
+| Variavel | Descricao | Exemplo |
+|----------|-----------|---------|
+| `NEXT_PUBLIC_API_BASE_URL` | URL base do backend (proxy `/api` no Next) | `http://localhost:5000` |
+| `NEXT_PUBLIC_APP_BASE_DOMAIN` | Dominio base para subdominios de municipio | `localhost:3000` |
+| `NEXT_PUBLIC_DEBUG_MODE` | Logs extras no client | `false` |
+
+### Opcionais (server-side)
+
+| Variavel | Descricao |
+|----------|-----------|
+| `API_DISCOVERY_REMOTE_URL` | API da VPS central para discovery de municipios. Padrao: `https://prod-api.afirmeplay.com.br` |
+| `CITIES_DATABASE_URL` | Postgres da VPS central para listar `public.city` (recomendado para ver todos os municipios) |
+| `CITIES_DISCOVERY_REGISTRATION` | Usuario admin para fallback via `GET /city/` |
+| `CITIES_DISCOVERY_PASSWORD` | Senha do usuario acima (somente server-side) |
+
+> **Seguranca:** nunca coloque senhas, tokens ou URLs de banco com credenciais em variaveis `NEXT_PUBLIC_*`. Essas variaveis ficam expostas no navegador.
+
+Credenciais de banco, Redis, MinIO, JWT e integracoes externas pertencem ao `.env` do **backend**, nao deste repositorio.
+
+## Fluxo de login
+
+1. O usuario escolhe o municipio no dropdown.
+2. O frontend redireciona para `http://<slug>.<NEXT_PUBLIC_APP_BASE_DOMAIN>/login`.
+3. A autenticacao usa `POST /login/` via proxy `/api`, com tenant resolvido pelo subdominio (ou `Origin` em dev).
+
+Exemplo de acesso em desenvolvimento:
+
+```text
+http://limoeirodeanadia.localhost:3000/login
+```
+
+Navegadores modernos resolvem `*.localhost` automaticamente.
+
+## Listagem de municipios
+
+A rota interna `GET /api/discovery/cities` busca municipios nesta ordem:
+
+1. Tabela `public.city` no Postgres (`CITIES_DATABASE_URL`)
+2. `GET /city/` na VPS central ou no backend local (se `CITIES_DISCOVERY_*` estiver configurado)
+3. Catalogo mobile `/mobile/v1/available-cities` na VPS central (fallback)
+
+A entrada meta `afirme` (VPS central) e excluida da lista, pois nao e um subdominio de login valido.
 
 ## Estrutura do projeto
 
 ```text
 src/
-  app/                         # Rotas Next.js (App Router)
-    (public)/login/            # Tela de login
-    (private)/app/             # Area autenticada (/app/*)
-    api/discovery/cities/      # API interna (lista de municipios)
-    layout.tsx
-    page.tsx
-    globals.css
+  app/
+    (public)/login/              # Tela de login
+    (private)/app/               # Area autenticada
+    api/discovery/cities/        # API interna de municipios
+    layout.tsx, page.tsx, globals.css
   components/
-    auth/                      # AuthGuard, redirects
-    layout/                    # Sidebar, placeholders
-    providers/                 # Providers globais
-    ui/                        # Componentes base (shadcn)
-  config/                      # Constantes (menu, rotas)
+    auth/                          # AuthGuard, login, redirects
+    layout/                        # Sidebar, placeholders
+    providers/                     # Providers globais
+    ui/                            # Componentes shadcn
+  config/navigation.ts             # Menu da sidebar
   lib/
-    api/                       # Cliente HTTP e servicos de API
-    city-domain.ts             # Helpers de subdominio
-    utils.ts
-  stores/                      # Estado global (Zustand)
-public/                        # Assets estaticos
+    api/                           # Cliente HTTP
+    city-domain.ts                 # Helpers de subdominio
+    server/cities-discovery.ts     # Discovery server-side
+    env.ts                         # Variaveis de servidor
+  stores/auth-store.ts             # Estado de autenticacao (Zustand)
+public/                            # Logos e assets estaticos
 ```
 
-## Requisitos
+## Scripts disponiveis
 
-- Node.js 20+
-- Backend do `afirmeplay_backend` rodando
+| Comando | Descricao |
+|---------|-----------|
+| `npm run dev` | Servidor de desenvolvimento |
+| `npm run build` | Build de producao |
+| `npm run start` | Servidor apos o build |
+| `npm run lint` | ESLint |
 
-## Configuracao
+## Solucao de problemas
 
-1. Copie `.env.example` para `.env` (ou use o `.env` ja alinhado ao `afirmeplay-frontend`).
-2. Ajuste os valores se necessario.
+### `ChunkLoadError`, `layout.css 404` ou `main-app.js 404`
 
-### Frontend (Next.js)
-
-```bash
-NEXT_PUBLIC_API_BASE_URL=http://localhost:5000
-NEXT_PUBLIC_APP_BASE_DOMAIN=localhost:3000
-NEXT_PUBLIC_DEBUG_MODE=false
-API_DISCOVERY_REMOTE_URL=https://prod-api.afirmeplay.com.br
-```
-
-### Backend / banco (mesmo padrao do afirmeplay-frontend)
-
-O frontend **nao** acessa o banco diretamente. Para ter acesso a **todas as tabelas/schemas** (multitenant), o `afirmeplay_backend` precisa usar o mesmo `.env`, principalmente:
+Cache do Next corrompido (comum apos rodar `build` com `dev` ativo):
 
 ```bash
-DATABASE_URL=postgresql://...@...:15432/afirmeplay_dev
-APP_ENV=development
-JWT_SECRET_KEY=...
-```
-
-Copie o bloco `Backend` do `.env` deste projeto para o `.env` em `afirmeplay_backend/` antes de rodar:
-
-```bash
-cd ../afirmeplay_backend
-python run.py
-```
-
-## Desenvolvimento
-
-Instale as dependencias:
-
-```bash
-npm install
-```
-
-Execute:
-
-```bash
-npm run dev
-```
-
-Para respeitar o fluxo de subdominio no login, acesse pela URL:
-
-```bash
-http://<slug>.localhost:3000/login
-```
-
-Exemplo: `http://limoeirodeanadia.localhost:3000/login`
-
-### Municipios
-
-A lista de municipios e carregada por `/api/discovery/cities` a partir da **VPS central** (`prod-api.afirmeplay.com.br`):
-
-1. Consulta `public.city` no banco da VPS (via `CITIES_DATABASE_URL`, ou `DEST_DATABASE_URL` / `DATABASE_URL`)
-2. Se o banco nao estiver acessivel, tenta `GET /city/` com credenciais admin opcionais (`CITIES_DISCOVERY_REGISTRATION` + `CITIES_DISCOVERY_PASSWORD`) na VPS central e, em seguida, no backend local
-3. Fallback: catálogo mobile (`/mobile/v1/available-cities`), excluindo a entrada meta `afirme`
-
-Para ver todos os municipios da VPS central, configure no `.env` a URL real do Postgres de producao:
-
-```bash
-CITIES_DATABASE_URL=postgresql://usuario:senha@host:5432/afirmeplay_prod
-```
-
-### Login
-
-O login em si exige o backend local rodando (`python run.py` na porta 5000), pois a autenticacao usa subdominio + `POST /login/`.
-
-Se aparecer `ChunkLoadError` ou `layout.css 404`, pare o servidor, limpe o cache e suba de novo:
-
-```bash
+# Pare o dev server antes
 rm -rf .next
 npm run dev
 ```
 
-## Build
+Depois, faca hard refresh no navegador (`Ctrl+Shift+R`).
+
+### Municipios nao aparecem ou lista incompleta
+
+- Confirme que o backend local esta rodando.
+- Configure `CITIES_DATABASE_URL` apontando para o Postgres da VPS central, **ou**
+- Configure `CITIES_DISCOVERY_REGISTRATION` / `CITIES_DISCOVERY_PASSWORD` com um usuario admin valido.
+
+### Erro de login / CORS
+
+Acesse sempre pelo subdominio do municipio (`<slug>.localhost:3000`), nao apenas `localhost:3000`.
+
+### Backend indisponivel
+
+Verifique se o `afirmeplay_backend` esta ativo na porta definida em `NEXT_PUBLIC_API_BASE_URL`.
+
+## Build de producao
 
 ```bash
 npm run build
 npm run start
 ```
+
+Defina as variaveis `NEXT_PUBLIC_*` no ambiente de deploy antes do build.
+
+## Licenca
+
+Projeto interno Afirme Play.
