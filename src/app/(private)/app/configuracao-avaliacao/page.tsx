@@ -1,5 +1,5 @@
-import { InDevelopment } from "@/components/layout/in-development";
+import { ConfigAvaliacao } from "@/components/configuracao/config-avaliacao";
 
 export default function ConfiguracaoAvaliacaoPage() {
-  return <InDevelopment title="Configuracao avaliacao" />;
+  return <ConfigAvaliacao />;
 }

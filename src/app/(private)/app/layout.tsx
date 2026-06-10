@@ -1,13 +1,10 @@
 import { AuthGuard } from "@/components/auth/auth-guard";
-import { Sidebar } from "@/components/layout/sidebar";
+import { PrivateShell } from "@/components/layout/private-shell";
 
 export default function PrivateLayout({ children }: { children: React.ReactNode }) {
   return (
     <AuthGuard>
-      <div className="flex min-h-screen bg-slate-50">
-        <Sidebar />
-        <main className="flex-1 p-6">{children}</main>
-      </div>
+      <PrivateShell>{children}</PrivateShell>
     </AuthGuard>
   );
 }

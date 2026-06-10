@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Eye, EyeOff, Loader2, Lock, MapPin, User } from "lucide-react";
 import { toast } from "sonner";
@@ -135,10 +136,15 @@ export function LoginForm() {
       toast.success("Login realizado com sucesso.");
       router.replace("/app");
     } catch (error: unknown) {
+      const axiosError = error as { response?: { status?: number; data?: { erro?: string; mensagem?: string } }; code?: string };
       const message =
-        (error as { response?: { data?: { erro?: string; mensagem?: string } } })?.response?.data?.mensagem ||
-        (error as { response?: { data?: { erro?: string } } })?.response?.data?.erro ||
-        "Falha no login. Verifique suas credenciais.";
+        axiosError?.response?.data?.mensagem ||
+        axiosError?.response?.data?.erro ||
+        (axiosError?.response?.status === 503
+          ? "Backend indisponivel. Ative MOCK_AUTH=true no .env ou inicie o afirmeplay_backend."
+          : !axiosError?.response
+            ? "Nao foi possivel conectar ao servidor. Reinicie o frontend apos alterar o .env."
+            : "Falha no login. Verifique suas credenciais.");
       toast.error(message);
       setPassword("");
     }
@@ -237,7 +243,7 @@ export function LoginForm() {
               </div>
             </div>
 
-            <div className="flex items-center pt-1">
+            <div className="flex items-center justify-between pt-1">
               <div className="flex items-center gap-2">
                 <Checkbox
                   checked={remember}
@@ -249,6 +255,9 @@ export function LoginForm() {
                   Lembrar-me
                 </Label>
               </div>
+              <Link href="/recuperar-senha" className="text-sm text-blue-200 hover:text-white hover:underline">
+                Esqueci minha senha
+              </Link>
             </div>
 
             <Button

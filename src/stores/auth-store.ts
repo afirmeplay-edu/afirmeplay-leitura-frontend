@@ -52,7 +52,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ loading: true });
     try {
       const cityApi = createCityApi();
-      const { data } = await cityApi.post("/login/", { registration, password });
+      const { data } = await cityApi.post("/login", { registration, password });
       const token = data?.token as string;
       const user = data?.user as User;
       if (!token || !user?.id) {
@@ -83,7 +83,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const cityApi = createCityApi();
       cityApi.defaults.headers.common.Authorization = `Bearer ${token}`;
-      const { data } = await cityApi.get("/persist-user/");
+      const { data } = await cityApi.get("/persist-user");
       const persistedUser = (data?.user ?? data) as User;
       if (!persistedUser?.id) return false;
 
