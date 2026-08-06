@@ -5,6 +5,7 @@ import { Eye, EyeOff, Loader2, Lock, MapPin, User } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import Link from "next/link";
 import axios from "axios";
 import { fetchAvailableCities, type AvailableCity } from "@/lib/api/cities";
 import { useAuthStore } from "@/stores/auth-store";
