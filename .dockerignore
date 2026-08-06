@@ -1,0 +1,17 @@
+node_modules
+.next
+out
+.git
+.gitignore
+*.md
+.env
+.env.*
+!.env.example
+Dockerfile*
+docker-compose*
+nginx
+.vscode
+.cursor
+coverage
+npm-debug.log*
+PROJETO LEITURA GUIADA
