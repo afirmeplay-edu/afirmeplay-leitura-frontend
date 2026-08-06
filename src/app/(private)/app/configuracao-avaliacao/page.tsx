@@ -1,5 +1,5 @@
-import { InDevelopment } from "@/components/layout/in-development";
+import { ConfiguracaoAvaliacaoPage } from "@/components/afirme-reading/configuracao-avaliacao-page";
 
-export default function ConfiguracaoAvaliacaoPage() {
-  return <InDevelopment title="Configuracao avaliacao" />;
+export default function ConfiguracaoAvaliacaoRoutePage() {
+  return <ConfiguracaoAvaliacaoPage />;
 }

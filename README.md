@@ -12,7 +12,7 @@ Integra-se ao repositorio `afirmeplay_backend` para autenticacao e dados.
 | Boas-vindas | `/app` | Ativo |
 | Avaliacao fluencia | `/app/avaliacao-fluencia` | Em desenvolvimento |
 | Avaliacao leitura guiada | `/app/avaliacao-leitura-guiada` | Em desenvolvimento |
-| Configuracao avaliacao | `/app/configuracao-avaliacao` | Em desenvolvimento |
+| Listas de palavras | `/app/configuracao-avaliacao` | Ativo |
 
 ## Requisitos
 
@@ -49,7 +49,6 @@ O arquivo `.env` **nao deve ser versionado** (ja esta no `.gitignore`). Use `.en
 | Variavel | Descricao | Exemplo |
 |----------|-----------|---------|
 | `NEXT_PUBLIC_API_BASE_URL` | URL base do backend (proxy `/api` no Next) | `http://localhost:5000` |
-| `NEXT_PUBLIC_APP_BASE_DOMAIN` | Dominio base para subdominios de municipio | `localhost:3000` |
 | `NEXT_PUBLIC_DEBUG_MODE` | Logs extras no client | `false` |
 
 ### Opcionais (server-side)
@@ -67,17 +66,16 @@ Credenciais de banco, Redis, MinIO, JWT e integracoes externas pertencem ao `.en
 
 ## Fluxo de login
 
-1. O usuario escolhe o municipio no dropdown.
-2. O frontend redireciona para `http://<slug>.<NEXT_PUBLIC_APP_BASE_DOMAIN>/login`.
-3. A autenticacao usa `POST /login/` via proxy `/api`, com tenant resolvido pelo subdominio (ou `Origin` em dev).
+1. O usuario escolhe o municipio no dropdown (mesmo dominio).
+2. O slug e salvo em `localStorage` (`selected_slug`) — nao ha redirect por subdominio.
+3. A autenticacao usa `POST /login/` via proxy `/api`, com JWT persistido no client.
+4. Rotas do Afirme Ler enviam `Authorization: Bearer` e `X-City-Slug` a partir do slug salvo.
 
 Exemplo de acesso em desenvolvimento:
 
 ```text
-http://limoeirodeanadia.localhost:3000/login
+http://localhost:3000/login
 ```
-
-Navegadores modernos resolvem `*.localhost` automaticamente.
 
 ## Listagem de municipios
 
@@ -87,7 +85,7 @@ A rota interna `GET /api/discovery/cities` busca municipios nesta ordem:
 2. `GET /city/` na VPS central ou no backend local (se `CITIES_DISCOVERY_*` estiver configurado)
 3. Catalogo mobile `/mobile/v1/available-cities` na VPS central (fallback)
 
-A entrada meta `afirme` (VPS central) e excluida da lista, pois nao e um subdominio de login valido.
+A entrada meta `afirme` (VPS central) e excluida da lista, pois nao e um municipio de login valido.
 
 ## Estrutura do projeto
 
@@ -106,7 +104,7 @@ src/
   config/navigation.ts             # Menu da sidebar
   lib/
     api/                           # Cliente HTTP
-    city-domain.ts                 # Helpers de subdominio
+    city-domain.ts                 # Helpers de municipio (slug no client)
     server/cities-discovery.ts     # Discovery server-side
     env.ts                         # Variaveis de servidor
   stores/auth-store.ts             # Estado de autenticacao (Zustand)
@@ -144,7 +142,7 @@ Depois, faca hard refresh no navegador (`Ctrl+Shift+R`).
 
 ### Erro de login / CORS
 
-Acesse sempre pelo subdominio do municipio (`<slug>.localhost:3000`), nao apenas `localhost:3000`.
+Confirme o backend em `NEXT_PUBLIC_API_BASE_URL` e acesse pelo mesmo dominio (`localhost:3000`). O municipio e enviado via `selected_slug` / `X-City-Slug`, nao por subdominio.
 
 ### Backend indisponivel
 

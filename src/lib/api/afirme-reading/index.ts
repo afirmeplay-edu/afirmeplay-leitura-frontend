@@ -1,29 +1,19 @@
-export { api, createCityApi } from "@/lib/api/client";
-export { fetchAvailableCities, type AvailableCity } from "@/lib/api/cities";
-export { listCatalogCities, type CatalogCity } from "@/lib/api/catalog-cities";
-export { listGrades, listEducationStages } from "@/lib/api/grades";
-export { getApiErrorMessage } from "@/lib/api/errors";
+export { afirmeReadingApi } from "@/lib/api/afirme-reading/client";
 export {
-  listSchools,
-  listClassesBySchool,
-  listStudentsByClass,
-  listStudentsBySchool,
-  type School,
-  type SchoolClass,
-  type Student,
-} from "@/lib/api/students";
-export {
-  afirmeReadingApi,
   listWordLists,
   getWordList,
   createWordList,
   updateWordList,
   deleteWordList,
+} from "@/lib/api/afirme-reading/word-lists";
+export {
   listReadingTexts,
   getReadingText,
   createReadingText,
   updateReadingText,
   deleteReadingText,
+} from "@/lib/api/afirme-reading/texts";
+export {
   createGuidedSession,
   listGuidedSessions,
   getGuidedSession,
@@ -32,7 +22,7 @@ export {
   toProxiedAudioUrl,
   fetchGuidedAudioObjectUrl,
   resolveGuidedSessionAudioUrl,
-} from "@/lib/api/afirme-reading";
+} from "@/lib/api/afirme-reading/guided-sessions";
 export type {
   WordList,
   WordListKind,
@@ -54,4 +44,4 @@ export type {
   CreateGuidedSessionPayload,
   ListGuidedSessionsParams,
   ApiErrorBody,
-} from "@/lib/api/afirme-reading";
+} from "@/lib/api/afirme-reading/types";

@@ -1,5 +1,5 @@
-import { InDevelopment } from "@/components/layout/in-development";
+import { LeituraGuiadaPage } from "@/components/leitura-guiada/leitura-guiada-page";
 
-export default function AvaliacaoLeituraGuiadaPage() {
-  return <InDevelopment title="Avaliacao leitura guiada" />;
+export default function AvaliacaoLeituraGuiadaRoutePage() {
+  return <LeituraGuiadaPage />;
 }

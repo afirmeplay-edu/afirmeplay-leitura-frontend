@@ -1,68 +1,55 @@
-const APP_BASE_DOMAIN = process.env.NEXT_PUBLIC_APP_BASE_DOMAIN ?? "localhost:3000";
 const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:5000").replace(/\/+$/, "");
+
+const CITY_ID_KEY = "selected_city_id";
+const CITY_SLUG_KEY = "selected_slug";
 
 export function normalizeSlug(slug: string) {
   return slug.trim().toLowerCase();
 }
 
-export function getProtocol() {
-  if (typeof window !== "undefined") {
-    return window.location.protocol;
-  }
-  return "http:";
+/** Município selecionado no app (mesmo domínio — sem subdomínio). */
+export function getSelectedCitySlug(): string | null {
+  if (typeof window === "undefined") return null;
+  const slug = localStorage.getItem(CITY_SLUG_KEY);
+  return slug ? normalizeSlug(slug) : null;
 }
 
-export function getHostForSlug(slug: string) {
-  const safeSlug = normalizeSlug(slug);
-  return `${safeSlug}.${APP_BASE_DOMAIN}`;
+export function getSelectedCityId(): string | null {
+  if (typeof window === "undefined") return null;
+  const id = localStorage.getItem(CITY_ID_KEY);
+  return id?.trim() || null;
 }
 
-export function getHostnameSlug(): string | null {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  const hostname = window.location.hostname;
-
-  if (hostname.endsWith(".localhost")) {
-    const slug = hostname.split(".")[0];
-    return slug ? normalizeSlug(slug) : null;
-  }
-
-  if (hostname.endsWith(".afirmeplay.com.br")) {
-    const parts = hostname.split(".");
-    if (parts.length > 3) {
-      return normalizeSlug(parts[0]);
-    }
-  }
-
-  if (hostname.endsWith(".afirmeplay.com") && !hostname.endsWith(".afirmeplay.com.br")) {
-    const parts = hostname.split(".");
-    if (parts.length === 3) {
-      return normalizeSlug(parts[0]);
-    }
-  }
-
-  return null;
+export function setSelectedCitySlug(slug: string | null) {
+  if (typeof window === "undefined") return;
+  if (slug) localStorage.setItem(CITY_SLUG_KEY, normalizeSlug(slug));
+  else localStorage.removeItem(CITY_SLUG_KEY);
 }
 
-export function isOnSlugHost(slug: string) {
-  const currentSlug = getHostnameSlug();
-  return currentSlug === normalizeSlug(slug);
+export function setSelectedCityId(cityId: string | null) {
+  if (typeof window === "undefined") return;
+  if (cityId) localStorage.setItem(CITY_ID_KEY, cityId.trim());
+  else localStorage.removeItem(CITY_ID_KEY);
 }
 
-export function buildLoginUrlForSlug(slug: string) {
-  const protocol = getProtocol();
-  return `${protocol}//${getHostForSlug(slug)}/login`;
+/** Define contexto de município usado pelos interceptors (X-City-ID / X-City-Slug). */
+export function setCityContext(options: { cityId?: string | null; slug?: string | null }) {
+  if (options.cityId !== undefined) setSelectedCityId(options.cityId);
+  if (options.slug !== undefined) setSelectedCitySlug(options.slug);
 }
 
-export function redirectToSlugLogin(slug: string) {
-  if (typeof window === "undefined" || isOnSlugHost(slug)) {
-    return;
-  }
+export function clearCityContext() {
+  setSelectedCityId(null);
+  setSelectedCitySlug(null);
+}
 
-  localStorage.setItem("selected_slug", normalizeSlug(slug));
-  window.location.href = buildLoginUrlForSlug(slug);
+export function getCityContextHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {};
+  const cityId = getSelectedCityId();
+  const slug = getSelectedCitySlug();
+  if (cityId) headers["X-City-ID"] = cityId;
+  if (slug) headers["X-City-Slug"] = slug;
+  return headers;
 }
 
 export function getCityApiBaseUrl() {

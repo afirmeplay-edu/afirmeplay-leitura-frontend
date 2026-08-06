@@ -1,13 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Eye, EyeOff, Loader2, Lock, MapPin, User } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import axios from "axios";
 import { fetchAvailableCities, type AvailableCity } from "@/lib/api/cities";
-import { getHostnameSlug, isOnSlugHost, redirectToSlugLogin } from "@/lib/city-domain";
 import { useAuthStore } from "@/stores/auth-store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,11 +29,6 @@ export function LoginForm() {
   const login = useAuthStore((state) => state.login);
   const loading = useAuthStore((state) => state.loading);
   const user = useAuthStore((state) => state.user);
-
-  const selectedCity = useMemo(
-    () => cities.find((city) => city.slug === selectedSlug) ?? null,
-    [cities, selectedSlug]
-  );
 
   useEffect(() => {
     setMounted(true);
@@ -64,10 +58,7 @@ export function LoginForm() {
         if (cancelled) return;
         setCities(data);
 
-        const hostnameSlug = getHostnameSlug();
-        if (hostnameSlug && data.some((city) => city.slug === hostnameSlug)) {
-          setSelectedSlug(hostnameSlug);
-        } else if (preselected && data.some((city) => city.slug === preselected)) {
+        if (preselected && data.some((city) => city.slug === preselected)) {
           setSelectedSlug(preselected);
         } else if (data.length === 1) {
           setSelectedSlug(data[0].slug);
@@ -99,7 +90,7 @@ export function LoginForm() {
     event.preventDefault();
 
     if (!selectedSlug) {
-      toast.error("Selecione um municipio para continuar.");
+      toast.error("Selecione um municipio (obrigatorio para professor e demais roles).");
       return;
     }
     if (!registration.trim() || !password.trim()) {
@@ -107,13 +98,9 @@ export function LoginForm() {
       return;
     }
 
-    if (!isOnSlugHost(selectedSlug)) {
-      redirectToSlugLogin(selectedSlug);
-      return;
-    }
-
-    const username = registration.trim().split("@")[0].trim();
-    const emailCompleto = `${username}@afirmeplay.com.br`;
+    const raw = registration.trim();
+    const username = raw.includes("@") ? raw.split("@")[0].trim() : raw;
+    const emailCompleto = raw.includes("@") ? raw : `${username}@afirmeplay.com.br`;
 
     try {
       try {
@@ -135,11 +122,27 @@ export function LoginForm() {
       toast.success("Login realizado com sucesso.");
       router.replace("/app");
     } catch (error: unknown) {
-      const message =
-        (error as { response?: { data?: { erro?: string; mensagem?: string } } })?.response?.data?.mensagem ||
-        (error as { response?: { data?: { erro?: string } } })?.response?.data?.erro ||
-        "Falha no login. Verifique suas credenciais.";
-      toast.error(message);
+      const status = (error as { response?: { status?: number } })?.response?.status;
+      const data = (error as {
+        response?: { data?: { erro?: string; error?: string; mensagem?: string; message?: string } };
+      })?.response?.data;
+
+      if (status === 403) {
+        toast.error(
+          data?.error ||
+            data?.mensagem ||
+            data?.message ||
+            "Informe o municipio (X-City-Slug ou citySlug) no login."
+        );
+      } else {
+        toast.error(
+          data?.mensagem ||
+            data?.message ||
+            data?.erro ||
+            data?.error ||
+            "Falha no login. Verifique suas credenciais."
+        );
+      }
       setPassword("");
     }
   }
@@ -147,11 +150,15 @@ export function LoginForm() {
   function handleSlugChange(slug: string) {
     setSelectedSlug(slug);
     localStorage.setItem("selected_slug", slug);
-    redirectToSlugLogin(slug);
+    const city = cities.find((item) => item.slug === slug);
+    if (city?.id) {
+      localStorage.setItem("selected_city_id", city.id);
+    }
   }
 
   function handleRegistrationChange(value: string) {
-    setRegistration(value.split("@")[0].trim());
+    // Permite e-mail completo (ex.: professor@email.com) ou só o usuario.
+    setRegistration(value.trimStart());
   }
 
   if (!mounted) {
@@ -192,27 +199,55 @@ export function LoginForm() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
+              <Label className="text-xs uppercase tracking-wider text-blue-100">Municipio</Label>
+              <div className="relative">
+                <MapPin className="pointer-events-none absolute left-3 top-3.5 z-10 h-4 w-4 text-blue-200" />
+                <Select
+                  value={selectedSlug || undefined}
+                  onValueChange={handleSlugChange}
+                  disabled={loadingCities || loading || cities.length === 0}
+                >
+                  <SelectTrigger className="h-12 border-none bg-blue-950/60 pl-10 text-white">
+                    <SelectValue
+                      placeholder={
+                        loadingCities
+                          ? "Carregando..."
+                          : citiesError
+                            ? "Indisponivel"
+                            : "Selecione o municipio"
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent className="z-[100]">
+                    {cities.map((city) => (
+                      <SelectItem key={city.id} value={city.slug}>
+                        {city.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {citiesError ? (
+                <p className="text-xs text-red-300">{citiesError}</p>
+              ) : null}
+            </div>
+
+            <div className="space-y-2">
               <Label className="text-xs uppercase tracking-wider text-blue-100">Usuario</Label>
               <div className="relative">
                 <User className="pointer-events-none absolute left-3 top-3.5 z-10 h-4 w-4 text-blue-200" />
-                <div className="relative flex items-center">
-                  <Input
-                    value={registration}
-                    onChange={(e) => handleRegistrationChange(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "@") {
-                        e.preventDefault();
-                      }
-                    }}
-                    className="h-12 border-none bg-blue-950/60 pl-10 pr-36 text-white placeholder:text-blue-200/60"
-                    placeholder="usuario"
-                    disabled={loading}
-                  />
-                  <span className="pointer-events-none absolute right-4 text-sm text-blue-200/80">
-                    @afirmeplay.com.br
-                  </span>
-                </div>
+                <Input
+                  value={registration}
+                  onChange={(e) => handleRegistrationChange(e.target.value)}
+                  className="h-12 border-none bg-blue-950/60 pl-10 text-white placeholder:text-blue-200/60"
+                  placeholder="usuario ou email"
+                  disabled={loading}
+                  autoComplete="username"
+                />
               </div>
+              <p className="text-xs text-blue-200/70">
+                Use o e-mail completo ou apenas o usuario (@afirmeplay.com.br).
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -267,46 +302,6 @@ export function LoginForm() {
           </form>
         </div>
       </section>
-
-      <div className="fixed bottom-5 right-5 z-[60] w-[calc(100%-2.5rem)] max-w-xs sm:bottom-6 sm:right-6 sm:w-72">
-        <div className="rounded-xl border border-blue-200/25 bg-[#0B2A63]/95 p-3 shadow-2xl backdrop-blur-sm">
-          <Label className="mb-2 block text-xs uppercase tracking-wider text-blue-100">Municipio</Label>
-          <div className="relative">
-            <MapPin className="pointer-events-none absolute left-3 top-3 z-10 h-4 w-4 text-blue-200" />
-            <Select
-              value={selectedSlug || undefined}
-              onValueChange={handleSlugChange}
-              disabled={loadingCities || loading || cities.length === 0}
-            >
-              <SelectTrigger className="h-11 border-none bg-blue-950/70 pl-10 text-white">
-                <SelectValue
-                  placeholder={
-                    loadingCities
-                      ? "Carregando..."
-                      : citiesError
-                        ? "Indisponivel"
-                        : "Selecione o municipio"
-                  }
-                />
-              </SelectTrigger>
-              <SelectContent className="z-[100]">
-                {cities.map((city) => (
-                  <SelectItem key={city.id} value={city.slug}>
-                    {city.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          {citiesError ? (
-            <p className="mt-2 text-xs text-red-300">{citiesError}</p>
-          ) : selectedCity ? (
-            <p className="mt-2 truncate text-xs text-blue-200/90">{selectedCity.name}</p>
-          ) : (
-            <p className="mt-2 text-xs text-blue-200/70">Escolha o municipio para autenticar.</p>
-          )}
-        </div>
-      </div>
     </div>
   );
 }

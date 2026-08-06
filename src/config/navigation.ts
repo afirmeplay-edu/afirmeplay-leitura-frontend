@@ -1,4 +1,4 @@
-import { BookOpen, Gauge, Settings2, type LucideIcon } from "lucide-react";
+import { BookOpen, ClipboardList, Gauge, Settings2, type LucideIcon } from "lucide-react";
 
 export interface AppNavItem {
   href: string;
@@ -21,9 +21,15 @@ export const APP_NAV_ITEMS: AppNavItem[] = [
     icon: BookOpen,
   },
   {
+    href: "/app/revisao-leitura-guiada",
+    label: "Revisao leitura guiada",
+    description: "Alunos que ja realizaram a avaliacao, erros e audio.",
+    icon: ClipboardList,
+  },
+  {
     href: "/app/configuracao-avaliacao",
-    label: "Configuracao avaliacao",
-    description: "Parametros e configuracoes do sistema de leitura.",
+    label: "Configurar avaliacao",
+    description: "Cadastro de listas de palavras e textos de leitura.",
     icon: Settings2,
   },
 ];
