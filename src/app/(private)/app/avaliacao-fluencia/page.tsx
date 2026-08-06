@@ -1,5 +1,5 @@
-import { InDevelopment } from "@/components/layout/in-development";
+import { FluenciaSelecao } from "@/components/fluencia/fluencia-selecao";
 
 export default function AvaliacaoFluenciaPage() {
-  return <InDevelopment title="Avaliacao fluencia" />;
+  return <FluenciaSelecao />;
 }

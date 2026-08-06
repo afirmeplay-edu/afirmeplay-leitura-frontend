@@ -272,7 +272,7 @@ export function LoginForm() {
               </div>
             </div>
 
-            <div className="flex items-center pt-1">
+            <div className="flex items-center justify-between pt-1">
               <div className="flex items-center gap-2">
                 <Checkbox
                   checked={remember}
@@ -284,6 +284,9 @@ export function LoginForm() {
                   Lembrar-me
                 </Label>
               </div>
+              <Link href="/recuperar-senha" className="text-sm text-blue-200 hover:text-white hover:underline">
+                Esqueci minha senha
+              </Link>
             </div>
 
             <Button

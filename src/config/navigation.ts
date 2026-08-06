@@ -1,10 +1,21 @@
 import { BookOpen, ClipboardList, Gauge, Settings2, type LucideIcon } from "lucide-react";
 
-export interface AppNavItem {
+export interface NavChildLink {
   href: string;
   label: string;
-  description: string;
+}
+
+export interface NavLink {
+  href: string;
+  label: string;
+  description?: string;
   icon: LucideIcon;
+  children?: NavChildLink[];
+}
+
+export interface NavCategory {
+  label: string;
+  items: NavLink[];
 }
 
 export const APP_NAV_ITEMS: AppNavItem[] = [

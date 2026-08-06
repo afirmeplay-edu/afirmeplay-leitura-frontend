@@ -9,26 +9,81 @@
   --card-foreground: 222.2 84% 4.9%;
   --popover: 0 0% 100%;
   --popover-foreground: 222.2 84% 4.9%;
-  --primary: 219 79% 53%;
+  --primary: 217 91% 50%;
   --primary-foreground: 210 40% 98%;
   --secondary: 210 40% 96.1%;
   --secondary-foreground: 222.2 47.4% 11.2%;
-  --accent: 210 40% 96.1%;
+  --accent: 214 95% 93%;
   --accent-foreground: 222.2 47.4% 11.2%;
   --muted: 210 40% 96.1%;
   --muted-foreground: 215.4 16.3% 46.9%;
-  --destructive: 0 84.2% 60.2%;
+  --destructive: 0 72.22% 50.59%;
   --destructive-foreground: 210 40% 98%;
   --border: 214.3 31.8% 91.4%;
   --input: 214.3 31.8% 91.4%;
-  --ring: 219 79% 53%;
+  --ring: 217 91% 50%;
   --radius: 0.75rem;
+  --success: 142 76% 36%;
+  --success-foreground: 355 7% 97%;
+  --warning: 38 92% 50%;
+  --warning-foreground: 48 96% 89%;
+  --info: 199 89% 48%;
+  --info-foreground: 210 40% 98%;
 }
 
 * {
   @apply border-border;
 }
 
+html {
+  overflow-x: hidden;
+}
+
 body {
   @apply bg-background text-foreground antialiased;
+  overflow-x: hidden;
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-gradient-to-r from-bluebrand-base to-blue-600 text-white hover:opacity-90;
+  }
+
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(30, 64, 175, 0.25) transparent;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 5px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    border-radius: 9999px;
+    background: rgba(30, 64, 175, 0.25);
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .status-success {
+    @apply border-emerald-200 bg-emerald-100 text-emerald-800;
+  }
+
+  .status-warning {
+    @apply border-amber-200 bg-amber-100 text-amber-800;
+  }
+
+  .status-error {
+    @apply border-red-200 bg-red-100 text-red-800;
+  }
+
+  .status-info {
+    @apply border-blue-200 bg-blue-100 text-blue-800;
+  }
+
+  .sidebar-link {
+    @apply transition-all duration-300 ease-out;
+  }
 }
