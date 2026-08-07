@@ -1,0 +1,37 @@
+services:
+  web:
+    container_name: afirme-ler-dev
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # Embutidas no bundle no build — ajuste para a URL real da API
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:5000}
+        NEXT_PUBLIC_DEBUG_MODE: ${NEXT_PUBLIC_DEBUG_MODE:-false}
+    environment:
+      # Variáveis só de servidor: podem mudar sem rebuild
+      API_DISCOVERY_REMOTE_URL: ${API_DISCOVERY_REMOTE_URL:-https://prod-api.afirmeplay.com.br}
+      CITIES_DATABASE_URL: ${CITIES_DATABASE_URL:-}
+      CITIES_DISCOVERY_REGISTRATION: ${CITIES_DISCOVERY_REGISTRATION:-}
+      CITIES_DISCOVERY_PASSWORD: ${CITIES_DISCOVERY_PASSWORD:-}
+    networks:
+      - afirmeplay_network_dev
+    expose:
+      - "3000"
+
+  nginx:
+    image: nginx:alpine
+    container_name: afirme-ler-nginx-dev
+    ports:
+      - "8002:80"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - afirmeplay_network_dev
+    depends_on:
+      - web
+
+  networks:
+    afirmeplay_network_dev:
+      name: afirmeplay_network_dev
+      external: true
