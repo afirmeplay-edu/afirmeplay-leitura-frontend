@@ -31,7 +31,7 @@ services:
     depends_on:
       - web
 
-  networks:
-    afirmeplay_network_dev:
-      name: afirmeplay_network_dev
-      external: true
+networks:
+  afirmeplay_network_dev:
+    name: afirmeplay_network_dev
+    external: true
