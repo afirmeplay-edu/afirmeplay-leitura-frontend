@@ -18,47 +18,49 @@ jobs:
               run: |
                   VERSION=$(cat VERSION)
                   echo "VERSION=${VERSION}" >> $GITHUB_ENV
+
             - name: Build Images
               run: |
-                docker build -t afirmeplay/afirme-ler:v${{env.VERSION}} .
-                docker build -t afirmeplay/afirme-ler:latest .
-    
+                  docker build -t afirmeplay/afirme-ler:v${{env.VERSION}} .
+                  docker build -t afirmeplay/afirme-ler:latest .
+
     push:
-      runs-on: [self-hosted, vps-afirme]
-      needs: [build]
-      steps:
-        - name: checkout
-          uses: actions/checkout@v4
-        
-        - name: Login Docker Hub
-          uses: docker/login-action@v3
-          with:
-            username: ${{ secrets.DOCKER_REGISTRY_USERNAME }}
-            password: ${{ secrets.DOCKER_REGISTRY_PASSWORD }}
-        - name: Get Version
+        runs-on: [self-hosted, vps-afirme]
+        needs: [build]
+        steps:
+            - name: checkout
+              uses: actions/checkout@v4
+
+            - name: Login Docker Hub
+              uses: docker/login-action@v3
+              with:
+                  username: ${{ secrets.DOCKER_REGISTRY_USERNAME }}
+                  password: ${{ secrets.DOCKER_REGISTRY_PASSWORD }}
+
+            - name: Get Version
               run: |
                   VERSION=$(cat VERSION)
                   echo "VERSION=${VERSION}" >> $GITHUB_ENV
 
-        - name: Push Images
-          run: |
-              docker push afirmeplay/afirme-ler:v${{env.VERSION}}
-              docker push afirmeplay/afirme-ler:latest
-    
-    deploy:
-      runs-on: [self-hosted, vps-afirme]
-      environment: dev
-      needs: [push]
-      steps:
-        - name: checkout
-          uses: actions/checkout@v4
-        
-        - name: Deploy
-          run: |
-            export COMPOSE_PROJECT_NAME=afirme-ler-dev
-            export VERSION=${{cat VERSION}}
-            export NEXT_PUBLIC_API_BASE_URL=${{secrets.NEXT_PUBLIC_API_BASE_URL}}
-            export API_DISCOVERY_REMOTE_URL=${{secrets.API_DISCOVERY_REMOTE_URL}}
+            - name: Push Images
+              run: |
+                  docker push afirmeplay/afirme-ler:v${{env.VERSION}}
+                  docker push afirmeplay/afirme-ler:latest
 
-            docker compose -f docker-compose-dev.yml pull
-            docker compose -f docker-compose-dev.yml up -d
+    deploy:
+        runs-on: [self-hosted, vps-afirme]
+        environment: dev
+        needs: [push]
+        steps:
+            - name: checkout
+              uses: actions/checkout@v4
+
+            - name: Deploy
+              run: |
+                  export COMPOSE_PROJECT_NAME=afirme-ler-dev
+                  export VERSION=${{cat VERSION}}
+                  export NEXT_PUBLIC_API_BASE_URL=${{secrets.NEXT_PUBLIC_API_BASE_URL}}
+                  export API_DISCOVERY_REMOTE_URL=${{secrets.API_DISCOVERY_REMOTE_URL}}
+
+                  docker compose -f docker-compose-dev.yml pull
+                  docker compose -f docker-compose-dev.yml up -d
