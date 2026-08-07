@@ -58,7 +58,7 @@ jobs:
             - name: Deploy
               run: |
                   export COMPOSE_PROJECT_NAME=afirme-ler-dev
-                  export VERSION=${{cat VERSION}}
+                  export VERSION=$(cat VERSION)
                   export NEXT_PUBLIC_API_BASE_URL=${{secrets.NEXT_PUBLIC_API_BASE_URL}}
                   export API_DISCOVERY_REMOTE_URL=${{secrets.API_DISCOVERY_REMOTE_URL}}
 
