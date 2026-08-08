@@ -1,9 +1,33 @@
-import axios from "axios";
+import axios, { type AxiosError } from "axios";
 import {
   getCityApiBaseUrl,
   getCityContextHeaders,
   getDiscoveryBaseUrl,
 } from "@/lib/city-domain";
+
+let handlingUnauthorized = false;
+
+function isLoginRequest(error: AxiosError) {
+  const url = `${error.config?.baseURL ?? ""}${error.config?.url ?? ""}`;
+  return url.includes("/login/");
+}
+
+/** Limpa sessão e redireciona ao login (import dinâmico evita ciclo com o store). */
+async function handleUnauthorized() {
+  if (typeof window === "undefined" || handlingUnauthorized) return;
+  handlingUnauthorized = true;
+
+  try {
+    const { useAuthStore } = await import("@/stores/auth-store");
+    useAuthStore.getState().logout();
+
+    if (!window.location.pathname.startsWith("/login")) {
+      window.location.replace("/login");
+    }
+  } finally {
+    handlingUnauthorized = false;
+  }
+}
 
 export const api = axios.create({
   baseURL: getDiscoveryBaseUrl(),
@@ -42,7 +66,12 @@ api.interceptors.request.use((config) => {
 
 api.interceptors.response.use(
   (response) => response,
-  (error) => Promise.reject(error)
+  (error: AxiosError) => {
+    if (error.response?.status === 401 && !isLoginRequest(error)) {
+      void handleUnauthorized();
+    }
+    return Promise.reject(error);
+  }
 );
 
 export function createCityApi() {

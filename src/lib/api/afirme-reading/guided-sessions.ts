@@ -61,6 +61,14 @@ export async function fetchGuidedAudioObjectUrl(audioUrl: string) {
       ...getCityContextHeaders(),
     },
   });
+  if (res.status === 401) {
+    const { useAuthStore } = await import("@/stores/auth-store");
+    useAuthStore.getState().logout();
+    if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
+      window.location.replace("/login");
+    }
+    throw new Error("Sessao expirada.");
+  }
   if (!res.ok) throw new Error("Falha ao baixar audio.");
   const blob = await res.blob();
   return URL.createObjectURL(blob);

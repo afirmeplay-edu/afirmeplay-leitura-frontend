@@ -6,15 +6,33 @@ import { useAuthStore } from "@/stores/auth-store";
 
 export function HomeRedirect() {
   const router = useRouter();
-  const user = useAuthStore((state) => state.user);
+  const initialized = useAuthStore((state) => state.initialized);
+  const persistUser = useAuthStore((state) => state.persistUser);
 
   useEffect(() => {
-    if (user?.id) {
-      router.replace("/app");
-      return;
+    if (!initialized) return;
+
+    let cancelled = false;
+
+    async function redirect() {
+      const token = useAuthStore.getState().token ?? localStorage.getItem("token");
+      if (!token) {
+        router.replace("/login");
+        return;
+      }
+
+      const ok = await persistUser();
+      if (cancelled) return;
+
+      router.replace(ok ? "/app" : "/login");
     }
-    router.replace("/login");
-  }, [router, user?.id]);
+
+    void redirect();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [initialized, persistUser, router]);
 
   return <div className="min-h-screen bg-background" />;
 }

@@ -22,6 +22,16 @@ export function decodeJwtPayload(token: string): JwtPayload | null {
   }
 }
 
+/**
+ * Verifica expiração pelo claim `exp` (client-side).
+ * Tokens opacos/mock sem `exp` retornam false — a validade fica a cargo da API.
+ */
+export function isJwtExpired(token: string, skewSeconds = 30): boolean {
+  const payload = decodeJwtPayload(token);
+  if (!payload?.exp || typeof payload.exp !== "number") return false;
+  return Date.now() >= payload.exp * 1000 - skewSeconds * 1000;
+}
+
 export function isAdminRole(role: string | null | undefined) {
   return (role ?? "").trim().toLowerCase() === "admin";
 }

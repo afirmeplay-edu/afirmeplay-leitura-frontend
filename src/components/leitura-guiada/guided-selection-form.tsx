@@ -37,6 +37,7 @@ interface GuidedSelectionFormProps {
 
 export function GuidedSelectionForm({ onStart }: GuidedSelectionFormProps) {
   const [cityReady, setCityReady] = useState(false);
+  const [cityKey, setCityKey] = useState("none");
 
   const [schools, setSchools] = useState<School[]>([]);
   const [classes, setClasses] = useState<SchoolClass[]>([]);
@@ -53,8 +54,9 @@ export function GuidedSelectionForm({ onStart }: GuidedSelectionFormProps) {
   const [loadingStudents, setLoadingStudents] = useState(false);
   const [loadingTexts, setLoadingTexts] = useState(false);
 
-  const handleCityReadyChange = useCallback((ready: boolean) => {
+  const handleCityReadyChange = useCallback((ready: boolean, cityId: string | null) => {
     setCityReady(ready);
+    setCityKey(cityId || "none");
     if (!ready) {
       setSchools([]);
       setClasses([]);
@@ -103,7 +105,7 @@ export function GuidedSelectionForm({ onStart }: GuidedSelectionFormProps) {
     setStudents([]);
     void loadSchools();
     void loadTexts();
-  }, [cityReady, loadSchools, loadTexts]);
+  }, [cityReady, cityKey, loadSchools, loadTexts]);
 
   useEffect(() => {
     if (!schoolId || !cityReady) {

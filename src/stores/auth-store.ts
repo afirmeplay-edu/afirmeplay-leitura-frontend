@@ -1,8 +1,9 @@
 "use client";
 
 import { create } from "zustand";
+import axios from "axios";
 import { createCityApi } from "@/lib/api/client";
-import { decodeJwtPayload, isAdminRole, roleUsesJwtCity } from "@/lib/auth/jwt";
+import { decodeJwtPayload, isJwtExpired, roleUsesJwtCity } from "@/lib/auth/jwt";
 import {
   clearCityContext,
   getSelectedCityId,
@@ -104,17 +105,15 @@ function syncCityContext(options: {
     };
   }
 
-  // Admin: loginSlug pode ajudar, mas município de rotas tenant é escolha posterior.
+  // Admin: município de rotas tenant só após escolha explícita no picker.
+  // Não herda city_id do JWT/user — isso dispararia filtros tenant cedo demais.
   if (loginSlug) {
     setCityContext({ slug: loginSlug });
   }
-  if (cityId && !getSelectedCityId()) {
-    setCityContext({ cityId });
-  }
 
   return {
-    selectedCityId: getSelectedCityId() || cityId,
-    selectedSlug: getSelectedCitySlug() || citySlug,
+    selectedCityId: getSelectedCityId(),
+    selectedSlug: getSelectedCitySlug() || (loginSlug ? loginSlug : null),
   };
 }
 
@@ -205,15 +204,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const token = get().token ?? localStorage.getItem("token");
     if (!token) return false;
 
-    const user = get().user ?? parseStorage<User>(localStorage.getItem("user"));
-    const role = user?.role;
-    const slug = get().selectedSlug ?? getSelectedCitySlug() ?? user?.city_slug;
-    const cityId = get().selectedCityId ?? getSelectedCityId() ?? user?.city_id;
-
-    // Admin em rotas tenant precisa de município escolhido; não-admin usa JWT.
-    if (isAdminRole(role) && !slug && !cityId) {
+    if (isJwtExpired(token)) {
+      get().logout();
       return false;
     }
+
+    const user = get().user ?? parseStorage<User>(localStorage.getItem("user"));
+    const slug = get().selectedSlug ?? getSelectedCitySlug() ?? user?.city_slug;
+    const cityId = get().selectedCityId ?? getSelectedCityId() ?? user?.city_id;
 
     try {
       const cityApi = createCityApi();
@@ -223,7 +221,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       const { data } = await cityApi.get("/persist-user/");
       const persistedUser = enrichUserFromToken((data?.user ?? data) as User, token);
-      if (!persistedUser?.id) return false;
+      if (!persistedUser?.id) {
+        get().logout();
+        return false;
+      }
 
       const ctx = syncCityContext({
         token,
@@ -240,8 +241,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         initialized: true,
       });
       return true;
-    } catch {
-      get().logout();
+    } catch (error) {
+      // Só encerra sessão em não autorizado; erros de rede/5xx não disparam logout.
+      const status = axios.isAxiosError(error) ? error.response?.status : undefined;
+      if (status === 401 || status === 403) {
+        get().logout();
+      }
       return false;
     }
   },

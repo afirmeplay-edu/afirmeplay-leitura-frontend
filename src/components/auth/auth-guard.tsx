@@ -1,17 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/stores/auth-store";
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const user = useAuthStore((state) => state.user);
   const initialized = useAuthStore((state) => state.initialized);
   const persistUser = useAuthStore((state) => state.persistUser);
+  const logout = useAuthStore((state) => state.logout);
   const [checking, setChecking] = useState(true);
-
-  const isAuthenticated = useMemo(() => Boolean(user?.id), [user?.id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -19,8 +17,11 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     async function validate() {
       if (!initialized) return;
 
-      if (isAuthenticated) {
-        if (!cancelled) setChecking(false);
+      const token = useAuthStore.getState().token ?? localStorage.getItem("token");
+      if (!token) {
+        // Evita loop: user hidratado sem token faria /login → /app → /login
+        logout();
+        router.replace("/login");
         return;
       }
 
@@ -28,9 +29,14 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       if (cancelled) return;
 
       if (!ok) {
-        router.replace("/login");
-        return;
+        const { token: currentToken, user } = useAuthStore.getState();
+        // 401 já fez logout. Em erro de rede, mantém sessão local se ainda houver.
+        if (!currentToken || !user?.id) {
+          router.replace("/login");
+          return;
+        }
       }
+
       setChecking(false);
     }
 
@@ -39,7 +45,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [initialized, isAuthenticated, persistUser, router]);
+  }, [initialized, logout, persistUser, router]);
 
   if (checking) {
     return <div className="min-h-screen bg-background" />;

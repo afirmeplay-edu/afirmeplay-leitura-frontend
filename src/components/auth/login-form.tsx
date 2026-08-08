@@ -29,17 +29,34 @@ export function LoginForm() {
 
   const login = useAuthStore((state) => state.login);
   const loading = useAuthStore((state) => state.loading);
-  const user = useAuthStore((state) => state.user);
+  const initialized = useAuthStore((state) => state.initialized);
+  const persistUser = useAuthStore((state) => state.persistUser);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
+  // Só redireciona se a sessão for válida no backend — não confiar só no user do localStorage.
   useEffect(() => {
-    if (user?.id) {
+    if (!initialized) return;
+
+    let cancelled = false;
+
+    async function resumeSession() {
+      const token = useAuthStore.getState().token ?? localStorage.getItem("token");
+      if (!token) return;
+
+      const ok = await persistUser();
+      if (cancelled || !ok) return;
       router.replace("/app");
     }
-  }, [router, user?.id]);
+
+    void resumeSession();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [initialized, persistUser, router]);
 
   useEffect(() => {
     let cancelled = false;
