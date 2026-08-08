@@ -1,6 +1,7 @@
 services:
   web:
     container_name: afirme-ler-dev
+    image: afirmeplay/afirme-ler:v${VERSION}
     build:
       context: .
       dockerfile: Dockerfile
