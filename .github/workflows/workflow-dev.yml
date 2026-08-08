@@ -9,6 +9,8 @@ on:
 jobs:
     build:
         runs-on: [self-hosted, vps-afirme]
+        # Mesmo environment do deploy: secrets como NEXT_PUBLIC_API_BASE_URL
+        environment: dev
 
         steps:
             - name: Checkout
@@ -21,8 +23,12 @@ jobs:
 
             - name: Build Images
               run: |
-                  docker build -t afirmeplay/afirme-ler:v${{env.VERSION}} .
-                  docker build -t afirmeplay/afirme-ler:latest .
+                  docker build \
+                    --build-arg NEXT_PUBLIC_API_BASE_URL=${{ secrets.NEXT_PUBLIC_API_BASE_URL }} \
+                    --build-arg NEXT_PUBLIC_DEBUG_MODE=false \
+                    -t afirmeplay/afirme-ler:v${{ env.VERSION }} \
+                    -t afirmeplay/afirme-ler:latest \
+                    .
 
     push:
         runs-on: [self-hosted, vps-afirme]
@@ -59,8 +65,8 @@ jobs:
               run: |
                   export COMPOSE_PROJECT_NAME=afirme-ler-dev
                   export VERSION=$(cat VERSION)
-                  export NEXT_PUBLIC_API_BASE_URL=${{secrets.NEXT_PUBLIC_API_BASE_URL}}
-                  export API_DISCOVERY_REMOTE_URL=${{secrets.API_DISCOVERY_REMOTE_URL}}
+                  export NEXT_PUBLIC_API_BASE_URL=${{ secrets.NEXT_PUBLIC_API_BASE_URL }}
+                  export API_DISCOVERY_REMOTE_URL=${{ secrets.API_DISCOVERY_REMOTE_URL }}
 
                   docker compose -f docker-compose-dev.yml pull
-                  docker compose -f docker-compose-dev.yml up -d
+                  docker compose -f docker-compose-dev.yml up -d --force-recreate

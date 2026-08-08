@@ -10,6 +10,9 @@ services:
         NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:5000}
         NEXT_PUBLIC_DEBUG_MODE: ${NEXT_PUBLIC_DEBUG_MODE:-false}
     environment:
+      # NEXT_PUBLIC_* já vai no build; repetir no runtime cobre process.env no servidor
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:5000}
+      NEXT_PUBLIC_DEBUG_MODE: ${NEXT_PUBLIC_DEBUG_MODE:-false}
       # Variáveis só de servidor: podem mudar sem rebuild
       API_DISCOVERY_REMOTE_URL: ${API_DISCOVERY_REMOTE_URL:-https://prod-api.afirmeplay.com.br}
       CITIES_DATABASE_URL: ${CITIES_DATABASE_URL:-}

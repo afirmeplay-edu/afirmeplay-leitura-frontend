@@ -34,6 +34,12 @@ RUN npm run build
 FROM node:20-alpine AS runner
 WORKDIR /app
 
+# Redeclara ARGs: disponíveis também em process.env no runtime (além do bundle)
+ARG NEXT_PUBLIC_API_BASE_URL=http://localhost:5000
+ARG NEXT_PUBLIC_DEBUG_MODE=false
+ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
+ENV NEXT_PUBLIC_DEBUG_MODE=$NEXT_PUBLIC_DEBUG_MODE
+
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
