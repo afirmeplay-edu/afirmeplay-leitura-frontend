@@ -1,112 +1,260 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Gauge, Info } from "lucide-react";
+import { Gauge, Info, Loader2 } from "lucide-react";
 import Link from "next/link";
+import { toast } from "sonner";
+import {
+  listEvaluations,
+  listReadingSessions,
+  type ReadingEvaluation,
+  type ReadingEvaluationSession,
+} from "@/lib/api/afirme-reading";
+import { getApiErrorMessage } from "@/lib/api/errors";
+import { AdminCityPicker } from "@/components/auth/admin-city-picker";
 import { PageHeader } from "@/components/layout/page-header";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { getMockSchools, getMockClasses, getMockStudents, getMockTexts } from "@/lib/mock";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+function sessionLabel(session: ReadingEvaluationSession) {
+  const name = session.studentName ?? session.studentId;
+  return `${name} · ${session.status}`;
+}
 
 export function FluenciaSelecao() {
   const router = useRouter();
-  const [schoolId, setSchoolId] = useState("");
-  const [classId, setClassId] = useState("");
-  const [studentId, setStudentId] = useState("");
-  const [textId, setTextId] = useState("");
+  const [cityReady, setCityReady] = useState(false);
+  const [evaluationId, setEvaluationId] = useState("");
+  const [sessionId, setSessionId] = useState("");
 
-  const schools = getMockSchools();
-  const classes = useMemo(() => getMockClasses(schoolId || undefined), [schoolId]);
-  const students = useMemo(
-    () => getMockStudents({ schoolId: schoolId || undefined, classId: classId || undefined }),
-    [schoolId, classId]
+  const [evaluations, setEvaluations] = useState<ReadingEvaluation[]>([]);
+  const [sessions, setSessions] = useState<ReadingEvaluationSession[]>([]);
+  const [loadingEvaluations, setLoadingEvaluations] = useState(false);
+  const [loadingSessions, setLoadingSessions] = useState(false);
+
+  const selectedEvaluation = useMemo(
+    () => evaluations.find((item) => item.id === evaluationId) ?? null,
+    [evaluations, evaluationId]
   );
-  const texts = getMockTexts();
-  const selectedStudent = students.find((s) => s.id === studentId);
+  const selectedSession = useMemo(
+    () => sessions.find((item) => item.id === sessionId) ?? null,
+    [sessions, sessionId]
+  );
 
-  const canStart = schoolId && classId && studentId && textId;
+  const applicableSessions = useMemo(
+    () => sessions.filter((item) => item.status === "pendente" || item.status === "em_andamento"),
+    [sessions]
+  );
+
+  const handleCityReadyChange = useCallback((ready: boolean) => {
+    setCityReady(ready);
+    if (!ready) {
+      setEvaluations([]);
+      setSessions([]);
+      setEvaluationId("");
+      setSessionId("");
+    }
+  }, []);
+
+  const loadEvaluations = useCallback(async () => {
+    setLoadingEvaluations(true);
+    try {
+      const data = await listEvaluations();
+      const filtered = data.filter(
+        (item) =>
+          (item.assessmentType === "fluencia" || item.assessmentType === "completa") &&
+          (item.status === "agendada" || item.status === "em_andamento")
+      );
+      setEvaluations(filtered);
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, "Nao foi possivel carregar as avaliacoes."));
+      setEvaluations([]);
+    } finally {
+      setLoadingEvaluations(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!cityReady) return;
+    setEvaluationId("");
+    setSessionId("");
+    setSessions([]);
+    void loadEvaluations();
+  }, [cityReady, loadEvaluations]);
+
+  useEffect(() => {
+    if (!cityReady || !evaluationId) {
+      setSessions([]);
+      setSessionId("");
+      return;
+    }
+
+    let cancelled = false;
+    async function load() {
+      setLoadingSessions(true);
+      setSessionId("");
+      try {
+        const data = await listReadingSessions(evaluationId);
+        if (!cancelled) setSessions(data);
+      } catch (error) {
+        if (!cancelled) {
+          toast.error(getApiErrorMessage(error, "Nao foi possivel carregar as sessoes."));
+          setSessions([]);
+        }
+      } finally {
+        if (!cancelled) setLoadingSessions(false);
+      }
+    }
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [cityReady, evaluationId]);
+
+  const canStart = Boolean(
+    cityReady &&
+      evaluationId &&
+      sessionId &&
+      selectedEvaluation?.readingTextId &&
+      selectedSession?.studentId
+  );
+
+  function handleStart() {
+    if (!selectedEvaluation || !selectedSession) {
+      toast.error("Selecione uma avaliacao e uma sessao de aluno.");
+      return;
+    }
+    const params = new URLSearchParams({
+      evaluationId: selectedEvaluation.id,
+      sessionId: selectedSession.id,
+      texto: selectedEvaluation.readingTextId,
+      aluno: selectedSession.studentId,
+      assessmentType: selectedEvaluation.assessmentType,
+    });
+    router.push(`/app/avaliacao-fluencia/aplicar?${params.toString()}`);
+  }
 
   return (
     <div className="space-y-6 pb-8">
       <PageHeader
         eyebrow="Compromisso Crianca Alfabetizada · ICA"
         title="Avaliacao de Fluencia Leitora"
-        description="Selecione escola, turma, estudante e texto narrativo para iniciar a aplicacao."
+        description="Selecione a avaliacao aplicada e a sessao do estudante para iniciar."
         icon={Gauge}
       />
 
       <Alert className="border-l-4 border-l-bluebrand-base">
         <Info className="h-4 w-4 text-bluebrand-base" />
         <AlertDescription>
-          Cada lista tem 60 segundos. Apos Q1 e Q2 ha transicao de 3 segundos. O resultado e classificado pelo Leiturometro (ICA).
+          As sessoes sao criadas no apply da avaliacao. Escolha uma avaliacao agendada/em andamento e o
+          aluno pendente correspondente.
         </AlertDescription>
       </Alert>
+
+      <AdminCityPicker onCityReadyChange={handleCityReadyChange} />
 
       <Card>
         <CardContent className="grid gap-6 pt-6 md:grid-cols-2">
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>Escola</Label>
-              <Select value={schoolId} onValueChange={(v) => { setSchoolId(v); setClassId(""); setStudentId(""); }}>
-                <SelectTrigger><SelectValue placeholder="Selecione a escola" /></SelectTrigger>
+              <Label>Avaliacao</Label>
+              <Select
+                value={evaluationId || undefined}
+                onValueChange={setEvaluationId}
+                disabled={!cityReady || loadingEvaluations}
+              >
+                <SelectTrigger>
+                  <SelectValue
+                    placeholder={
+                      !cityReady
+                        ? "Selecione o municipio primeiro"
+                        : loadingEvaluations
+                          ? "Carregando avaliacoes..."
+                          : "Selecione a avaliacao"
+                    }
+                  />
+                </SelectTrigger>
                 <SelectContent>
-                  {schools.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                  {evaluations.map((item) => (
+                    <SelectItem key={item.id} value={item.id}>
+                      {item.title} · {item.status}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Turma</Label>
-              <Select value={classId} onValueChange={(v) => { setClassId(v); setStudentId(""); }} disabled={!schoolId}>
-                <SelectTrigger><SelectValue placeholder="Selecione a turma" /></SelectTrigger>
-                <SelectContent>
-                  {classes.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Estudante</Label>
-              <Select value={studentId} onValueChange={setStudentId} disabled={!classId}>
-                <SelectTrigger><SelectValue placeholder="Selecione o estudante" /></SelectTrigger>
-                <SelectContent>
-                  {students.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              {loadingEvaluations ? (
+                <p className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Carregando avaliacoes...
+                </p>
+              ) : null}
             </div>
           </div>
+
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>Texto narrativo (Q3)</Label>
-              <Select value={textId} onValueChange={setTextId}>
-                <SelectTrigger><SelectValue placeholder="Selecione o texto" /></SelectTrigger>
+              <Label>Sessao / estudante</Label>
+              <Select
+                value={sessionId || undefined}
+                onValueChange={setSessionId}
+                disabled={!evaluationId || loadingSessions}
+              >
+                <SelectTrigger>
+                  <SelectValue
+                    placeholder={
+                      !evaluationId
+                        ? "Selecione a avaliacao primeiro"
+                        : loadingSessions
+                          ? "Carregando sessoes..."
+                          : "Selecione o estudante"
+                    }
+                  />
+                </SelectTrigger>
                 <SelectContent>
-                  {texts.map((t) => <SelectItem key={t.id} value={t.id}>{t.title} ({t.grade}º ano)</SelectItem>)}
+                  {applicableSessions.map((item) => (
+                    <SelectItem key={item.id} value={item.id}>
+                      {sessionLabel(item)}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
+              {loadingSessions ? (
+                <p className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Carregando sessoes...
+                </p>
+              ) : null}
             </div>
-            {selectedStudent && (
+
+            {selectedSession ? (
               <div className="rounded-lg border bg-muted/30 p-4">
-                <p className="text-sm font-medium">Resumo do aluno</p>
-                <p className="text-sm text-muted-foreground">{selectedStudent.name}</p>
+                <p className="text-sm font-medium">Sessao selecionada</p>
+                <p className="text-sm text-muted-foreground">
+                  {selectedSession.studentName ?? selectedSession.studentId} · {selectedSession.status}
+                </p>
+                {selectedEvaluation ? (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Texto da avaliacao: {selectedEvaluation.readingTextId}
+                  </p>
+                ) : null}
               </div>
-            )}
+            ) : null}
           </div>
         </CardContent>
       </Card>
 
       <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:gap-3">
-        <Button
-          className="w-full sm:w-auto"
-          disabled={!canStart}
-          onClick={() =>
-            router.push(
-              `/app/avaliacao-fluencia/aplicar?aluno=${studentId}&texto=${textId}&escola=${schoolId}&turma=${classId}`
-            )
-          }
-        >
+        <Button className="w-full sm:w-auto" disabled={!canStart} onClick={handleStart}>
           Iniciar Avaliacao de Fluencia
         </Button>
         <Button variant="outline" asChild className="w-full sm:w-auto">

@@ -23,6 +23,18 @@ export {
   fetchGuidedAudioObjectUrl,
   resolveGuidedSessionAudioUrl,
 } from "@/lib/api/afirme-reading/guided-sessions";
+export {
+  listEvaluations,
+  getEvaluation,
+  listReadingSessions,
+} from "@/lib/api/afirme-reading/evaluations";
+export {
+  startReadingSession,
+  saveFluency,
+  saveComprehensionAnswers,
+  getReport,
+  submitSession,
+} from "@/lib/api/afirme-reading/sessions";
 export type {
   WordList,
   WordListKind,
@@ -44,4 +56,17 @@ export type {
   CreateGuidedSessionPayload,
   ListGuidedSessionsParams,
   ApiErrorBody,
+  ReadingSessionStatus,
+  FluencyPartPayload,
+  SaveFluencyPayload,
+  SaveComprehensionAnswerItem,
+  SaveComprehensionAnswersPayload,
+  ReadingComprehensionAnswer,
+  ReadingEvaluationSession,
+  FluencyPartReport,
+  FluencySessionReport,
+  ReadingEvaluation,
+  ReadingEvaluationStatus,
+  ReadingAssessmentType,
+  ListReadingEvaluationsParams,
 } from "@/lib/api/afirme-reading/types";
