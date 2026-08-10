@@ -1,11 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { fetchAvailableCities, type AvailableCity } from "@/lib/api/cities";
 import { listCatalogCities, type CatalogCity } from "@/lib/api/catalog-cities";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import { isAdminRole, roleUsesJwtCity } from "@/lib/auth/jwt";
-import { getSelectedCityId, setCityContext } from "@/lib/city-domain";
+import {
+  getSelectedCityId,
+  getSelectedCitySlug,
+  setCityContext,
+} from "@/lib/city-domain";
 import { useAuthStore } from "@/stores/auth-store";
 import { Label } from "@/components/ui/label";
 import {
@@ -21,14 +26,28 @@ interface AdminCityPickerProps {
   onCityReadyChange?: (ready: boolean, cityId: string | null) => void;
 }
 
+function resolveSlugForCity(
+  cityId: string,
+  catalog: CatalogCity[],
+  discovery: AvailableCity[]
+) {
+  const fromCatalog = catalog.find((city) => city.id === cityId)?.slug;
+  if (fromCatalog) return fromCatalog;
+  const fromDiscovery = discovery.find((city) => city.id === cityId)?.slug;
+  if (fromDiscovery) return fromDiscovery;
+  return getSelectedCitySlug();
+}
+
 export function AdminCityPicker({ onCityReadyChange }: AdminCityPickerProps) {
   const user = useAuthStore((state) => state.user);
   const selectedCityId = useAuthStore((state) => state.selectedCityId);
   const setAdminCityId = useAuthStore((state) => state.setAdminCityId);
+  const setAdminCityContext = useAuthStore((state) => state.setAdminCityContext);
   const isAdmin = isAdminRole(user?.role);
   const usesJwtCity = roleUsesJwtCity(user?.role);
 
   const [cities, setCities] = useState<CatalogCity[]>([]);
+  const [discoveryCities, setDiscoveryCities] = useState<AvailableCity[]>([]);
   const [loading, setLoading] = useState(false);
 
   const notify = useCallback(
@@ -38,46 +57,32 @@ export function AdminCityPicker({ onCityReadyChange }: AdminCityPickerProps) {
     [onCityReadyChange]
   );
 
+  const slugById = useMemo(() => {
+    const map = new Map<string, string>();
+    discoveryCities.forEach((city) => {
+      if (city.id && city.slug) map.set(city.id, city.slug);
+    });
+    cities.forEach((city) => {
+      if (city.id && city.slug) map.set(city.id, city.slug);
+    });
+    return map;
+  }, [cities, discoveryCities]);
+
+  // Não-admin: município do JWT / user.
   useEffect(() => {
-    if (usesJwtCity) {
-      const cityId = selectedCityId || user?.city_id || getSelectedCityId() || null;
-      if (cityId) {
-        setCityContext({
-          cityId,
-          slug: user?.city_slug ?? undefined,
-        });
-        if (cityId !== selectedCityId) {
-          setAdminCityId(cityId);
-        }
-      }
-      notify(Boolean(cityId), cityId);
-      return;
-    }
+    if (isAdmin) return;
 
-    if (!isAdmin) {
-      notify(Boolean(selectedCityId || user?.city_id), selectedCityId || user?.city_id || null);
-      return;
-    }
-
-    let cancelled = false;
-    async function load() {
-      setLoading(true);
-      try {
-        const data = await listCatalogCities();
-        if (cancelled) return;
-        setCities(data);
-      } catch (error) {
-        if (!cancelled) {
-          toast.error(getApiErrorMessage(error, "Nao foi possivel carregar os municipios."));
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
+    const cityId = selectedCityId || user?.city_id || getSelectedCityId() || null;
+    if (usesJwtCity && cityId) {
+      setCityContext({
+        cityId,
+        slug: user?.city_slug ?? getSelectedCitySlug() ?? undefined,
+      });
+      if (cityId !== selectedCityId) {
+        setAdminCityId(cityId);
       }
     }
-    void load();
-    return () => {
-      cancelled = true;
-    };
+    notify(Boolean(cityId), cityId);
   }, [
     isAdmin,
     notify,
@@ -88,10 +93,78 @@ export function AdminCityPicker({ onCityReadyChange }: AdminCityPickerProps) {
     usesJwtCity,
   ]);
 
+  // Admin: carrega catálogo + discovery e herda município do login (uma vez).
   useEffect(() => {
-    if (isAdmin) {
-      notify(Boolean(selectedCityId), selectedCityId);
+    if (!isAdmin) return;
+
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      try {
+        const [catalog, discovery] = await Promise.all([
+          listCatalogCities(),
+          fetchAvailableCities().catch(() => [] as AvailableCity[]),
+        ]);
+        if (cancelled) return;
+
+        setCities(catalog);
+        setDiscoveryCities(discovery);
+
+        const store = useAuthStore.getState();
+        const storedId = store.selectedCityId || getSelectedCityId();
+        const storedSlug = store.selectedSlug || getSelectedCitySlug();
+
+        const discoveryMatch =
+          discovery.find((city) => city.id === storedId) ||
+          discovery.find((city) => city.slug === storedSlug) ||
+          null;
+
+        // Prefer id do catálogo (picker); resolve via id, slug ou nome do discovery.
+        let nextId =
+          (storedId && catalog.some((city) => city.id === storedId) ? storedId : null) ||
+          (storedSlug
+            ? catalog.find((city) => city.slug === storedSlug)?.id || null
+            : null) ||
+          (discoveryMatch
+            ? catalog.find(
+                (city) =>
+                  city.id === discoveryMatch.id ||
+                  city.slug === discoveryMatch.slug ||
+                  city.name.trim().toLowerCase() === discoveryMatch.name.trim().toLowerCase()
+              )?.id || null
+            : null);
+
+        if (nextId) {
+          const slug =
+            resolveSlugForCity(nextId, catalog, discovery) ||
+            discoveryMatch?.slug ||
+            storedSlug ||
+            null;
+          setAdminCityContext({ cityId: nextId, slug });
+          notify(true, nextId);
+          return;
+        }
+
+        notify(false, null);
+      } catch (error) {
+        if (!cancelled) {
+          toast.error(getApiErrorMessage(error, "Nao foi possivel carregar os municipios."));
+          notify(false, null);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     }
+
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [isAdmin, notify, setAdminCityContext]);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    notify(Boolean(selectedCityId), selectedCityId);
   }, [isAdmin, notify, selectedCityId]);
 
   if (!isAdmin) {
@@ -103,7 +176,10 @@ export function AdminCityPicker({ onCityReadyChange }: AdminCityPickerProps) {
       <Label>Municipio</Label>
       <Select
         value={selectedCityId || undefined}
-        onValueChange={(value) => setAdminCityId(value)}
+        onValueChange={(value) => {
+          const slug = slugById.get(value) || getSelectedCitySlug();
+          setAdminCityContext({ cityId: value, slug });
+        }}
         disabled={loading}
       >
         <SelectTrigger>
@@ -121,7 +197,7 @@ export function AdminCityPicker({ onCityReadyChange }: AdminCityPickerProps) {
         </SelectContent>
       </Select>
       <p className="text-xs text-muted-foreground">
-        Admin precisa escolher o municipio (X-City-ID / X-City-Slug) antes das rotas tenant.
+        Contexto do municipio (X-City-ID / X-City-Slug) usado nas rotas tenant.
       </p>
     </div>
   );

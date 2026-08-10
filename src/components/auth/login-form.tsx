@@ -8,6 +8,7 @@ import Image from "next/image";
 import Link from "next/link";
 import axios from "axios";
 import { fetchAvailableCities, type AvailableCity } from "@/lib/api/cities";
+import { setCityContext } from "@/lib/city-domain";
 import { useAuthStore } from "@/stores/auth-store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -77,9 +78,13 @@ export function LoginForm() {
         setCities(data);
 
         if (preselected && data.some((city) => city.slug === preselected)) {
+          const city = data.find((item) => item.slug === preselected);
           setSelectedSlug(preselected);
+          setCityContext({ slug: preselected, cityId: city?.id ?? null });
         } else if (data.length === 1) {
-          setSelectedSlug(data[0].slug);
+          const city = data[0];
+          setSelectedSlug(city.slug);
+          setCityContext({ slug: city.slug, cityId: city.id });
         } else if (data.length === 0) {
           setCitiesError("Nenhum municipio disponivel no momento.");
         }
@@ -115,6 +120,12 @@ export function LoginForm() {
       toast.error("Preencha usuario e senha.");
       return;
     }
+
+    const selectedCity = cities.find((city) => city.slug === selectedSlug);
+    setCityContext({
+      slug: selectedSlug,
+      cityId: selectedCity?.id ?? null,
+    });
 
     const raw = registration.trim();
     const username = raw.includes("@") ? raw.split("@")[0].trim() : raw;
@@ -167,11 +178,11 @@ export function LoginForm() {
 
   function handleSlugChange(slug: string) {
     setSelectedSlug(slug);
-    localStorage.setItem("selected_slug", slug);
     const city = cities.find((item) => item.slug === slug);
-    if (city?.id) {
-      localStorage.setItem("selected_city_id", city.id);
-    }
+    setCityContext({
+      slug,
+      cityId: city?.id ?? null,
+    });
   }
 
   function handleRegistrationChange(value: string) {

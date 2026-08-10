@@ -4,6 +4,7 @@ export interface CatalogCity {
   id: string;
   name: string;
   state: string | null;
+  slug?: string | null;
   created_at?: string | null;
 }
 
@@ -22,6 +23,7 @@ function unwrapCities(data: unknown): CatalogCity[] {
       id: String(row.id),
       name: String(row.name ?? "Municipio"),
       state: typeof row.state === "string" ? row.state : null,
+      slug: typeof row.slug === "string" ? row.slug.trim().toLowerCase() : null,
       created_at: typeof row.created_at === "string" ? row.created_at : null,
     };
   });

@@ -41,10 +41,32 @@ export async function deleteGuidedSession(id: string) {
 /** Converte audioUrl absoluto do backend para path via proxy Next `/api`. */
 export function toProxiedAudioUrl(audioUrl: string) {
   try {
-    if (audioUrl.startsWith("/api/")) return audioUrl;
-    if (audioUrl.startsWith("/")) return `/api${audioUrl}`;
-    const pathname = new URL(audioUrl).pathname;
-    return `/api${pathname}`;
+    const value = audioUrl.trim();
+    if (!value) return value;
+    if (value.startsWith("/api/")) return value;
+    if (value.startsWith("/")) return `/api${value}`;
+
+    // URL absoluta com esquema.
+    if (/^https?:\/\//i.test(value)) {
+      return `/api${new URL(value).pathname}`;
+    }
+
+    // host:porta/path sem esquema (ex.: localhost:5000/afirme-reading/...).
+    // new URL("localhost:5000/...") trata "localhost" como protocolo — forçamos http://.
+    try {
+      const pathname = new URL(`http://${value}`).pathname;
+      if (pathname && pathname !== "/") return `/api${pathname}`;
+    } catch {
+      // fall through
+    }
+
+    const slash = value.indexOf("/");
+    if (slash >= 0) {
+      const path = value.slice(slash);
+      if (path.startsWith("/")) return `/api${path}`;
+    }
+
+    return value;
   } catch {
     return audioUrl;
   }
@@ -74,9 +96,10 @@ export async function fetchGuidedAudioObjectUrl(audioUrl: string) {
   return URL.createObjectURL(blob);
 }
 
-/** Resolve URL de áudio da sessão (campo audioUrl ou path padrão por id). */
+/** Resolve URL de áudio da sessão (path canônico por id; evita audioUrl com host malformado). */
 export function resolveGuidedSessionAudioUrl(session: Pick<GuidedSession, "id" | "audioUrl" | "hasAudio">) {
-  if (session.audioUrl) return session.audioUrl;
-  if (session.hasAudio) return `/afirme-reading/guided-sessions/${session.id}/audio`;
+  if (session.hasAudio || session.audioUrl) {
+    return `/afirme-reading/guided-sessions/${session.id}/audio`;
+  }
   return null;
 }

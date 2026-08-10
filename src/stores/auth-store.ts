@@ -73,14 +73,15 @@ function enrichUserFromToken(user: User, token: string): User {
 /**
  * Sincroniza contexto local com JWT/user.
  * Não-admin: município vem do token/user.
- * Admin: mantém escolha manual (se houver).
+ * Admin: usa município do login / localStorage (não herda city_id do JWT).
  */
 function syncCityContext(options: {
   token: string;
   user: User;
   loginSlug?: string | null;
+  loginCityId?: string | null;
 }) {
-  const { token, user, loginSlug } = options;
+  const { token, user, loginSlug, loginCityId } = options;
   const payload = decodeJwtPayload(token);
   const role = user.role || payload?.role || "";
 
@@ -105,15 +106,19 @@ function syncCityContext(options: {
     };
   }
 
-  // Admin: município de rotas tenant só após escolha explícita no picker.
-  // Não herda city_id do JWT/user — isso dispararia filtros tenant cedo demais.
-  if (loginSlug) {
-    setCityContext({ slug: loginSlug });
+  // Admin: contexto tenant = escolha do login (ou picker), persistida no localStorage.
+  const adminCityId = loginCityId || getSelectedCityId();
+  const adminSlug = loginSlug || getSelectedCitySlug();
+  if (adminCityId || adminSlug) {
+    setCityContext({
+      cityId: adminCityId,
+      slug: adminSlug,
+    });
   }
 
   return {
     selectedCityId: getSelectedCityId(),
-    selectedSlug: getSelectedCitySlug() || (loginSlug ? loginSlug : null),
+    selectedSlug: getSelectedCitySlug(),
   };
 }
 
@@ -156,6 +161,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const cityApi = createCityApi();
       const normalizedSlug = slug?.trim() ? slug.trim().toLowerCase() : null;
+      const loginCityId = getSelectedCityId();
 
       const body: {
         registration: string;
@@ -169,8 +175,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         body.citySlug = normalizedSlug;
       }
 
+      const headers: Record<string, string> = {};
+      if (normalizedSlug) headers["X-City-Slug"] = normalizedSlug;
+      if (loginCityId) headers["X-City-ID"] = loginCityId;
+
       const { data } = await cityApi.post("/login/", body, {
-        headers: normalizedSlug ? { "X-City-Slug": normalizedSlug } : undefined,
+        headers: Object.keys(headers).length ? headers : undefined,
       });
 
       const token = data?.token as string;
@@ -184,6 +194,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         token,
         user: enrichedUser,
         loginSlug: normalizedSlug || enrichedUser.city_slug,
+        loginCityId,
       });
 
       localStorage.setItem("token", token);
@@ -230,6 +241,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         token,
         user: persistedUser,
         loginSlug: slug,
+        loginCityId: cityId,
       });
 
       localStorage.setItem("user", JSON.stringify(persistedUser));
@@ -257,7 +269,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   setAdminCityContext: ({ cityId, slug }) => {
-    setCityContext({ cityId, slug: slug ?? undefined });
+    setCityContext({ cityId, slug: slug ?? null });
     set({
       selectedCityId: cityId,
       selectedSlug: slug ?? getSelectedCitySlug(),
