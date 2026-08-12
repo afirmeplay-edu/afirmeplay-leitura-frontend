@@ -151,7 +151,7 @@ export function hypothesisMatchesExpected(
   return best;
 }
 
-export function computeRms(analyser: AnalyserNode, buffer: Uint8Array) {
+export function computeRms(analyser: AnalyserNode, buffer: Uint8Array<ArrayBuffer>) {
   analyser.getByteTimeDomainData(buffer);
   let sum = 0;
   for (let i = 0; i < buffer.length; i += 1) {

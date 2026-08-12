@@ -180,7 +180,6 @@ export function WordListFluencyStep({
   const [result, setResult] = useState<FluencyListPartResult | null>(null);
   const [transcript, setTranscript] = useState("");
   const [motivo, setMotivo] = useState<NotReadReasonValue>("nao_se_aplica");
-  const [sttUsed, setSttUsed] = useState(false);
   const [micLevel, setMicLevel] = useState(0);
   const [hearingSpeech, setHearingSpeech] = useState(false);
   const [voiceThresholdUi, setVoiceThresholdUi] = useState(RMS_SPEECH_THRESHOLD_FALLBACK);
@@ -310,7 +309,6 @@ export function WordListFluencyStep({
     setResult(null);
     setTranscript("");
     setMotivo("nao_se_aplica");
-    setSttUsed(false);
     sttUsedRef.current = false;
     setSttStatus("");
     setLiveHeard("");
@@ -549,7 +547,6 @@ export function WordListFluencyStep({
     }
 
     sttUsedRef.current = true;
-    setSttUsed(true);
     setSttStatus(isFinal ? "hipótese final" : "ouvindo…");
   }
 
@@ -675,7 +672,6 @@ export function WordListFluencyStep({
     try {
       recognition.start();
       sttUsedRef.current = true;
-      setSttUsed(true);
       setSttStatus("reconhecimento ativo");
       pushSttLog("info", "STT iniciado na lista (lang=pt-BR).");
     } catch (error) {

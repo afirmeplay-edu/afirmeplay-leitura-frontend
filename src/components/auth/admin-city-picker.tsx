@@ -120,7 +120,7 @@ export function AdminCityPicker({ onCityReadyChange }: AdminCityPickerProps) {
           null;
 
         // Prefer id do catálogo (picker); resolve via id, slug ou nome do discovery.
-        let nextId =
+        const nextId =
           (storedId && catalog.some((city) => city.id === storedId) ? storedId : null) ||
           (storedSlug
             ? catalog.find((city) => city.slug === storedSlug)?.id || null
