@@ -5,16 +5,18 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { AlertTriangle, Gauge, Loader2, Target } from "lucide-react";
 import { toast } from "sonner";
 import {
+  getFluencySessionReport,
   getReadingText,
-  getReport,
+  getWordList,
   listWordLists,
-  saveComprehensionAnswers,
-  saveFluency,
-  startReadingSession,
-  submitSession,
+  saveFluencyComprehensionAnswers,
+  saveFluencySessionPart,
+  submitFluencySession,
+  uploadFluencySessionAudio,
+  type FluencyListPartPayload,
   type FluencySessionReport,
+  type FluencyTextPartPayload,
   type ReadingText,
-  type SaveFluencyPayload,
   type WordList,
 } from "@/lib/api/afirme-reading";
 import { getApiErrorMessage } from "@/lib/api/errors";
@@ -37,13 +39,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 
 const STEPS = [
-  "Capa",
+  "Apresentação",
   "Microfone",
   "Q1 Palavras",
   "Q2 Pouco comuns",
   "Q3 Texto",
-  "Compreensao",
-  "Relatorio",
+  "Compreensão",
+  "Leiturômetro",
 ];
 
 function pickPreferredList(lists: WordList[]) {
@@ -60,68 +62,31 @@ function formatMetric(value: number | null | undefined, suffix = "") {
   return `${value}${suffix}`;
 }
 
-/** Mapeia ICA 0–100 para faixa 1–6 do Leiturômetro visual. */
-function icaScoreToLevel(score: number | null | undefined) {
+function icaScoreToLevel(score: number | null | undefined, explicit?: number | null) {
+  if (explicit != null && !Number.isNaN(explicit)) {
+    return Math.max(1, Math.min(6, Math.round(explicit)));
+  }
   if (score == null || Number.isNaN(score)) return 1;
   return Math.max(1, Math.min(6, Math.ceil(score / (100 / 6))));
 }
 
-function buildFluencyPayload(input: {
-  q1: FluencyListPartResult | null;
-  q2: FluencyListPartResult | null;
-  q3: FluencyNarrativePartResult | null;
-  q1Words: string[];
-}): SaveFluencyPayload {
-  const payload: SaveFluencyPayload = {
-    kind: "FLUENCY",
-    caderno: "A",
-    notReadReason: null,
-    prosodyLevel: 3,
-    extras: { notes: "wizard-fluencia" },
-  };
-
-  if (input.q1) {
-    payload.q1 = {
-      wordsRead: input.q1.wordsRead,
-      errorsCount: input.q1.errorsCount,
-      readingTimeSeconds: input.q1.readingTimeSeconds,
-      markings: input.q1.statuses.map((status, index) => ({
-        index,
-        word: input.q1Words[index] ?? null,
-        status,
-      })),
-    };
-  }
-
-  if (input.q2) {
-    payload.q2 = {
-      wordsRead: input.q2.wordsRead,
-      errorsCount: input.q2.errorsCount,
-      readingTimeSeconds: input.q2.readingTimeSeconds,
-    };
-  }
-
-  if (input.q3) {
-    payload.q3 = {
-      wordsRead: input.q3.wordsRead,
-      errorsCount: input.q3.errorsCount,
-      readingTimeSeconds: input.q3.readingTimeSeconds,
-    };
-  }
-
-  return payload;
+function todayLabel() {
+  return new Intl.DateTimeFormat("pt-BR").format(new Date());
 }
 
 export function CaedAplicador() {
   const router = useRouter();
   const params = useSearchParams();
-  const evaluationId = params.get("evaluationId") ?? "";
+
   const sessionId = params.get("sessionId") ?? "";
-  const studentId = params.get("aluno") ?? "";
-  const textId = params.get("texto") ?? "";
-  const assessmentType = params.get("assessmentType") ?? "completa";
-  const supportsComprehension =
-    assessmentType === "completa" || assessmentType === "compreensao";
+  const studentId = params.get("studentId") ?? params.get("aluno") ?? "";
+  const studentName = params.get("studentName") ?? "";
+  const className = params.get("className") ?? "";
+  const schoolName = params.get("schoolName") ?? "";
+  const textId = params.get("readingTextId") ?? params.get("texto") ?? "";
+  const textTitleParam = params.get("textTitle") ?? "";
+  const wordsWordListId = params.get("wordsWordListId") ?? "";
+  const uncommonWordListId = params.get("uncommonWordListId") ?? "";
 
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<Record<string, number>>({});
@@ -137,9 +102,8 @@ export function CaedAplicador() {
   const [q3Result, setQ3Result] = useState<FluencyNarrativePartResult | null>(null);
   const [report, setReport] = useState<FluencySessionReport | null>(null);
 
-  const [sessionStarted, setSessionStarted] = useState(false);
-  const [startingSession, setStartingSession] = useState(false);
   const [savingFluency, setSavingFluency] = useState(false);
+  const [savingMic, setSavingMic] = useState(false);
   const [savingComprehension, setSavingComprehension] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -154,43 +118,47 @@ export function CaedAplicador() {
   const questions = text?.questions ?? [];
   const q1Items = q1List?.items ?? [];
   const q2Items = q2List?.items ?? [];
-  const hasSessionIds = Boolean(evaluationId && sessionId);
+  const hasSession = Boolean(sessionId);
   const comprehensionReady =
     questions.length === 0 || questions.every((q) => answers[q.id] !== undefined);
 
   const studentLabel = useMemo(() => {
-    return report?.studentName || studentId || "Aluno";
-  }, [report?.studentName, studentId]);
+    return report?.studentName || studentName || studentId || "Aluno";
+  }, [report?.studentName, studentName, studentId]);
 
   useEffect(() => {
     let cancelled = false;
 
     async function load() {
       if (!textId) {
-        toast.error("Texto nao informado na URL.");
+        toast.error("Texto não informado na URL.");
         setLoadingContent(false);
         return;
       }
-      if (!hasSessionIds) {
-        toast.error("evaluationId/sessionId ausentes. Volte e selecione uma sessao.");
+      if (!hasSession) {
+        toast.error("sessionId ausente. Volte e monte a aplicação novamente.");
       }
 
       setLoadingContent(true);
       try {
-        const [fullText, palavras, poucoComuns] = await Promise.all([
+        const [fullText, q1, q2, fallbackPalavras, fallbackPouco] = await Promise.all([
           getReadingText(textId),
+          wordsWordListId ? getWordList(wordsWordListId).catch(() => null) : Promise.resolve(null),
+          uncommonWordListId
+            ? getWordList(uncommonWordListId).catch(() => null)
+            : Promise.resolve(null),
           listWordLists({ kind: "PALAVRAS", active: true }),
           listWordLists({ kind: "POUCO_COMUNS", active: true }),
         ]);
         if (cancelled) return;
         setText(fullText);
-        setQ1List(pickPreferredList(palavras));
-        setQ2List(pickPreferredList(poucoComuns));
+        setQ1List(q1 ?? pickPreferredList(fallbackPalavras));
+        setQ2List(q2 ?? pickPreferredList(fallbackPouco));
         setAnswers({});
       } catch (error) {
         if (!cancelled) {
           toast.error(
-            getApiErrorMessage(error, "Nao foi possivel carregar texto e listas da avaliacao.")
+            getApiErrorMessage(error, "Não foi possível carregar texto e listas da avaliação.")
           );
           setText(null);
           setQ1List(null);
@@ -205,7 +173,7 @@ export function CaedAplicador() {
     return () => {
       cancelled = true;
     };
-  }, [textId, hasSessionIds]);
+  }, [textId, hasSession, wordsWordListId, uncommonWordListId]);
 
   const next = () => setStep((s) => Math.min(s + 1, STEPS.length - 1));
 
@@ -219,61 +187,61 @@ export function CaedAplicador() {
     setQ3Result(result);
   }, []);
 
-  async function ensureSessionStarted() {
-    if (!hasSessionIds) {
-      throw new Error("Sessao nao informada (evaluationId/sessionId).");
-    }
-    if (sessionStarted) return;
-    await startReadingSession(evaluationId, sessionId);
-    setSessionStarted(true);
-  }
-
-  async function persistFluency(parts: {
-    q1?: FluencyListPartResult | null;
-    q2?: FluencyListPartResult | null;
-    q3?: FluencyNarrativePartResult | null;
+  async function persistPart(payload: {
+    q1?: FluencyListPartPayload;
+    q2?: FluencyListPartPayload;
+    q3?: FluencyTextPartPayload;
   }) {
-    if (!hasSessionIds) {
-      throw new Error("Sessao nao informada (evaluationId/sessionId).");
-    }
-    const payload = buildFluencyPayload({
-      q1: parts.q1 ?? q1ResultRef.current,
-      q2: parts.q2 ?? q2ResultRef.current,
-      q3: parts.q3 ?? q3ResultRef.current,
-      q1Words: q1Items,
+    if (!hasSession) throw new Error("Sessão não informada.");
+    await saveFluencySessionPart(sessionId, {
+      kind: "FLUENCY",
+      caderno: "A",
+      extras: {
+        sttProvider: "web_speech_api",
+        browser: typeof navigator !== "undefined" ? navigator.userAgent : undefined,
+      },
+      ...payload,
     });
-    if (!payload.q1 && !payload.q2 && !payload.q3) {
-      throw new Error("Nenhuma parte de fluencia para salvar.");
-    }
-    await saveFluency(evaluationId, sessionId, payload);
   }
 
-  async function handleStartFromCover() {
-    if (!hasSessionIds) {
-      toast.error("Selecione avaliacao e sessao na tela anterior.");
-      return;
-    }
-    setStartingSession(true);
+  async function uploadPartAudio(
+    part: "q1" | "q2" | "q3" | "mic_test",
+    blob: Blob | null | undefined
+  ) {
+    if (!hasSession || !blob || blob.size === 0) return;
     try {
-      await ensureSessionStarted();
-      toast.success("Sessao iniciada.");
-      next();
+      await uploadFluencySessionAudio(sessionId, part, blob, `${part}.webm`);
     } catch (error) {
-      toast.error(getApiErrorMessage(error, "Nao foi possivel iniciar a sessao."));
+      toast.error(
+        getApiErrorMessage(
+          error,
+          `Parte salva, mas o upload do áudio (${part}) falhou. Você pode seguir.`
+        )
+      );
+    }
+  }
+
+  async function handleMicContinue(audioBlob: Blob | null) {
+    setSavingMic(true);
+    try {
+      await uploadPartAudio("mic_test", audioBlob);
+      next();
     } finally {
-      setStartingSession(false);
+      setSavingMic(false);
     }
   }
 
   async function handleContinueAfterQ1() {
-    if (!q1ResultRef.current) {
-      toast.error("Conclua a classificacao de Q1 antes de continuar.");
+    const result = q1ResultRef.current;
+    if (!result) {
+      toast.error("Conclua a classificação de Q1 antes de continuar.");
       return;
     }
     setSavingFluency(true);
     try {
-      await ensureSessionStarted();
-      await persistFluency({ q1: q1ResultRef.current });
+      const { audioBlob, ...q1 } = result;
+      await persistPart({ q1 });
+      await uploadPartAudio("q1", audioBlob);
       next();
     } catch (error) {
       toast.error(
@@ -288,17 +256,16 @@ export function CaedAplicador() {
   }
 
   async function handleContinueAfterQ2() {
-    if (!q2ResultRef.current) {
-      toast.error("Conclua a classificacao de Q2 antes de continuar.");
+    const result = q2ResultRef.current;
+    if (!result) {
+      toast.error("Conclua a classificação de Q2 antes de continuar.");
       return;
     }
     setSavingFluency(true);
     try {
-      await ensureSessionStarted();
-      await persistFluency({
-        q1: q1ResultRef.current,
-        q2: q2ResultRef.current,
-      });
+      const { audioBlob, ...q2 } = result;
+      await persistPart({ q2 });
+      await uploadPartAudio("q2", audioBlob);
       next();
     } catch (error) {
       toast.error(
@@ -313,18 +280,16 @@ export function CaedAplicador() {
   }
 
   async function handleContinueAfterQ3() {
-    if (!q3ResultRef.current) {
+    const result = q3ResultRef.current;
+    if (!result) {
       toast.error("Conclua a leitura de Q3 antes de continuar.");
       return;
     }
     setSavingFluency(true);
     try {
-      await ensureSessionStarted();
-      await persistFluency({
-        q1: q1ResultRef.current,
-        q2: q2ResultRef.current,
-        q3: q3ResultRef.current,
-      });
+      const { audioBlob, ...q3 } = result;
+      await persistPart({ q3 });
+      await uploadPartAudio("q3", audioBlob);
       next();
     } catch (error) {
       toast.error(
@@ -340,20 +305,18 @@ export function CaedAplicador() {
 
   async function handleContinueAfterComprehension() {
     if (!comprehensionReady) {
-      toast.error("Responda todas as perguntas de compreensao.");
+      toast.error("Responda todas as perguntas de compreensão.");
       return;
     }
-    if (!hasSessionIds) {
-      toast.error("Sessao nao informada.");
+    if (!hasSession) {
+      toast.error("Sessão não informada.");
       return;
     }
 
     setSavingComprehension(true);
     try {
-      await ensureSessionStarted();
-
-      if (supportsComprehension && questions.length > 0) {
-        await saveComprehensionAnswers(evaluationId, sessionId, {
+      if (questions.length > 0) {
+        await saveFluencyComprehensionAnswers(sessionId, {
           answers: questions.map((q) => ({
             readingTextQuestionId: q.id,
             selectedOption: answers[q.id],
@@ -361,14 +324,14 @@ export function CaedAplicador() {
         });
       }
 
-      const reportData = await getReport(evaluationId, sessionId);
+      const reportData = await getFluencySessionReport(sessionId);
       setReport(reportData);
       next();
     } catch (error) {
       toast.error(
         getApiErrorMessage(
           error,
-          "Falha ao salvar compreensao/relatorio. Respostas locais mantidas — tente novamente."
+          "Falha ao salvar compreensão/relatório. Respostas locais mantidas — tente novamente."
         )
       );
     } finally {
@@ -377,20 +340,26 @@ export function CaedAplicador() {
   }
 
   async function handleSubmit() {
-    if (!hasSessionIds) {
-      toast.error("Sessao nao informada.");
+    if (!hasSession) {
+      toast.error("Sessão não informada.");
       return;
     }
     setSubmitting(true);
     try {
-      await submitSession(evaluationId, sessionId);
+      await submitFluencySession(sessionId);
+      try {
+        const fresh = await getFluencySessionReport(sessionId);
+        setReport(fresh);
+      } catch {
+        /* report anterior permanece */
+      }
       setSubmitted(true);
-      toast.success("Avaliacao finalizada com sucesso.");
+      toast.success("Avaliação finalizada com sucesso.");
     } catch (error) {
       toast.error(
         getApiErrorMessage(
           error,
-          "Falha ao finalizar a sessao. O relatorio local foi mantido — tente novamente."
+          "Falha ao finalizar a sessão. O relatório local foi mantido — tente novamente."
         )
       );
     } finally {
@@ -398,17 +367,19 @@ export function CaedAplicador() {
     }
   }
 
-  const icaLevel = icaScoreToLevel(report?.icaScore);
+  const icaLevel = icaScoreToLevel(report?.icaScore, report?.leiturimetroLevel);
   const comprehensionLabel =
-    report?.comprehension.correctCount != null && report.comprehension.total != null
+    report?.comprehension?.correctCount != null && report.comprehension.total != null
       ? `${report.comprehension.correctCount}/${report.comprehension.total}`
       : `${Object.keys(answers).length}/${questions.length || 0}`;
 
   return (
     <FullscreenLayout
-      title="Avaliacao de Fluencia"
+      title="Avaliação de Fluência"
       subtitle={
-        loadingContent ? "Carregando..." : `${studentLabel} · ${text?.title ?? ""}`
+        loadingContent
+          ? "Carregando..."
+          : `${studentLabel} · ${text?.title ?? textTitleParam}`
       }
       backHref="/app/avaliacao-fluencia"
       onClose={() => setConfirmExit(true)}
@@ -438,8 +409,10 @@ export function CaedAplicador() {
           ))}
         </div>
 
-        {!hasSessionIds ? (
-          <AlertMissingSession />
+        {!hasSession ? (
+          <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            Falta <strong>sessionId</strong> na URL. Volte à seleção e monte a aplicação.
+          </div>
         ) : null}
 
         <Card>
@@ -452,33 +425,66 @@ export function CaedAplicador() {
             ) : (
               <>
                 {step === 0 && (
-                  <>
-                    <h2 className="text-xl font-semibold text-bluebrand-deep">
-                      Preparacao da avaliacao
-                    </h2>
-                    <p className="text-muted-foreground">
-                      Esta avaliacao mede fluencia leitora em tres etapas: lista de palavras, palavras
-                      pouco comuns e leitura de texto narrativo com compreensao.
-                    </p>
-                    <Button
-                      onClick={() => void handleStartFromCover()}
-                      disabled={!hasSessionIds || startingSession}
-                    >
-                      {startingSession ? (
-                        <>
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          Iniciando sessao...
-                        </>
-                      ) : (
-                        "Continuar"
-                      )}
+                  <div className="mx-auto max-w-2xl space-y-6 text-center">
+                    <div>
+                      <p className="text-sm text-muted-foreground">{new Date().getFullYear()}</p>
+                      <h2 className="text-2xl font-bold text-bluebrand-deep">
+                        Avaliação de Fluência Leitora
+                      </h2>
+                      <p className="mt-1 text-muted-foreground">
+                        2º ano do Ensino Fundamental • Ciclo II
+                      </p>
+                    </div>
+                    <div className="rounded-full bg-emerald-50 px-4 py-2 text-sm text-emerald-900">
+                      Resultado: <strong>Leiturômetro • Índice Criança Alfabetizada (ICA)</strong>
+                    </div>
+                    <div className="grid gap-3 border-t pt-4 text-left sm:grid-cols-2">
+                      <div>
+                        <p className="text-xs text-muted-foreground">Estudante</p>
+                        <p className="font-medium">{studentLabel}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Turma</p>
+                        <p className="font-medium">{className || "—"}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Escola</p>
+                        <p className="font-medium">{schoolName || "—"}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Data</p>
+                        <p className="font-medium">{todayLabel()}</p>
+                      </div>
+                    </div>
+                    <div className="rounded-lg border-l-4 border-l-bluebrand-base bg-blue-50 p-4 text-left text-sm text-blue-950">
+                      <p className="font-semibold">[APLICADOR] APRESENTAÇÃO AO ESTUDANTE</p>
+                      <ul className="mt-2 list-disc space-y-1 pl-5">
+                        <li>Olá! Você está participando da Avaliação de Fluência Leitora.</li>
+                        <li>
+                          Sua participação é muito importante para sabermos como está a sua
+                          leitura.
+                        </li>
+                        <li>
+                          Esta avaliação é composta de 3 partes: lista de palavras, lista de
+                          palavras pouco comuns e leitura de texto. Bom teste!
+                        </li>
+                      </ul>
+                    </div>
+                    <Button className="w-full" disabled={!hasSession} onClick={next}>
+                      Iniciar avaliação →
                     </Button>
-                  </>
+                  </div>
                 )}
-                {step === 1 && <MicrophoneTestStep onContinue={next} />}
+                {step === 1 && (
+                  <MicrophoneTestStep
+                    continuePending={savingMic}
+                    onContinue={(blob) => void handleMicContinue(blob)}
+                  />
+                )}
                 {step === 2 && (
                   <WordListFluencyStep
-                    title="Q1 — Lista de palavras (60s)"
+                    questionLabel="QUESTÃO 1"
+                    title="Lista de palavras"
                     words={q1Items}
                     continuePending={savingFluency}
                     onResultChange={handleQ1Result}
@@ -487,7 +493,8 @@ export function CaedAplicador() {
                 )}
                 {step === 3 && (
                   <WordListFluencyStep
-                    title="Q2 — Palavras pouco comuns (60s)"
+                    questionLabel="QUESTÃO 2"
+                    title="Lista de palavras pouco comuns"
                     words={q2Items}
                     continuePending={savingFluency}
                     onResultChange={handleQ2Result}
@@ -496,7 +503,7 @@ export function CaedAplicador() {
                 )}
                 {step === 4 && (
                   <NarrativeFluencyStep
-                    title="Q3 — Texto narrativo"
+                    title={text?.title ?? textTitleParam}
                     content={text?.content ?? ""}
                     continuePending={savingFluency}
                     onResultChange={handleQ3Result}
@@ -505,10 +512,10 @@ export function CaedAplicador() {
                 )}
                 {step === 5 && text && (
                   <>
-                    <h2 className="text-xl font-semibold">Compreensao leitora</h2>
+                    <h2 className="text-xl font-semibold">Compreensão leitora</h2>
                     {questions.length === 0 ? (
                       <p className="text-sm text-muted-foreground">
-                        Este texto nao possui perguntas de compreensao cadastradas.
+                        Este texto não possui perguntas de compreensão cadastradas.
                       </p>
                     ) : (
                       questions.map((q) => (
@@ -538,7 +545,7 @@ export function CaedAplicador() {
                     )}
                     <Button
                       onClick={() => void handleContinueAfterComprehension()}
-                      disabled={!comprehensionReady || savingComprehension || !hasSessionIds}
+                      disabled={!comprehensionReady || savingComprehension || !hasSession}
                     >
                       {savingComprehension ? (
                         <>
@@ -546,14 +553,14 @@ export function CaedAplicador() {
                           Salvando...
                         </>
                       ) : (
-                        "Ver resultado"
+                        "Ver Leiturômetro →"
                       )}
                     </Button>
                   </>
                 )}
                 {step === 6 && (
                   <>
-                    <h2 className="text-xl font-semibold">Relatorio — Leiturometro</h2>
+                    <h2 className="text-xl font-semibold">Relatório — Leiturômetro</h2>
                     {report ? (
                       <>
                         <Leiturometro
@@ -563,37 +570,42 @@ export function CaedAplicador() {
                         <div className="grid gap-4 sm:grid-cols-3">
                           <StatCard
                             label="PLCM"
-                            value={formatMetric(report.calculatedPlcm)}
+                            value={formatMetric(
+                              report.calculatedPlcm ?? report.q3?.plcm ?? null
+                            )}
                             icon={Gauge}
                           />
                           <StatCard
-                            label="Precisao"
-                            value={formatMetric(report.calculatedAccuracy, "%")}
+                            label="Precisão"
+                            value={formatMetric(
+                              report.calculatedAccuracy ?? report.q1?.accuracy ?? null,
+                              "%"
+                            )}
                             icon={Target}
                           />
                           <StatCard
-                            label="Compreensao"
+                            label="Compreensão"
                             value={comprehensionLabel}
                             icon={AlertTriangle}
                           />
                         </div>
                         <p className="text-xs text-muted-foreground">
-                          {report.precisionLevel ? `Precisao: ${report.precisionLevel}` : null}
-                          {report.precisionLevel && report.fluencyLevel ? " · " : null}
-                          {report.fluencyLevel ? `Fluencia: ${report.fluencyLevel}` : null}
-                          {report.icaScore != null ? ` · ICA: ${report.icaScore}` : null}
+                          {report.icaScore != null ? `ICA: ${report.icaScore}` : null}
+                          {report.leiturimetroLevel != null
+                            ? ` · Nível: ${report.leiturimetroLevel}`
+                            : null}
                         </p>
                       </>
                     ) : (
                       <p className="text-sm text-muted-foreground">
-                        Relatorio ainda nao carregado. Volte e tente novamente.
+                        Relatório ainda não carregado. Volte e tente novamente.
                       </p>
                     )}
                     <div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
                       <Button
                         className="w-full sm:w-auto"
                         onClick={() => void handleSubmit()}
-                        disabled={!report || submitting || submitted || !hasSessionIds}
+                        disabled={!report || submitting || submitted || !hasSession}
                       >
                         {submitting ? (
                           <>
@@ -601,9 +613,9 @@ export function CaedAplicador() {
                             Finalizando...
                           </>
                         ) : submitted ? (
-                          "Avaliacao salva"
+                          "Avaliação salva"
                         ) : (
-                          "Salvar avaliacao"
+                          "Finalizar avaliação"
                         )}
                       </Button>
                       <Button
@@ -611,7 +623,7 @@ export function CaedAplicador() {
                         className="w-full sm:w-auto"
                         onClick={() => router.push("/app/relatorios?aba=ica")}
                       >
-                        Ver relatorios
+                        Ver relatórios
                       </Button>
                     </div>
                   </>
@@ -624,22 +636,13 @@ export function CaedAplicador() {
       <ConfirmDialog
         open={confirmExit}
         onOpenChange={setConfirmExit}
-        title="Sair da avaliacao?"
-        description="O progresso local desta sessao pode ser perdido se ainda nao foi salvo."
+        title="Sair da avaliação?"
+        description="O progresso local desta sessão pode ser perdido se ainda não foi salvo."
         confirmLabel="Sair"
         variant="destructive"
         icon={AlertTriangle}
         onConfirm={() => router.push("/app/avaliacao-fluencia")}
       />
     </FullscreenLayout>
-  );
-}
-
-function AlertMissingSession() {
-  return (
-    <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-      Faltam <strong>evaluationId</strong> e <strong>sessionId</strong> na URL. Volte a selecao e
-      escolha uma avaliacao/sessao aplicadas.
-    </div>
   );
 }

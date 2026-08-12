@@ -6,11 +6,20 @@ import { Gauge, Info, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 import {
-  listEvaluations,
-  listReadingSessions,
-  type ReadingEvaluation,
-  type ReadingEvaluationSession,
+  createFluencySession,
+  listReadingTexts,
+  listWordLists,
+  type ReadingText,
+  type WordList,
 } from "@/lib/api/afirme-reading";
+import {
+  listClassesBySchool,
+  listSchools,
+  listStudentsByClass,
+  type School,
+  type SchoolClass,
+  type Student,
+} from "@/lib/api/students";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import { AdminCityPicker } from "@/components/auth/admin-city-picker";
 import { PageHeader } from "@/components/layout/page-header";
@@ -26,138 +35,240 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-function sessionLabel(session: ReadingEvaluationSession) {
-  const name = session.studentName ?? session.studentId;
-  return `${name} · ${session.status}`;
+function pickPreferredList(lists: WordList[]) {
+  return (
+    lists.find((list) => list.isDefault && list.active) ??
+    lists.find((list) => list.active) ??
+    lists[0] ??
+    null
+  );
 }
 
 export function FluenciaSelecao() {
   const router = useRouter();
   const [cityReady, setCityReady] = useState(false);
-  const [evaluationId, setEvaluationId] = useState("");
-  const [sessionId, setSessionId] = useState("");
+  const [cityKey, setCityKey] = useState("none");
 
-  const [evaluations, setEvaluations] = useState<ReadingEvaluation[]>([]);
-  const [sessions, setSessions] = useState<ReadingEvaluationSession[]>([]);
-  const [loadingEvaluations, setLoadingEvaluations] = useState(false);
-  const [loadingSessions, setLoadingSessions] = useState(false);
+  const [schools, setSchools] = useState<School[]>([]);
+  const [classes, setClasses] = useState<SchoolClass[]>([]);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [texts, setTexts] = useState<ReadingText[]>([]);
+  const [wordsList, setWordsList] = useState<WordList | null>(null);
+  const [uncommonList, setUncommonList] = useState<WordList | null>(null);
 
-  const selectedEvaluation = useMemo(
-    () => evaluations.find((item) => item.id === evaluationId) ?? null,
-    [evaluations, evaluationId]
+  const [schoolId, setSchoolId] = useState("");
+  const [classId, setClassId] = useState("");
+  const [studentId, setStudentId] = useState("");
+  const [textId, setTextId] = useState("");
+
+  const [loadingSchools, setLoadingSchools] = useState(false);
+  const [loadingClasses, setLoadingClasses] = useState(false);
+  const [loadingStudents, setLoadingStudents] = useState(false);
+  const [loadingTexts, setLoadingTexts] = useState(false);
+  const [creating, setCreating] = useState(false);
+
+  const selectedSchool = useMemo(
+    () => schools.find((item) => item.id === schoolId) ?? null,
+    [schools, schoolId]
   );
-  const selectedSession = useMemo(
-    () => sessions.find((item) => item.id === sessionId) ?? null,
-    [sessions, sessionId]
+  const selectedClass = useMemo(
+    () => classes.find((item) => item.id === classId) ?? null,
+    [classes, classId]
+  );
+  const selectedStudent = useMemo(
+    () => students.find((item) => item.id === studentId) ?? null,
+    [students, studentId]
+  );
+  const selectedText = useMemo(
+    () => texts.find((item) => item.id === textId) ?? null,
+    [texts, textId]
   );
 
-  const applicableSessions = useMemo(
-    () => sessions.filter((item) => item.status === "pendente" || item.status === "em_andamento"),
-    [sessions]
-  );
-
-  const handleCityReadyChange = useCallback((ready: boolean) => {
+  const handleCityReadyChange = useCallback((ready: boolean, cityId: string | null) => {
     setCityReady(ready);
+    setCityKey(cityId || "none");
     if (!ready) {
-      setEvaluations([]);
-      setSessions([]);
-      setEvaluationId("");
-      setSessionId("");
+      setSchools([]);
+      setClasses([]);
+      setStudents([]);
+      setTexts([]);
+      setWordsList(null);
+      setUncommonList(null);
+      setSchoolId("");
+      setClassId("");
+      setStudentId("");
+      setTextId("");
     }
   }, []);
 
-  const loadEvaluations = useCallback(async () => {
-    setLoadingEvaluations(true);
+  const loadBase = useCallback(async () => {
+    setLoadingSchools(true);
+    setLoadingTexts(true);
     try {
-      const data = await listEvaluations();
-      const filtered = data.filter(
-        (item) =>
-          (item.assessmentType === "fluencia" || item.assessmentType === "completa") &&
-          (item.status === "agendada" || item.status === "em_andamento")
-      );
-      setEvaluations(filtered);
+      const [schoolData, textData, palavras, poucoComuns] = await Promise.all([
+        listSchools(),
+        listReadingTexts({ orderBy: "title" }),
+        listWordLists({ kind: "PALAVRAS", active: true }),
+        listWordLists({ kind: "POUCO_COMUNS", active: true }),
+      ]);
+      setSchools(schoolData);
+      setTexts(textData);
+      setWordsList(pickPreferredList(palavras));
+      setUncommonList(pickPreferredList(poucoComuns));
     } catch (error) {
-      toast.error(getApiErrorMessage(error, "Nao foi possivel carregar as avaliacoes."));
-      setEvaluations([]);
+      toast.error(getApiErrorMessage(error, "Não foi possível carregar escolas/textos/listas."));
+      setSchools([]);
+      setTexts([]);
+      setWordsList(null);
+      setUncommonList(null);
     } finally {
-      setLoadingEvaluations(false);
+      setLoadingSchools(false);
+      setLoadingTexts(false);
     }
   }, []);
 
   useEffect(() => {
     if (!cityReady) return;
-    setEvaluationId("");
-    setSessionId("");
-    setSessions([]);
-    void loadEvaluations();
-  }, [cityReady, loadEvaluations]);
+    setSchoolId("");
+    setClassId("");
+    setStudentId("");
+    setTextId("");
+    setClasses([]);
+    setStudents([]);
+    void loadBase();
+  }, [cityReady, cityKey, loadBase]);
 
   useEffect(() => {
-    if (!cityReady || !evaluationId) {
-      setSessions([]);
-      setSessionId("");
+    if (!schoolId || !cityReady) {
+      setClasses([]);
+      setClassId("");
+      setStudents([]);
+      setStudentId("");
       return;
     }
 
     let cancelled = false;
     async function load() {
-      setLoadingSessions(true);
-      setSessionId("");
+      setLoadingClasses(true);
+      setClassId("");
+      setStudentId("");
+      setStudents([]);
       try {
-        const data = await listReadingSessions(evaluationId);
-        if (!cancelled) setSessions(data);
+        const data = await listClassesBySchool(schoolId);
+        if (!cancelled) setClasses(data);
       } catch (error) {
         if (!cancelled) {
-          toast.error(getApiErrorMessage(error, "Nao foi possivel carregar as sessoes."));
-          setSessions([]);
+          toast.error(getApiErrorMessage(error, "Não foi possível carregar as turmas."));
+          setClasses([]);
         }
       } finally {
-        if (!cancelled) setLoadingSessions(false);
+        if (!cancelled) setLoadingClasses(false);
       }
     }
     void load();
     return () => {
       cancelled = true;
     };
-  }, [cityReady, evaluationId]);
+  }, [schoolId, cityReady]);
 
-  const canStart = Boolean(
-    cityReady &&
-      evaluationId &&
-      sessionId &&
-      selectedEvaluation?.readingTextId &&
-      selectedSession?.studentId
-  );
-
-  function handleStart() {
-    if (!selectedEvaluation || !selectedSession) {
-      toast.error("Selecione uma avaliacao e uma sessao de aluno.");
+  useEffect(() => {
+    if (!classId || !cityReady) {
+      setStudents([]);
+      setStudentId("");
       return;
     }
-    const params = new URLSearchParams({
-      evaluationId: selectedEvaluation.id,
-      sessionId: selectedSession.id,
-      texto: selectedEvaluation.readingTextId,
-      aluno: selectedSession.studentId,
-      assessmentType: selectedEvaluation.assessmentType,
-    });
-    router.push(`/app/avaliacao-fluencia/aplicar?${params.toString()}`);
+
+    let cancelled = false;
+    async function load() {
+      setLoadingStudents(true);
+      setStudentId("");
+      try {
+        const data = await listStudentsByClass(classId);
+        if (!cancelled) setStudents(data);
+      } catch (error) {
+        if (!cancelled) {
+          toast.error(getApiErrorMessage(error, "Não foi possível carregar os alunos."));
+          setStudents([]);
+        }
+      } finally {
+        if (!cancelled) setLoadingStudents(false);
+      }
+    }
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [classId, cityReady]);
+
+  const canStart = Boolean(
+    cityReady && schoolId && classId && studentId && textId && !creating
+  );
+
+  async function handleStart() {
+    if (!selectedSchool || !selectedClass || !selectedStudent || !selectedText) {
+      toast.error("Selecione escola, turma, estudante e texto narrativo.");
+      return;
+    }
+
+    setCreating(true);
+    try {
+      const session = await createFluencySession({
+        studentId: selectedStudent.id,
+        classId: selectedClass.id,
+        schoolId: selectedSchool.id,
+        readingTextId: selectedText.id,
+        wordsWordListId: wordsList?.id ?? null,
+        uncommonWordListId: uncommonList?.id ?? null,
+        caderno: "A",
+      });
+
+      const params = new URLSearchParams({
+        sessionId: session.id,
+        studentId: selectedStudent.id,
+        studentName: selectedStudent.name,
+        classId: selectedClass.id,
+        className: selectedClass.name,
+        schoolId: selectedSchool.id,
+        schoolName: selectedSchool.name,
+        readingTextId: selectedText.id,
+        textTitle: selectedText.title,
+        wordsWordListId: session.wordsWordListId ?? wordsList?.id ?? "",
+        uncommonWordListId: session.uncommonWordListId ?? uncommonList?.id ?? "",
+        caderno: session.caderno || "A",
+      });
+
+      router.push(`/app/avaliacao-fluencia/aplicar?${params.toString()}`);
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, "Não foi possível criar a sessão de fluência."));
+    } finally {
+      setCreating(false);
+    }
   }
 
   return (
     <div className="space-y-6 pb-8">
       <PageHeader
-        eyebrow="Compromisso Crianca Alfabetizada · ICA"
-        title="Avaliacao de Fluencia Leitora"
-        description="Selecione a avaliacao aplicada e a sessao do estudante para iniciar."
+        eyebrow="Compromisso Criança Alfabetizada · ICA"
+        title="Avaliação de Fluência Leitora"
+        description="Aplicação individual para o 2º ano, com correção automática por voz no navegador."
         icon={Gauge}
       />
 
       <Alert className="border-l-4 border-l-bluebrand-base">
         <Info className="h-4 w-4 text-bluebrand-base" />
-        <AlertDescription>
-          As sessoes sao criadas no apply da avaliacao. Escolha uma avaliacao agendada/em andamento e o
-          aluno pendente correspondente.
+        <AlertDescription className="space-y-2 text-sm">
+          <p className="font-medium">Sobre esta avaliação</p>
+          <p>
+            Avaliação individual do 2º ano do Ensino Fundamental, com correção automática por IA
+            (Web Speech no browser). São 3 questões: lista de palavras, lista de palavras pouco
+            comuns e leitura de texto narrativo com 3 perguntas de compreensão (literal, inferência
+            e assunto global).
+          </p>
+          <p>
+            Tempo: 60 segundos para cada lista. Regra de transição: avanço automático após 3
+            segundos sem leitura (palavra marcada como &quot;Não leu&quot;). Ao final, é gerado o
+            Leiturômetro com a classificação ICA.
+          </p>
         </AlertDescription>
       </Alert>
 
@@ -165,103 +276,148 @@ export function FluenciaSelecao() {
 
       <Card>
         <CardContent className="grid gap-6 pt-6 md:grid-cols-2">
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Avaliacao</Label>
-              <Select
-                value={evaluationId || undefined}
-                onValueChange={setEvaluationId}
-                disabled={!cityReady || loadingEvaluations}
-              >
-                <SelectTrigger>
-                  <SelectValue
-                    placeholder={
-                      !cityReady
-                        ? "Selecione o municipio primeiro"
-                        : loadingEvaluations
-                          ? "Carregando avaliacoes..."
-                          : "Selecione a avaliacao"
-                    }
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  {evaluations.map((item) => (
-                    <SelectItem key={item.id} value={item.id}>
-                      {item.title} · {item.status}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {loadingEvaluations ? (
-                <p className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  Carregando avaliacoes...
-                </p>
-              ) : null}
-            </div>
+          <div className="space-y-2">
+            <Label>Escola</Label>
+            <Select
+              value={schoolId || undefined}
+              onValueChange={setSchoolId}
+              disabled={!cityReady || loadingSchools}
+            >
+              <SelectTrigger>
+                <SelectValue
+                  placeholder={
+                    !cityReady
+                      ? "Selecione o município primeiro"
+                      : loadingSchools
+                        ? "Carregando..."
+                        : "Selecione a escola"
+                  }
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {schools.map((school) => (
+                  <SelectItem key={school.id} value={school.id}>
+                    {school.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Sessao / estudante</Label>
-              <Select
-                value={sessionId || undefined}
-                onValueChange={setSessionId}
-                disabled={!evaluationId || loadingSessions}
-              >
-                <SelectTrigger>
-                  <SelectValue
-                    placeholder={
-                      !evaluationId
-                        ? "Selecione a avaliacao primeiro"
-                        : loadingSessions
-                          ? "Carregando sessoes..."
-                          : "Selecione o estudante"
-                    }
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  {applicableSessions.map((item) => (
-                    <SelectItem key={item.id} value={item.id}>
-                      {sessionLabel(item)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {loadingSessions ? (
-                <p className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  Carregando sessoes...
-                </p>
-              ) : null}
-            </div>
+          <div className="space-y-2">
+            <Label>Turma</Label>
+            <Select
+              value={classId || undefined}
+              onValueChange={setClassId}
+              disabled={!schoolId || loadingClasses}
+            >
+              <SelectTrigger>
+                <SelectValue
+                  placeholder={
+                    !schoolId
+                      ? "Selecione a escola primeiro"
+                      : loadingClasses
+                        ? "Carregando..."
+                        : "Selecione a turma"
+                  }
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {classes.map((item) => (
+                  <SelectItem key={item.id} value={item.id}>
+                    {item.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-            {selectedSession ? (
-              <div className="rounded-lg border bg-muted/30 p-4">
-                <p className="text-sm font-medium">Sessao selecionada</p>
-                <p className="text-sm text-muted-foreground">
-                  {selectedSession.studentName ?? selectedSession.studentId} · {selectedSession.status}
-                </p>
-                {selectedEvaluation ? (
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Texto da avaliacao: {selectedEvaluation.readingTextId}
-                  </p>
-                ) : null}
-              </div>
-            ) : null}
+          <div className="space-y-2">
+            <Label>Estudante</Label>
+            <Select
+              value={studentId || undefined}
+              onValueChange={setStudentId}
+              disabled={!classId || loadingStudents}
+            >
+              <SelectTrigger>
+                <SelectValue
+                  placeholder={
+                    !classId
+                      ? "Selecione a turma primeiro"
+                      : loadingStudents
+                        ? "Carregando..."
+                        : "Selecione o estudante"
+                  }
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {students.map((student) => (
+                  <SelectItem key={student.id} value={student.id}>
+                    {student.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Texto narrativo (Questão 3)</Label>
+            <Select
+              value={textId || undefined}
+              onValueChange={setTextId}
+              disabled={!cityReady || loadingTexts}
+            >
+              <SelectTrigger>
+                <SelectValue
+                  placeholder={loadingTexts ? "Carregando textos..." : "Selecione o texto"}
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {texts.map((text) => (
+                  <SelectItem key={text.id} value={text.id}>
+                    {text.title}
+                    {text.source ? ` — ${text.source}` : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Você pode cadastrar novos textos em Configurar.
+              {wordsList ? ` Lista Q1: ${wordsList.name}.` : null}
+              {uncommonList ? ` Lista Q2: ${uncommonList.name}.` : null}
+            </p>
           </div>
         </CardContent>
       </Card>
 
-      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:gap-3">
-        <Button className="w-full sm:w-auto" disabled={!canStart} onClick={handleStart}>
-          Iniciar Avaliacao de Fluencia
-        </Button>
+      {selectedStudent && selectedClass && selectedSchool ? (
+        <div className="rounded-lg border bg-muted/30 px-4 py-3 text-sm">
+          <span className="font-medium">Aluno selecionado: </span>
+          {selectedStudent.name} — {selectedClass.name} — {selectedSchool.name}
+          {selectedText ? ` · Texto: ${selectedText.title}` : null}
+        </div>
+      ) : null}
+
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end sm:gap-3">
         <Button variant="outline" asChild className="w-full sm:w-auto">
-          <Link href="/app/configuracao-avaliacao">Configurar</Link>
+          <Link href="/app/configuracao-avaliacao">Configurar listas, textos e perguntas</Link>
         </Button>
         <Button variant="ghost" asChild className="w-full sm:w-auto">
-          <Link href="/app">Inicio</Link>
+          <Link href="/app">← Início</Link>
+        </Button>
+        <Button
+          className="w-full bg-emerald-600 hover:bg-emerald-700 sm:w-auto"
+          disabled={!canStart}
+          onClick={() => void handleStart()}
+        >
+          {creating ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Criando sessão...
+            </>
+          ) : (
+            "Iniciar Avaliação de Fluência →"
+          )}
         </Button>
       </div>
     </div>

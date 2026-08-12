@@ -163,28 +163,107 @@ export type ReadingSessionStatus =
   | "finalizada"
   | "ausente";
 
-export interface FluencyPartPayload {
-  wordsRead: number;
-  errorsCount: number;
-  readingTimeSeconds: number;
-  transcript?: string;
-  markings?: unknown[];
-  overrides?: Record<string, unknown>;
+export type FluencyWordStatus =
+  | "nao_leu"
+  | "acertou"
+  | "inventou"
+  | "soletrou"
+  | "errou";
+
+export type FluencyNotReadReason =
+  | "nao_se_aplica"
+  | "recusou"
+  | "nao_consegue"
+  | "nao_sabe";
+
+export type FluencyAudioPart = "q1" | "q2" | "q3" | "mic_test";
+
+export type FluencyMarkingSource = "ia" | "manual" | "timeout";
+
+export interface FluencyWordMarking {
+  index: number;
+  word: string;
+  status: FluencyWordStatus | null;
+  source?: FluencyMarkingSource;
 }
 
+export interface FluencyListPartPayload {
+  wordsRead: number;
+  lastWordPosition: number;
+  errorsCount: number;
+  readingTimeSeconds: number;
+  skipped: boolean;
+  notReadReason: FluencyNotReadReason | null;
+  transcript: string | null;
+  markings: FluencyWordMarking[];
+  sttProvider?: "web_speech_api";
+}
+
+export interface FluencyTextLinePayload {
+  lineIndex: number;
+  text: string;
+  wrongWordsCount: number;
+}
+
+export interface FluencyTextPartPayload {
+  wordsRead: number;
+  totalWords: number;
+  errorsCount: number;
+  unreadAfterEnd: number;
+  readingTimeSeconds: number;
+  skipped: boolean;
+  notReadReason: FluencyNotReadReason | null;
+  obeyedSensePauses: boolean | null;
+  transcript: string | null;
+  lines: FluencyTextLinePayload[];
+  sttProvider?: "web_speech_api";
+}
+
+/** PATCH incremental: envie só a parte que acabou de concluir. */
 export interface SaveFluencyPayload {
-  kind: "FLUENCY";
-  caderno: string;
-  notReadReason: string | null;
-  prosodyLevel: number;
-  /** Partes opcionais para salvamento incremental (Q1 → Q2 → Q3). */
-  q1?: FluencyPartPayload;
-  q2?: Pick<FluencyPartPayload, "wordsRead" | "errorsCount" | "readingTimeSeconds">;
-  q3?: Pick<FluencyPartPayload, "wordsRead" | "errorsCount" | "readingTimeSeconds">;
+  kind?: "FLUENCY";
+  caderno?: string;
+  prosodyLevel?: number | null;
+  q1?: FluencyListPartPayload;
+  q2?: FluencyListPartPayload;
+  q3?: FluencyTextPartPayload;
   extras?: {
-    sttProvider?: string;
+    sttProvider?: "web_speech_api";
+    browser?: string;
     notes?: string;
   };
+}
+
+export interface CreateFluencySessionPayload {
+  studentId: string;
+  classId: string;
+  schoolId: string;
+  readingTextId: string;
+  wordsWordListId?: string | null;
+  uncommonWordListId?: string | null;
+  caderno?: string;
+}
+
+export interface FluencySession {
+  id: string;
+  studentId: string;
+  studentName: string | null;
+  classId: string | null;
+  schoolId: string | null;
+  readingTextId: string;
+  wordsWordListId: string | null;
+  uncommonWordListId: string | null;
+  caderno: string;
+  status: ReadingSessionStatus;
+  fluencyData: Record<string, unknown> | null;
+  partAudios: Record<string, unknown>;
+  hasAudio: boolean;
+  audioUrls: Record<string, string>;
+  icaScore: number | null;
+  startedAt: string | null;
+  submittedAt: string | null;
+  appliedBy: string | null;
+  answers: ReadingComprehensionAnswer[];
 }
 
 export type ReadingEvaluationStatus =
@@ -268,46 +347,60 @@ export interface ReadingEvaluationSession {
 
 export interface FluencyPartReport {
   wordsRead?: number;
+  lastWordPosition?: number;
+  totalWords?: number;
   errorsCount?: number;
+  unreadAfterEnd?: number;
   readingTimeSeconds?: number;
+  skipped?: boolean;
+  notReadReason?: FluencyNotReadReason | null;
+  obeyedSensePauses?: boolean | null;
+  markings?: FluencyWordMarking[];
+  lines?: FluencyTextLinePayload[];
+  transcript?: string | null;
   accuracy?: number | null;
   plcm?: number | null;
   precisionLevel?: string | null;
   fluencyLevel?: string | null;
+  hasAudio?: boolean;
+  audioUrl?: string | null;
   [key: string]: unknown;
 }
 
 export interface FluencySessionReport {
-  evaluationId: string;
-  evaluationTitle: string;
-  assessmentType: string;
   sessionId: string;
-  studentId: string;
+  studentId?: string;
   studentName: string | null;
-  classId: string | null;
+  classId?: string | null;
+  schoolId?: string | null;
   status: ReadingSessionStatus;
-  readingTextId: string | null;
-  wordsWordListId: string | null;
-  uncommonWordListId: string | null;
+  readingTextId?: string | null;
+  wordsWordListId?: string | null;
+  uncommonWordListId?: string | null;
+  caderno: string | null;
   q1: FluencyPartReport | null;
   q2: FluencyPartReport | null;
   q3: FluencyPartReport | null;
-  prosodyLevel: number | null;
-  caderno: string | null;
-  notReadReason: string | null;
-  extras: Record<string, unknown>;
+  micTest?: { hasAudio?: boolean; audioUrl?: string | null };
+  prosodyLevel?: number | null;
+  extras?: Record<string, unknown>;
   comprehension: {
     correctCount: number | null;
     total: number | null;
     score: number | null;
-    answers: ReadingComprehensionAnswer[];
+    answers?: ReadingComprehensionAnswer[];
   };
-  calculatedPlcm: number | null;
-  calculatedAccuracy: number | null;
-  precisionLevel: string | null;
-  fluencyLevel: string | null;
+  calculatedPlcm?: number | null;
+  calculatedAccuracy?: number | null;
+  precisionLevel?: string | null;
+  fluencyLevel?: string | null;
   icaScore: number | null;
+  leiturimetroLevel?: number | null;
   icaBreakdown: Record<string, unknown> | null;
-  startedAt: string | null;
-  submittedAt: string | null;
+  startedAt?: string | null;
+  submittedAt?: string | null;
+  /** Campos legados (sessões por avaliação). */
+  evaluationId?: string;
+  evaluationTitle?: string;
+  assessmentType?: string;
 }
