@@ -72,6 +72,12 @@ export const NAV_CATEGORIES: NavCategory[] = [
     label: "Relatorios",
     items: [
       {
+        href: "/app/relatorios-fluencia",
+        label: "Resultados de fluencia",
+        description: "IFL, perfis leitores e alertas",
+        icon: BarChart3,
+      },
+      {
         href: "/app/relatorios",
         label: "Relatorios",
         description: "ICA, fluencia e geral",
