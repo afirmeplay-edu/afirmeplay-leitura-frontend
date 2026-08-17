@@ -167,3 +167,19 @@ export function labelEscopo(
 export function pctNivel(ind: Indicadores, code: NivelCode): number {
   return ind.distribuicao.find((d) => d.code === code)?.percentual ?? 0;
 }
+
+export function evolucaoNivel(
+  de: NivelCode | null | undefined,
+  para: NivelCode | null | undefined
+): "avanco" | "regressao" | "manutencao" | null {
+  if (!de || !para) return null;
+  const d = NIVEIS.findIndex((n) => n.code === para) - NIVEIS.findIndex((n) => n.code === de);
+  if (d > 0) return "avanco";
+  if (d < 0) return "regressao";
+  return "manutencao";
+}
+
+export function compreensaoPct(r: ResultadoEstudante) {
+  if (!r.compreensaoValidas) return null;
+  return Math.round((r.compreensaoAcertos / r.compreensaoValidas) * 100);
+}

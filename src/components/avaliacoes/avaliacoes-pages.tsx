@@ -10,6 +10,7 @@ import { PageShell } from "@/components/shared/page-shell";
 import { StatCard } from "@/components/shared/stat-card";
 import { IcaLevelBadge, StatusBadge } from "@/components/shared/status-badge";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { StudentInfoDialog, StudentNameButton } from "@/components/shared/student-info-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,12 @@ import { getMockEvaluations, getMockEvaluationById } from "@/lib/mock";
 export function AvaliacoesListPage() {
   const evals = getMockEvaluations();
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [studentSeed, setStudentSeed] = useState<{
+    studentId: string;
+    name: string;
+    className: string;
+    schoolName: string;
+  } | null>(null);
 
   return (
     <>
@@ -36,7 +43,23 @@ export function AvaliacoesListPage() {
         createLabel="Nova avaliacao"
         searchFilter={(e, q) => e.studentName.toLowerCase().includes(q) || e.textTitle.toLowerCase().includes(q)}
         columns={[
-          { key: "student", header: "Aluno", render: (e) => e.studentName },
+          {
+            key: "student",
+            header: "Aluno",
+            render: (e) => (
+              <StudentNameButton
+                name={e.studentName}
+                onClick={() =>
+                  setStudentSeed({
+                    studentId: e.studentId,
+                    name: e.studentName,
+                    className: e.className,
+                    schoolName: e.schoolName,
+                  })
+                }
+              />
+            ),
+          },
           { key: "text", header: "Texto", render: (e) => e.textTitle },
           { key: "date", header: "Data", render: (e) => e.date },
           {
@@ -63,6 +86,13 @@ export function AvaliacoesListPage() {
             </DropdownMenuContent>
           </DropdownMenu>
         )}
+      />
+      <StudentInfoDialog
+        open={studentSeed != null}
+        onOpenChange={(open) => {
+          if (!open) setStudentSeed(null);
+        }}
+        seed={studentSeed}
       />
       <ConfirmDialog
         open={confirmOpen}

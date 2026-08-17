@@ -17,8 +17,15 @@ export interface Student {
   id: string;
   name: string;
   classId?: string | null;
+  schoolId?: string | null;
   registration?: string | null;
   registrationNumber?: string | null;
+  email?: string | null;
+  birthDate?: string | null;
+  gender?: string | null;
+  schoolName?: string | null;
+  className?: string | null;
+  gradeName?: string | null;
 }
 
 function unwrapList<T>(data: unknown): T[] {
@@ -52,20 +59,52 @@ function normalizeClass(raw: Record<string, unknown>): SchoolClass {
   };
 }
 
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : null;
+}
+
+function pickString(...values: unknown[]): string | null {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim()) return value;
+  }
+  return null;
+}
+
 function normalizeStudent(raw: Record<string, unknown>): Student {
+  const school = asRecord(raw.school);
+  const classObj = asRecord(raw.class);
+  const grade = asRecord(raw.grade);
+  const user = asRecord(raw.user);
+  const year = typeof classObj?.year === "number" ? classObj.year : null;
+  const classLetter = pickString(classObj?.className, classObj?.name);
+  const composedClass =
+    year != null && classLetter ? `${year}º Ano ${classLetter}` : classLetter;
+
   return {
     id: String(raw.id),
-    name: String(raw.name ?? raw.fullName ?? "Aluno"),
-    classId: raw.classId != null ? String(raw.classId) : null,
+    name: String(raw.name ?? raw.fullName ?? user?.name ?? "Aluno"),
+    classId: raw.classId != null ? String(raw.classId) : raw.class_id != null ? String(raw.class_id) : null,
+    schoolId: raw.schoolId != null ? String(raw.schoolId) : raw.school_id != null ? String(raw.school_id) : null,
     registration:
-      typeof raw.registration === "string"
-        ? raw.registration
-        : typeof raw.registrationNumber === "string"
-          ? raw.registrationNumber
-          : null,
-    registrationNumber:
-      typeof raw.registrationNumber === "string" ? raw.registrationNumber : null,
+      pickString(raw.registration, raw.registrationNumber, user?.registration),
+    registrationNumber: pickString(raw.registrationNumber, raw.registration),
+    email: pickString(raw.email, user?.email),
+    birthDate: pickString(raw.birthDate, raw.birth_date),
+    gender: pickString(raw.gender),
+    schoolName: pickString(raw.schoolName, school?.name),
+    className: pickString(raw.className, composedClass),
+    gradeName: pickString(raw.gradeName, grade?.name),
   };
+}
+
+export async function getStudent(id: string): Promise<Student | null> {
+  try {
+    const { data } = await api.get(`/students/${id}`);
+    if (!data || typeof data !== "object") return null;
+    return normalizeStudent(data as Record<string, unknown>);
+  } catch {
+    return null;
+  }
 }
 
 export async function listSchools() {

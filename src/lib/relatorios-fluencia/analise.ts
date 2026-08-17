@@ -1,4 +1,4 @@
-import type { Indicadores } from "./types";
+import type { Indicadores, NivelCode } from "./types";
 import { NIVEIS } from "./types";
 
 export type AlertaPedagogico = {
@@ -6,6 +6,7 @@ export type AlertaPedagogico = {
   severidade: "info" | "warning" | "critical";
   titulo: string;
   descricao: string;
+  nivelCode?: NivelCode | null;
 };
 
 export function gerarLeituraAnalitica(
@@ -57,6 +58,7 @@ export function gerarAlertas(ind: Indicadores, anterior: Indicadores | null): Al
       severidade: ind.preLeitoresPct >= 55 ? "critical" : "warning",
       titulo: "Alta proporção de pré-leitores",
       descricao: `${ind.preLeitoresPct}% dos avaliados estão em PL1–PL4. Priorize intervenção em consciência fonológica e fluência básica.`,
+      nivelCode: "PL1",
     });
   }
 
@@ -66,6 +68,7 @@ export function gerarAlertas(ind: Indicadores, anterior: Indicadores | null): Al
       severidade: "warning",
       titulo: "Poucos leitores fluentes",
       descricao: `Apenas ${ind.leitoresFluentesPct}% alcançaram o nível Leitor Fluente. Intensifique práticas de leitura oral cronometrada e modelagem.`,
+      nivelCode: "LF",
     });
   }
 
@@ -76,6 +79,7 @@ export function gerarAlertas(ind: Indicadores, anterior: Indicadores | null): Al
       severidade: "critical",
       titulo: "Concentração em PL1",
       descricao: `${pl1.percentual}% dos avaliados estão em PL1. Esses estudantes precisam de acompanhamento intensivo e individualizado.`,
+      nivelCode: "PL1",
     });
   }
 
@@ -98,6 +102,7 @@ export function gerarAlertas(ind: Indicadores, anterior: Indicadores | null): Al
         severidade: "info",
         titulo: "Avanço em leitores fluentes",
         descricao: `A proporção de Leitores Fluentes subiu de ${lfAnt}% para ${lfAtual}%. Vale reforçar e disseminar as práticas que funcionaram.`,
+        nivelCode: "LF",
       });
     }
   }

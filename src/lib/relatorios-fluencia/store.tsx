@@ -150,6 +150,7 @@ export function RelatorioFluenciaProvider({ children }: { children: ReactNode })
     setRelatorioPor: (v) => {
       setRelatorioPor(v);
       setItemId("");
+      setRecorte(null);
     },
     itemId,
     setItemId,

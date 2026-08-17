@@ -31,6 +31,10 @@ import {
   WordListFluencyStep,
   type FluencyListPartResult,
 } from "@/components/fluencia/word-list-fluency-step";
+import { isSerieTurmaCompleta } from "@/lib/fluencia/class-label";
+import { perfilFromIcaLevel } from "@/lib/colors/reading-levels";
+import { PerfilLeitorBadge } from "@/components/shared/perfil-leitor-badge";
+import { StudentInfoDialog, StudentNameButton } from "@/components/shared/student-info-dialog";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { StatCard } from "@/components/shared/stat-card";
 import { Badge } from "@/components/ui/badge";
@@ -81,7 +85,9 @@ export function CaedAplicador() {
   const sessionId = params.get("sessionId") ?? "";
   const studentId = params.get("studentId") ?? params.get("aluno") ?? "";
   const studentName = params.get("studentName") ?? "";
+  const classId = params.get("classId") ?? "";
   const className = params.get("className") ?? "";
+  const schoolId = params.get("schoolId") ?? "";
   const schoolName = params.get("schoolName") ?? "";
   const textId = params.get("readingTextId") ?? params.get("texto") ?? "";
   const textTitleParam = params.get("textTitle") ?? "";
@@ -91,6 +97,7 @@ export function CaedAplicador() {
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<Record<string, number>>({});
   const [confirmExit, setConfirmExit] = useState(false);
+  const [studentDialogOpen, setStudentDialogOpen] = useState(false);
 
   const [text, setText] = useState<ReadingText | null>(null);
   const [q1List, setQ1List] = useState<WordList | null>(null);
@@ -368,6 +375,17 @@ export function CaedAplicador() {
   }
 
   const icaLevel = icaScoreToLevel(report?.icaScore, report?.leiturimetroLevel);
+  const perfilCode = perfilFromIcaLevel(icaLevel);
+  const classLabel = className.trim();
+  const classLabelVisivel = isSerieTurmaCompleta(classLabel) ? classLabel : "";
+  const schoolLabel = schoolName.trim();
+  const textLabel = text?.title ?? textTitleParam;
+  const headerSubtitleText = loadingContent
+    ? "Carregando..."
+    : [studentLabel, classLabelVisivel || null, schoolLabel || null, textLabel || null]
+        .filter(Boolean)
+        .join(" · ");
+  const openStudentDialog = () => setStudentDialogOpen(true);
   const comprehensionLabel =
     report?.comprehension?.correctCount != null && report.comprehension.total != null
       ? `${report.comprehension.correctCount}/${report.comprehension.total}`
@@ -376,10 +394,18 @@ export function CaedAplicador() {
   return (
     <FullscreenLayout
       title="Avaliação de Fluência"
+      subtitleTitle={headerSubtitleText}
       subtitle={
-        loadingContent
-          ? "Carregando..."
-          : `${studentLabel} · ${text?.title ?? textTitleParam}`
+        loadingContent ? (
+          "Carregando..."
+        ) : (
+          <>
+            <StudentNameButton name={studentLabel} onClick={openStudentDialog} />
+            {classLabelVisivel ? <span> · {classLabelVisivel}</span> : null}
+            {schoolLabel ? <span> · {schoolLabel}</span> : null}
+            {textLabel ? <span> · {textLabel}</span> : null}
+          </>
+        )
       }
       backHref="/app/avaliacao-fluencia"
       onClose={() => setConfirmExit(true)}
@@ -439,21 +465,33 @@ export function CaedAplicador() {
                       Resultado: <strong>Leiturômetro • Índice Criança Alfabetizada (ICA)</strong>
                     </div>
                     <div className="grid gap-3 border-t pt-4 text-left sm:grid-cols-2">
-                      <div>
+                      <div className="min-w-0">
                         <p className="text-xs text-muted-foreground">Estudante</p>
-                        <p className="font-medium">{studentLabel}</p>
+                        <StudentNameButton
+                          name={studentLabel}
+                          onClick={openStudentDialog}
+                          className="block w-full break-words text-left font-medium text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        />
                       </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">Turma</p>
-                        <p className="font-medium">{className || "—"}</p>
-                      </div>
-                      <div>
+                      {classLabelVisivel ? (
+                        <div className="min-w-0">
+                          <p className="text-xs text-muted-foreground">Série / Turma</p>
+                          <p className="break-words font-medium" title={classLabelVisivel}>
+                            {classLabelVisivel}
+                          </p>
+                        </div>
+                      ) : null}
+                      <div className="min-w-0">
                         <p className="text-xs text-muted-foreground">Escola</p>
-                        <p className="font-medium">{schoolName || "—"}</p>
+                        <p className="break-words font-medium" title={schoolName || "—"}>
+                          {schoolName || "—"}
+                        </p>
                       </div>
-                      <div>
+                      <div className="min-w-0">
                         <p className="text-xs text-muted-foreground">Data</p>
-                        <p className="font-medium">{todayLabel()}</p>
+                        <p className="truncate font-medium" title={todayLabel()}>
+                          {todayLabel()}
+                        </p>
                       </div>
                     </div>
                     <div className="rounded-lg border-l-4 border-l-bluebrand-base bg-blue-50 p-4 text-left text-sm text-blue-950">
@@ -567,6 +605,9 @@ export function CaedAplicador() {
                           currentLevel={icaLevel}
                           score={report.icaScore ?? undefined}
                         />
+                        <div className="flex flex-wrap items-center justify-center gap-2">
+                          <PerfilLeitorBadge code={perfilCode} />
+                        </div>
                         <div className="grid gap-4 sm:grid-cols-3">
                           <StatCard
                             label="PLCM"
@@ -633,6 +674,19 @@ export function CaedAplicador() {
           </CardContent>
         </Card>
       </div>
+      <StudentInfoDialog
+        open={studentDialogOpen}
+        onOpenChange={setStudentDialogOpen}
+        seed={{
+          studentId,
+          name: studentLabel,
+          className: classLabelVisivel,
+          schoolName,
+          classId,
+          schoolId,
+          perfilCode,
+        }}
+      />
       <ConfirmDialog
         open={confirmExit}
         onOpenChange={setConfirmExit}
