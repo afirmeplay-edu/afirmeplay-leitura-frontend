@@ -14,6 +14,8 @@ interface FullscreenLayoutProps {
   onClose?: () => void;
   children: ReactNode;
   className?: string;
+  /** Sem overlay: o menu lateral continua visível. */
+  embedded?: boolean;
 }
 
 export function FullscreenLayout({
@@ -24,22 +26,26 @@ export function FullscreenLayout({
   onClose,
   children,
   className,
+  embedded = false,
 }: FullscreenLayoutProps) {
   useEffect(() => {
+    if (embedded) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = prev;
     };
-  }, []);
+  }, [embedded]);
 
   const subtitleHint = subtitleTitle ?? (typeof subtitle === "string" ? subtitle : undefined);
 
   return (
     <div
       className={cn(
-        "fixed inset-0 z-[80] flex flex-col bg-background",
-        "pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)]",
+        "flex flex-col bg-background",
+        embedded
+          ? "min-h-0"
+          : "fixed inset-0 z-[80] pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)]",
         className
       )}
     >
