@@ -101,7 +101,7 @@ export function CaedAplicador({ mode = "oficial" }: CaedAplicadorProps) {
   const wordsWordListId = params.get("wordsWordListId") ?? "";
   const uncommonWordListId = params.get("uncommonWordListId") ?? "";
 
-  const [phase, setPhase] = useState<GatePhase>(isPractice ? "abas" : "apresentacao");
+  const [phase, setPhase] = useState<GatePhase>("apresentacao");
   const [activeTab, setActiveTab] = useState<PracticeTab>(
     () => parsePracticeTab(params.get("aba")) ?? "palavras"
   );
@@ -235,7 +235,6 @@ export function CaedAplicador({ mode = "oficial" }: CaedAplicadorProps) {
       return;
     }
     setActiveTab(fromUrl);
-    setPhase("abas");
   }, [isPractice, params, activeTab, recordingTab]);
 
   async function persistPart(payload: {
@@ -275,8 +274,10 @@ export function CaedAplicador({ mode = "oficial" }: CaedAplicadorProps) {
     setSavingMic(true);
     try {
       await uploadPartAudio("mic_test", audioBlob);
+      const requested = parsePracticeTab(params.get("aba")) ?? activeTab;
+      setActiveTab(requested);
+      if (isPractice) syncTabToUrl(requested);
       setPhase("abas");
-      setActiveTab("palavras");
     } finally {
       setSavingMic(false);
     }
@@ -549,7 +550,7 @@ export function CaedAplicador({ mode = "oficial" }: CaedAplicadorProps) {
                       disabled={!hasSession}
                       onClick={() => setPhase("microfone")}
                     >
-                      Iniciar avaliação →
+                      {isPractice ? "Iniciar prática →" : "Iniciar avaliação →"}
                     </Button>
                   </div>
                 ) : null}
