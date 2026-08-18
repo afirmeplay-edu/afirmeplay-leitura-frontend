@@ -40,7 +40,7 @@ export function RelatorioFiltros() {
         </Button>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Field label="Ano">
           <Select value={String(filtros.ano)} onValueChange={(v) => setFiltros({ ano: Number(v) })}>
             <SelectTrigger>

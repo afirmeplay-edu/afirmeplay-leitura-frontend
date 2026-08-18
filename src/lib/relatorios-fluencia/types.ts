@@ -1,12 +1,25 @@
 /** Tipos e constantes do Relatório de Fluência (mock / MVP). */
 
-export type NivelCode = "PL1" | "PL2" | "PL3" | "PL4" | "LI" | "LF";
+import { getPerfilLeitorStyle, type PerfilLeitorCode } from "@/lib/colors/reading-levels";
+
+export type NivelCode = PerfilLeitorCode;
 
 export type EdicaoCode = "entrada" | "formativa" | "saida";
 
 export type TurnoCode = "Matutino" | "Vespertino" | "Noturno" | "Integral";
 
 export type RelatorioPor = "escola" | "turma" | "estudante";
+
+export type StatusEstudante = "presente" | "ausente" | "não avaliado" | "não elegível";
+
+export const EDICOES_ORDEM: EdicaoCode[] = ["entrada", "formativa", "saida"];
+
+/** Totais das listas/texto usados na tabela nominal (mock, iguais ao MVP). */
+export const PARAMETROS_LISTAS = {
+  totalPalavras: 80,
+  totalDesconhecidas: 60,
+  questoesCompreensao: 4,
+} as const;
 
 export const NIVEIS: {
   code: NivelCode;
@@ -22,14 +35,14 @@ export const NIVEIS: {
   { code: "LF", label: "Leitor Fluente", short: "LF", pesoIfl: 100 },
 ];
 
-/** Cores por nível (paleta do MVP). */
+/** Cores do perfil leitor — mesma paleta ICA 1–6. */
 export const NIVEL_COLOR: Record<NivelCode, string> = {
-  PL1: "#DC2626",
-  PL2: "#EA580C",
-  PL3: "#D97706",
-  PL4: "#CA8A04",
-  LI: "#65A30D",
-  LF: "#059669",
+  PL1: getPerfilLeitorStyle("PL1").hex,
+  PL2: getPerfilLeitorStyle("PL2").hex,
+  PL3: getPerfilLeitorStyle("PL3").hex,
+  PL4: getPerfilLeitorStyle("PL4").hex,
+  LI: getPerfilLeitorStyle("LI").hex,
+  LF: getPerfilLeitorStyle("LF").hex,
 };
 
 export const EDICAO_LABEL: Record<EdicaoCode, string> = {
@@ -95,11 +108,23 @@ export interface ResultadoEstudante {
   edicao: EdicaoCode;
   redeId: string;
   municipioId: string;
+  redeNome: string;
+  municipioNome: string;
   /** false = previsto, ainda não avaliado */
   avaliado: boolean;
+  status: StatusEstudante;
   nivel: NivelCode | null;
   ppm: number | null;
   precisao: number | null;
+  palavrasCorretas: number;
+  desconhecidasCorretas: number;
+  silabacoes: number;
+  soletracoes: number;
+  textoPalavrasLidas: number;
+  textoErros: number;
+  prosodiaAdequada: boolean | null;
+  compreensaoAcertos: number;
+  compreensaoValidas: number;
 }
 
 export interface FiltrosRelatorio {
@@ -156,6 +181,6 @@ export interface RelatorioComputado {
   porEscola: ResumoEscola[];
   porTurma: ResumoTurma[];
   leituraAnalitica: string;
-  alertas: { id: string; severidade: "info" | "warning" | "critical"; titulo: string; descricao: string }[];
+  alertas: { id: string; severidade: "info" | "warning" | "critical"; titulo: string; descricao: string; nivelCode?: string | null }[];
   resultados: ResultadoEstudante[];
 }

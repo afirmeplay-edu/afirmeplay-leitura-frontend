@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Gauge, Info, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -34,6 +34,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { parsePracticeTab } from "@/components/fluencia/practice-tabs";
 
 function pickPreferredList(lists: WordList[]) {
   return (
@@ -44,8 +45,14 @@ function pickPreferredList(lists: WordList[]) {
   );
 }
 
-export function FluenciaSelecao() {
+interface FluenciaSelecaoProps {
+  variant?: "oficial" | "praticar";
+}
+
+export function FluenciaSelecao({ variant = "oficial" }: FluenciaSelecaoProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const isPractice = variant === "praticar";
   const [cityReady, setCityReady] = useState(false);
   const [cityKey, setCityKey] = useState("none");
 
@@ -222,6 +229,7 @@ export function FluenciaSelecao() {
         caderno: "A",
       });
 
+      const aba = parsePracticeTab(searchParams.get("aba")) ?? "palavras";
       const params = new URLSearchParams({
         sessionId: session.id,
         studentId: selectedStudent.id,
@@ -237,7 +245,12 @@ export function FluenciaSelecao() {
         caderno: session.caderno || "A",
       });
 
-      router.push(`/app/avaliacao-fluencia/aplicar?${params.toString()}`);
+      if (isPractice) {
+        params.set("aba", aba);
+        router.push(`/app/avaliacao-leitura-guiada?${params.toString()}`);
+      } else {
+        router.push(`/app/avaliacao-fluencia/aplicar?${params.toString()}`);
+      }
     } catch (error) {
       toast.error(getApiErrorMessage(error, "Não foi possível criar a sessão de fluência."));
     } finally {
@@ -249,25 +262,27 @@ export function FluenciaSelecao() {
     <div className="space-y-6 pb-8">
       <PageHeader
         eyebrow="Compromisso Criança Alfabetizada · ICA"
-        title="Avaliação de Fluência Leitora"
-        description="Aplicação individual para o 2º ano, com correção automática por voz no navegador."
+        title={isPractice ? "Praticar Avaliação de Fluência" : "Avaliação de Fluência Leitora"}
+        description={
+          isPractice
+            ? "Escolha o estudante e o texto. Depois, selecione no menu: Praticar palavras conhecidas, Praticar palavras pouco conhecidas, Praticar texto, Compreensão ou Leiturômetro."
+            : "Aplicação individual para o 2º ano, com gravação de áudio e marcação manual pelo professor."
+        }
         icon={Gauge}
       />
 
       <Alert className="border-l-4 border-l-bluebrand-base">
         <Info className="h-4 w-4 text-bluebrand-base" />
         <AlertDescription className="space-y-2 text-sm">
-          <p className="font-medium">Sobre esta avaliação</p>
+          <p className="font-medium">{isPractice ? "Sobre esta prática" : "Sobre esta avaliação"}</p>
           <p>
-            Avaliação individual do 2º ano do Ensino Fundamental, com correção automática por IA
-            (Web Speech no browser). São 3 questões: lista de palavras, lista de palavras pouco
-            comuns e leitura de texto narrativo com 3 perguntas de compreensão (literal, inferência
-            e assunto global).
+            {isPractice
+              ? "Pratique as mesmas atividades da avaliação de fluência: lista de palavras, palavras pouco comuns, texto narrativo, compreensão e Leiturômetro. O professor ouve o áudio e marca manualmente."
+              : "Avaliação individual do 2º ano do Ensino Fundamental. São 3 questões: lista de palavras, lista de palavras pouco comuns e leitura de texto narrativo com perguntas de compreensão. O professor ouve a gravação e classifica cada palavra."}
           </p>
           <p>
-            Tempo: 60 segundos para cada lista. Regra de transição: avanço automático após 3
-            segundos sem leitura (palavra marcada como &quot;Não leu&quot;). Ao final, é gerado o
-            Leiturômetro com a classificação ICA.
+            Tempo: 60 segundos para cada lista. Ao final, é gerado o Leiturômetro com a
+            classificação ICA.
           </p>
         </AlertDescription>
       </Alert>
@@ -402,6 +417,11 @@ export function FluenciaSelecao() {
         <Button variant="outline" asChild className="w-full sm:w-auto">
           <Link href="/app/configuracao-avaliacao">Configurar listas, textos e perguntas</Link>
         </Button>
+        {isPractice ? (
+          <Button variant="outline" asChild className="w-full sm:w-auto">
+            <Link href="/app/revisao-leitura-guiada">Revisão e áudio</Link>
+          </Button>
+        ) : null}
         <Button variant="ghost" asChild className="w-full sm:w-auto">
           <Link href="/app">← Início</Link>
         </Button>
@@ -415,6 +435,8 @@ export function FluenciaSelecao() {
               <Loader2 className="h-4 w-4 animate-spin" />
               Criando sessão...
             </>
+          ) : isPractice ? (
+            "Iniciar prática →"
           ) : (
             "Iniciar Avaliação de Fluência →"
           )}

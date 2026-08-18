@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import {
   AlertTriangle,
   BarChart3,
@@ -13,8 +14,13 @@ import { PageHeader } from "@/components/layout/page-header";
 import { PageShell } from "@/components/shared/page-shell";
 import { SectionCard } from "@/components/shared/section-card";
 import { StatCard } from "@/components/shared/stat-card";
+import { PerfilLeitorBadge } from "@/components/shared/perfil-leitor-badge";
+import { StudentInfoDialog, type StudentInfoSeed } from "@/components/shared/student-info-dialog";
+import { PerfilIndividual } from "@/components/relatorios/fluencia/perfil-individual";
+import { TabelaEstudantes } from "@/components/relatorios/fluencia/tabela-estudantes";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -23,18 +29,19 @@ import { DistribuicaoBarra } from "@/components/relatorios/fluencia/distribuicao
 import { EstudantesHoverCount } from "@/components/relatorios/fluencia/estudantes-hover";
 import { descricaoPesosIfl } from "@/lib/relatorios-fluencia/analise";
 import { exportarRelatorioExcel } from "@/lib/relatorios-fluencia/exportar";
-import { pctNivel } from "@/lib/relatorios-fluencia/calc";
+import { filtrarResultados, filtrosEdicaoAnterior, pctNivel } from "@/lib/relatorios-fluencia/calc";
 import {
   RelatorioFluenciaProvider,
   computarRelatorio,
   useRelatorioFluencia,
 } from "@/lib/relatorios-fluencia/store";
+import { getPerfilLeitorStyle } from "@/lib/colors/reading-levels";
 import {
   CRITERIO_FLUENCIA,
   NIVEIS,
-  NIVEL_COLOR,
   type Indicadores,
   type RelatorioPor,
+  type ResultadoEstudante,
 } from "@/lib/relatorios-fluencia/types";
 import { getMockStudents } from "@/lib/mock/students";
 
@@ -57,7 +64,26 @@ function RelatorioFluenciaContent() {
     aplicarRecorte,
     filtros,
   } = useRelatorioFluencia();
+  const [studentSeed, setStudentSeed] = useState<StudentInfoSeed | null>(null);
+  const [estudanteSel, setEstudanteSel] = useState<ResultadoEstudante | null>(null);
+  const [buscaEstudante, setBuscaEstudante] = useState("");
   const ind = relatorio.indicadores;
+  const corFluentes = getPerfilLeitorStyle("LF").hex;
+  const corPreLeitores = getPerfilLeitorStyle("PL1").hex;
+  const modoEstudante = relatorioPor === "estudante";
+
+  const listaEstudantes = useMemo(() => {
+    const q = buscaEstudante.trim().toLowerCase();
+    return [...relatorio.resultados]
+      .filter((e) => !q || e.nome.toLowerCase().includes(q) || e.matricula.toLowerCase().includes(q))
+      .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+  }, [relatorio.resultados, buscaEstudante]);
+
+  const anterioresEstudantes = useMemo(() => {
+    const ant = filtrosEdicaoAnterior(filtros);
+    if (!ant) return [];
+    return filtrarResultados(catalog.resultados, ant);
+  }, [catalog.resultados, filtros]);
 
   const itemOptions = (() => {
     if (relatorioPor === "escola") {
@@ -117,33 +143,42 @@ function RelatorioFluenciaContent() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="w-full flex-1 space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Item</Label>
-              <Select value={itemId || undefined} onValueChange={setItemId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {itemOptions.map((o) => (
-                    <SelectItem key={o.id} value={o.id}>
-                      {o.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <Button
-              type="button"
-              disabled={!itemId}
-              onClick={() => {
-                aplicarRecorte();
-                const recorteRelatorio = computarRelatorio(filtros, relatorioPor, itemId);
-                exportarRelatorioExcel(recorteRelatorio);
-              }}
-            >
-              <Download className="mr-2 h-4 w-4" />
-              Baixar relatório
-            </Button>
+            {!modoEstudante ? (
+              <>
+                <div className="w-full flex-1 space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Item</Label>
+                  <Select value={itemId || undefined} onValueChange={setItemId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {itemOptions.map((o) => (
+                        <SelectItem key={o.id} value={o.id}>
+                          {o.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button
+                  type="button"
+                  disabled={!itemId}
+                  onClick={() => {
+                    aplicarRecorte();
+                    const recorteRelatorio = computarRelatorio(filtros, relatorioPor, itemId);
+                    exportarRelatorioExcel(recorteRelatorio);
+                  }}
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  Baixar relatório
+                </Button>
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground sm:pb-2">
+                A lista nominal abaixo usa os filtros de Ano, Edição, Rede, Município, Escola, Série, Turma e
+                Turno. Clique em um estudante para abrir o perfil.
+              </p>
+            )}
           </div>
         </div>
       </div>
@@ -165,11 +200,42 @@ function RelatorioFluenciaContent() {
         <StatCard label="Avaliados" value={ind.avaliados} icon={Users} />
         <StatCard label="Participação" value={`${ind.participacao}%`} icon={BarChart3} />
         <StatCard label="IFL" value={ind.ifl} icon={BarChart3} />
-        <StatCard label="Leitores fluentes" value={`${ind.leitoresFluentesPct}%`} icon={BarChart3} />
-        <StatCard label="Pré-leitores" value={`${ind.preLeitoresPct}%`} icon={BarChart3} />
+        <StatCard
+          label="Leitores fluentes"
+          value={`${ind.leitoresFluentesPct}%`}
+          icon={BarChart3}
+          accentColor={corFluentes}
+        />
+        <StatCard
+          label="Pré-leitores"
+          value={`${ind.preLeitoresPct}%`}
+          icon={BarChart3}
+          accentColor={corPreLeitores}
+        />
         <StatCard label="PPM médio" value={ind.ppmMedio} icon={BarChart3} />
         <StatCard label="Precisão média" value={`${ind.precisaoMedia}%`} icon={BarChart3} />
       </div>
+
+      {modoEstudante ? (
+        <SectionCard
+          title={`${listaEstudantes.length} estudantes no recorte`}
+          description="Resultados individuais da edição selecionada, com comparação ao perfil da edição anterior."
+          actions={
+            <Input
+              value={buscaEstudante}
+              onChange={(e) => setBuscaEstudante(e.target.value)}
+              placeholder="Buscar por nome"
+              className="h-9 w-56"
+            />
+          }
+        >
+          <TabelaEstudantes
+            lista={listaEstudantes}
+            anterior={anterioresEstudantes}
+            onAbrir={setEstudanteSel}
+          />
+        </SectionCard>
+      ) : null}
 
       {/* Distribuição */}
       <SectionCard title="Distribuição por perfil leitor">
@@ -192,12 +258,15 @@ function RelatorioFluenciaContent() {
                 <TableRow key={d.code}>
                   <TableCell>
                     <span className="inline-flex items-center gap-2">
-                      <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: NIVEL_COLOR[d.code] }} />
+                      <span
+                        className="h-2.5 w-2.5 rounded-sm"
+                        style={{ backgroundColor: getPerfilLeitorStyle(d.code).hex }}
+                      />
                       {d.label}
                     </span>
                   </TableCell>
                   <TableCell className="text-right">
-                    <EstudantesHoverCount bucket={d} />
+                    <EstudantesHoverCount bucket={d} onSelectStudent={setStudentSeed} />
                   </TableCell>
                   <TableCell className="text-right">{d.percentual}%</TableCell>
                   {relatorio.indicadoresAnteriores ? (
@@ -232,7 +301,10 @@ function RelatorioFluenciaContent() {
                 }
               >
                 {a.severidade === "info" ? <Info className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
-                <AlertTitle>{a.titulo}</AlertTitle>
+                <AlertTitle className="flex flex-wrap items-center gap-2">
+                  {a.titulo}
+                  {a.nivelCode ? <PerfilLeitorBadge code={a.nivelCode} /> : null}
+                </AlertTitle>
                 <AlertDescription>{a.descricao}</AlertDescription>
               </Alert>
             ))}
@@ -240,6 +312,8 @@ function RelatorioFluenciaContent() {
         </SectionCard>
       ) : null}
 
+      {!modoEstudante ? (
+        <>
       <SectionCard title="Resumo por escola">
         <ResumoTabela
           rows={relatorio.porEscola.map((e) => ({
@@ -259,6 +333,17 @@ function RelatorioFluenciaContent() {
           }))}
         />
       </SectionCard>
+        </>
+      ) : null}
+
+      <StudentInfoDialog
+        open={studentSeed != null}
+        onOpenChange={(open) => {
+          if (!open) setStudentSeed(null);
+        }}
+        seed={studentSeed}
+      />
+      <PerfilIndividual estudante={estudanteSel} onFechar={() => setEstudanteSel(null)} />
 
       <footer className="rounded-xl border bg-muted/30 p-4 text-xs leading-relaxed text-muted-foreground">
         <p className="font-medium text-foreground">Critérios de classificação</p>
@@ -281,51 +366,77 @@ function ResumoTabela({
   >;
 }) {
   return (
-    <div className="overflow-x-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Nome</TableHead>
-            <TableHead className="text-right">Previstos</TableHead>
-            <TableHead className="text-right">Avaliados</TableHead>
-            <TableHead className="text-right">Participação</TableHead>
-            {NIVEIS.map((n) => (
-              <TableHead key={n.code} className="text-right">
-                % {n.short}
-              </TableHead>
-            ))}
-            <TableHead className="text-right">IFL</TableHead>
-            <TableHead className="text-right">PPM</TableHead>
-            <TableHead className="text-right">Precisão</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.length === 0 ? (
-            <TableRow>
-              <TableCell colSpan={10 + NIVEIS.length} className="text-center text-muted-foreground">
-                Nenhum dado no escopo selecionado.
-              </TableCell>
-            </TableRow>
-          ) : (
-            rows.map((r) => (
-              <TableRow key={r.id}>
-                <TableCell className="font-medium">{r.nome}</TableCell>
-                <TableCell className="text-right">{r.previstos}</TableCell>
-                <TableCell className="text-right">{r.avaliados}</TableCell>
-                <TableCell className="text-right">{r.participacao}%</TableCell>
-                {NIVEIS.map((n) => (
-                  <TableCell key={n.code} className="text-right">
-                    {pctNivel(r, n.code)}%
-                  </TableCell>
-                ))}
-                <TableCell className="text-right">{r.ifl}</TableCell>
-                <TableCell className="text-right">{r.ppmMedio}</TableCell>
-                <TableCell className="text-right">{r.precisaoMedia}%</TableCell>
+    <div className="space-y-2">
+      <p className="text-xs text-muted-foreground">
+        Role para o lado para ver % PL1–LF, IFL, PPM e precisão. O cabeçalho permanece visível ao rolar.
+      </p>
+      <div className="relative">
+        <div className="max-h-[min(70vh,28rem)] overflow-auto rounded-md border">
+          <table className="w-full min-w-[1100px] caption-bottom text-sm">
+            <TableHeader>
+              <TableRow>
+                <TableHead className="sticky left-0 top-0 z-30 bg-white shadow-[1px_0_0_0_hsl(var(--border))]">
+                  Nome
+                </TableHead>
+                <TableHead className="sticky top-0 z-20 bg-white text-right">Previstos</TableHead>
+                <TableHead className="sticky top-0 z-20 bg-white text-right">Avaliados</TableHead>
+                <TableHead className="sticky top-0 z-20 bg-white text-right">Participação</TableHead>
+                {NIVEIS.map((n) => {
+                  const cor = getPerfilLeitorStyle(n.code).hex;
+                  return (
+                    <TableHead
+                      key={n.code}
+                      className="sticky top-0 z-20 bg-white text-right font-semibold"
+                      style={{ color: cor }}
+                    >
+                      % {n.short}
+                    </TableHead>
+                  );
+                })}
+                <TableHead className="sticky top-0 z-20 bg-white text-right">IFL</TableHead>
+                <TableHead className="sticky top-0 z-20 bg-white text-right">PPM</TableHead>
+                <TableHead className="sticky top-0 z-20 bg-white text-right">Precisão</TableHead>
               </TableRow>
-            ))
-          )}
-        </TableBody>
-      </Table>
+            </TableHeader>
+            <TableBody>
+              {rows.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={10 + NIVEIS.length} className="text-center text-muted-foreground">
+                    Nenhum dado no escopo selecionado.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                rows.map((r) => (
+                  <TableRow key={r.id} className="group">
+                    <TableCell className="sticky left-0 z-10 bg-white font-medium shadow-[1px_0_0_0_hsl(var(--border))] group-hover:bg-muted/50">
+                      {r.nome}
+                    </TableCell>
+                    <TableCell className="text-right">{r.previstos}</TableCell>
+                    <TableCell className="text-right">{r.avaliados}</TableCell>
+                    <TableCell className="text-right">{r.participacao}%</TableCell>
+                    {NIVEIS.map((n) => (
+                      <TableCell
+                        key={n.code}
+                        className="text-right font-medium"
+                        style={{ color: getPerfilLeitorStyle(n.code).hex }}
+                      >
+                        {pctNivel(r, n.code)}%
+                      </TableCell>
+                    ))}
+                    <TableCell className="text-right">{r.ifl}</TableCell>
+                    <TableCell className="text-right">{r.ppmMedio}</TableCell>
+                    <TableCell className="text-right">{r.precisaoMedia}%</TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </table>
+        </div>
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-y-0 right-0 w-10 rounded-r-md bg-gradient-to-l from-white to-transparent"
+        />
+      </div>
     </div>
   );
 }
