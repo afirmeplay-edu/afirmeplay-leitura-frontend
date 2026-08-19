@@ -475,7 +475,7 @@ export function CaedAplicador({ mode = "oficial" }: CaedAplicadorProps) {
       onClose={() => setConfirmExit(true)}
       embedded={isPractice}
     >
-      <div className="mx-auto w-full min-w-0 max-w-5xl space-y-4 sm:space-y-6">
+      <div className="mx-auto w-full min-w-0 max-w-7xl space-y-4 sm:space-y-6">
         {phase === "abas" ? (
           <p className="text-sm text-muted-foreground">
             Navegue pelas abas na ordem que preferir. Grave, ouça o áudio e marque manualmente.
