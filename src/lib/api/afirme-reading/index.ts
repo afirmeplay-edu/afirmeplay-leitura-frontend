@@ -12,6 +12,10 @@ export {
   createReadingText,
   updateReadingText,
   deleteReadingText,
+  createReadingQuestion,
+  createReadingQuestionsBulk,
+  updateReadingQuestion,
+  deleteReadingQuestion,
 } from "@/lib/api/afirme-reading/texts";
 export {
   createGuidedSession,
@@ -56,6 +60,10 @@ export type {
   ReadingQuestion,
   GradeRef,
   CreateReadingTextPayload,
+  CreateReadingTextQuestionPayload,
+  CreateReadingTextQuestionOptionPayload,
+  CreateReadingQuestionPayload,
+  UpdateReadingQuestionPayload,
   UpdateReadingTextPayload,
   ListReadingTextsParams,
   Grade,
