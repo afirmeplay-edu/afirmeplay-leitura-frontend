@@ -32,6 +32,19 @@ interface DataListPageProps<T extends { id: string }> {
   actions?: (item: T) => ReactNode;
 }
 
+function cellTitle(node: ReactNode): string | undefined {
+  if (typeof node === "string" || typeof node === "number") return String(node);
+  if (node && typeof node === "object" && "props" in node) {
+    const props = (node as { props?: { name?: unknown; children?: ReactNode; title?: unknown } }).props;
+    if (typeof props?.title === "string") return props.title;
+    if (typeof props?.name === "string") return props.name;
+    if (typeof props?.children === "string" || typeof props?.children === "number") {
+      return String(props.children);
+    }
+  }
+  return undefined;
+}
+
 export function DataListPage<T extends { id: string }>({
   title,
   description,
@@ -132,17 +145,24 @@ export function DataListPage<T extends { id: string }>({
               <TableBody>
                 {filtered.map((item) => (
                   <TableRow key={item.id}>
-                    {columns.map((col) => (
-                      <TableCell key={col.key} className="max-w-[200px] truncate">
-                        {rowHref && col.key === primaryCol?.key ? (
-                          <Link href={rowHref(item)} className="font-medium text-bluebrand-base hover:underline">
-                            {col.render(item)}
-                          </Link>
-                        ) : (
-                          col.render(item)
-                        )}
-                      </TableCell>
-                    ))}
+                    {columns.map((col) => {
+                      const content = col.render(item);
+                      return (
+                        <TableCell
+                          key={col.key}
+                          className="max-w-[200px] truncate"
+                          title={cellTitle(content)}
+                        >
+                          {rowHref && col.key === primaryCol?.key ? (
+                            <Link href={rowHref(item)} className="font-medium text-bluebrand-base hover:underline">
+                              {content}
+                            </Link>
+                          ) : (
+                            content
+                          )}
+                        </TableCell>
+                      );
+                    })}
                     {actions && <TableCell className="text-right whitespace-nowrap">{actions(item)}</TableCell>}
                   </TableRow>
                 ))}

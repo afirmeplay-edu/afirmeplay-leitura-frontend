@@ -4,27 +4,29 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Mic, Square } from "lucide-react";
 import { toast } from "sonner";
 import type {
-  FluencyMarkingSource,
   FluencyNotReadReason,
   FluencyTextLinePayload,
   FluencyTextPartPayload,
   FluencyWordStatus,
 } from "@/lib/api/afirme-reading";
 import {
-  computeRms,
-  getSpeechRecognitionCtor,
-  hypothesisMatchesExpected,
   pickRecorderMimeType,
   tokenizeNarrative,
-  voiceThresholdFromNoiseFloor,
-  type SpeechRecognitionLike,
 } from "@/components/fluencia/fluency-browser-utils";
+import {
+  assignSentenceIndices,
+  countTextErrors,
+  cycleTextWordMark,
+  lastMarkedPosition,
+  sentenceStatusByIndex,
+  type TextWordMark,
+} from "@/components/fluencia/manual-marking";
 import {
   NOT_READ_REASON_OPTIONS,
   type NotReadReasonValue,
 } from "@/components/fluencia/not-read-reasons";
 import { ReadingCursorStage } from "@/components/fluencia/reading-cursor-stage";
-import { createSttLog, SpeechTestCard } from "@/components/fluencia/speech-test-card";
+import { StudentAudioPlayer } from "@/components/fluencia/student-audio-player";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -53,20 +55,11 @@ interface NarrativeFluencyStepProps {
   title: string;
   content: string;
   continuePending?: boolean;
+  continueLabel?: string;
   onResultChange: (result: FluencyNarrativePartResult | null) => void;
   onContinue: () => void;
+  onRunningChange?: (running: boolean) => void;
 }
-
-const SILENCE_MS = 3000;
-const RMS_SPEECH_THRESHOLD_FALLBACK = 0.04;
-const NOISE_CALIBRATION_MS = 900;
-
-const ERROR_STATUSES: readonly FluencyWordStatus[] = [
-  "nao_leu",
-  "errou",
-  "inventou",
-  "soletrou",
-];
 
 function formatTime(seconds: number) {
   const safe = Math.max(0, seconds);
@@ -77,138 +70,65 @@ function formatTime(seconds: number) {
   return `${m}:${s}`;
 }
 
-function sttErrorMessage(code: string | undefined) {
-  switch (code) {
-    case "not-allowed":
-      return "Permissão de reconhecimento de voz negada.";
-    case "network":
-      return "Web Speech precisa de internet.";
-    case "service-not-allowed":
-      return "Serviço de reconhecimento bloqueado.";
-    case "audio-capture":
-      return "Falha ao capturar áudio para o STT.";
-    case "no-speech":
-      return null;
-    default:
-      return code ? `Web Speech: ${code}` : "Falha no reconhecimento de voz.";
-  }
+function markToStatus(mark: TextWordMark): FluencyWordStatus | null {
+  if (mark === "unmarked") return null;
+  return mark;
 }
 
 export function NarrativeFluencyStep({
   title,
   content,
   continuePending = false,
+  continueLabel = "Salvar esta parte",
   onResultChange,
   onContinue,
+  onRunningChange,
 }: NarrativeFluencyStepProps) {
-  const speechAvailable = useMemo(() => Boolean(getSpeechRecognitionCtor()), []);
   const { lines, tokens } = useMemo(() => tokenizeNarrative(content), [content]);
   const totalWords = tokens.length;
-  const lineWordCounts = useMemo(
-    () => lines.map((_, lineIndex) => tokens.filter((t) => t.lineIndex === lineIndex).length),
-    [lines, tokens]
+  const sentenceIndex = useMemo(
+    () => assignSentenceIndices(tokens.map((token) => token.display)),
+    [tokens]
   );
 
-  const [aiActive, setAiActive] = useState(speechAvailable);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
   const [isFinished, setIsFinished] = useState(false);
-  const [statuses, setStatuses] = useState<Array<FluencyWordStatus | null>>(() =>
-    tokens.map(() => null)
-  );
-  const [cursor, setCursor] = useState(0);
-  const [wrongByLine, setWrongByLine] = useState<number[]>(() => lines.map(() => 0));
-  const [wordsRead, setWordsRead] = useState(String(totalWords));
-  const [errorsOverride, setErrorsOverride] = useState<string | null>(null);
-  const [unreadAfterEnd, setUnreadAfterEnd] = useState("0");
+  const [marks, setMarks] = useState<TextWordMark[]>(() => tokens.map(() => "unmarked"));
   const [obeyedSensePauses, setObeyedSensePauses] = useState<"sim" | "nao" | "">("");
   const [motivo, setMotivo] = useState<NotReadReasonValue>("nao_se_aplica");
   const [skipped, setSkipped] = useState(false);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
-  const [transcript, setTranscript] = useState("");
-  const [liveHeard, setLiveHeard] = useState("");
-  const [micLevel, setMicLevel] = useState(0);
-  const [hearingSpeech, setHearingSpeech] = useState(false);
-  const [voiceThresholdUi, setVoiceThresholdUi] = useState(RMS_SPEECH_THRESHOLD_FALLBACK);
-  const [sttStatus, setSttStatus] = useState("");
-  const [sttLogs, setSttLogs] = useState<
-    Array<{ id: number; at: string; level: "info" | "result" | "error"; message: string }>
-  >([]);
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startedAtRef = useRef(0);
   const onResultChangeRef = useRef(onResultChange);
+  const onRunningChangeRef = useRef(onRunningChange);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
-  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const analyserRef = useRef<AnalyserNode | null>(null);
-  const rafRef = useRef<number | null>(null);
-  const silenceStartedAtRef = useRef<number | null>(null);
-  const voiceThresholdRef = useRef(RMS_SPEECH_THRESHOLD_FALLBACK);
-  const noiseSamplesRef = useRef<number[]>([]);
-  const meterStartedAtRef = useRef(0);
   const finishedRef = useRef(false);
-  const isRunningRef = useRef(false);
-  const aiActiveRef = useRef(aiActive);
-  const cursorRef = useRef(0);
-  const statusesRef = useRef(statuses);
   const tokensRef = useRef(tokens);
   const linesRef = useRef(lines);
-  const transcriptRef = useRef("");
-  const advancingLockRef = useRef(false);
   const audioBlobRef = useRef<Blob | null>(null);
+  const marksRef = useRef(marks);
+  const elapsedRef = useRef(0);
+  const skippedRef = useRef(false);
+  const motivoRef = useRef(motivo);
+  const pausesRef = useRef(obeyedSensePauses);
 
   onResultChangeRef.current = onResultChange;
-  aiActiveRef.current = aiActive;
+  onRunningChangeRef.current = onRunningChange;
   tokensRef.current = tokens;
   linesRef.current = lines;
-
-  useEffect(() => {
-    statusesRef.current = statuses;
-  }, [statuses]);
-  useEffect(() => {
-    cursorRef.current = cursor;
-  }, [cursor]);
-
-  function pushSttLog(level: "info" | "result" | "error", message: string) {
-    const entry = createSttLog(level, message);
-    setSttLogs((prev) => [entry, ...prev].slice(0, 50));
-    if (level === "error") console.error("[WebSpeech/Q3]", message);
-    else console.log("[WebSpeech/Q3]", message);
-  }
-
-  function stopMeter() {
-    if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
-    rafRef.current = null;
-    analyserRef.current = null;
-    if (audioContextRef.current) {
-      void audioContextRef.current.close();
-      audioContextRef.current = null;
-    }
-    silenceStartedAtRef.current = null;
-    setMicLevel(0);
-    setHearingSpeech(false);
-  }
-
-  function stopRecognition() {
-    const recognition = recognitionRef.current;
-    recognitionRef.current = null;
-    if (!recognition) return;
-    recognition.onresult = null;
-    recognition.onerror = null;
-    recognition.onend = null;
-    try {
-      recognition.stop();
-    } catch {
-      /* ignore */
-    }
-  }
+  marksRef.current = marks;
+  elapsedRef.current = elapsedSeconds;
+  skippedRef.current = skipped;
+  motivoRef.current = motivo;
+  pausesRef.current = obeyedSensePauses;
 
   function stopRecorder(): Promise<Blob | null> {
     return new Promise((resolve) => {
-      stopMeter();
       const recorder = mediaRecorderRef.current;
       if (!recorder || recorder.state === "inactive") {
         streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -236,16 +156,11 @@ export function NarrativeFluencyStep({
     });
   }
 
-  function resetWordSilenceClock() {
-    silenceStartedAtRef.current = Date.now();
-    advancingLockRef.current = false;
-  }
-
-  function buildWrongByLine(nextStatuses: Array<FluencyWordStatus | null>) {
+  function buildWrongByLine(nextMarks: TextWordMark[]) {
     const counts = linesRef.current.map(() => 0);
     tokensRef.current.forEach((token, index) => {
-      const status = nextStatuses[index];
-      if (status && ERROR_STATUSES.includes(status)) {
+      const mark = nextMarks[index];
+      if (mark === "errou" || mark === "soletrou") {
         counts[token.lineIndex] = (counts[token.lineIndex] ?? 0) + 1;
       }
     });
@@ -253,81 +168,78 @@ export function NarrativeFluencyStep({
   }
 
   function buildResultFromState(
-    nextStatuses: Array<FluencyWordStatus | null>,
+    nextMarks: TextWordMark[],
     options?: {
       skipped?: boolean;
       reason?: FluencyNotReadReason | null;
       blob?: Blob | null;
       elapsed?: number;
+      pauses?: "sim" | "nao" | "";
     }
   ): FluencyNarrativePartResult {
-    const skipped = Boolean(options?.skipped);
-    let lastPos = 0;
-    for (let i = 0; i < nextStatuses.length; i += 1) {
-      if (nextStatuses[i] != null) lastPos = i + 1;
-    }
-    const errorsCount = nextStatuses.filter(
-      (s) => s != null && ERROR_STATUSES.includes(s)
-    ).length;
-    const wrong = buildWrongByLine(nextStatuses);
+    const isSkipped = Boolean(options?.skipped);
+    const lastPos = lastMarkedPosition(nextMarks);
+    const errorsCount = countTextErrors(nextMarks);
+    const wrong = buildWrongByLine(nextMarks);
     const linePayload: FluencyTextLinePayload[] = linesRef.current.map((text, lineIndex) => ({
       lineIndex,
       text,
       wrongWordsCount: wrong[lineIndex] ?? 0,
     }));
+    const pauses = options?.pauses ?? pausesRef.current;
 
     return {
-      wordsRead: skipped ? 0 : lastPos,
+      wordsRead: isSkipped ? 0 : lastPos,
       totalWords: tokensRef.current.length,
-      errorsCount: skipped ? 0 : errorsCount,
-      unreadAfterEnd: skipped
+      errorsCount: isSkipped ? 0 : errorsCount,
+      unreadAfterEnd: isSkipped
         ? tokensRef.current.length
         : Math.max(0, tokensRef.current.length - lastPos),
-      readingTimeSeconds: skipped ? 0 : Math.max(1, options?.elapsed ?? elapsedSeconds),
-      skipped,
+      readingTimeSeconds: isSkipped ? 0 : Math.max(1, options?.elapsed ?? elapsedRef.current),
+      skipped: isSkipped,
       notReadReason:
         options?.reason ??
-        (motivo === "nao_se_aplica" ? null : (motivo as FluencyNotReadReason)),
+        (motivoRef.current === "nao_se_aplica" ? null : (motivoRef.current as FluencyNotReadReason)),
       obeyedSensePauses:
-        skipped
-          ? null
-          : obeyedSensePauses === "sim"
-            ? true
-            : obeyedSensePauses === "nao"
-              ? false
-              : null,
-      transcript: transcriptRef.current.trim() || null,
+        isSkipped ? null : pauses === "sim" ? true : pauses === "nao" ? false : null,
+      transcript: null,
       lines: linePayload,
-      sttProvider: transcriptRef.current ? "web_speech_api" : undefined,
       audioBlob: options?.blob ?? audioBlobRef.current,
     };
+  }
+
+  function emitResult(
+    nextMarks: TextWordMark[],
+    options?: {
+      skipped?: boolean;
+      reason?: FluencyNotReadReason | null;
+      blob?: Blob | null;
+      elapsed?: number;
+      pauses?: "sim" | "nao" | "";
+    }
+  ) {
+    const payload = buildResultFromState(nextMarks, options);
+    if (payload.obeyedSensePauses == null && !payload.skipped) {
+      onResultChangeRef.current(null);
+      return;
+    }
+    onResultChangeRef.current(payload);
   }
 
   useEffect(() => {
     setElapsedSeconds(0);
     setIsRunning(false);
-    isRunningRef.current = false;
     setIsFinished(false);
     finishedRef.current = false;
-    setStatuses(tokens.map(() => null));
-    setCursor(0);
-    cursorRef.current = 0;
-    setWrongByLine(lines.map(() => 0));
-    setWordsRead(String(tokens.length));
-    setErrorsOverride(null);
-    setUnreadAfterEnd("0");
+    setMarks(tokens.map(() => "unmarked"));
     setObeyedSensePauses("");
     setMotivo("nao_se_aplica");
     setSkipped(false);
+    skippedRef.current = false;
     setAudioBlob(null);
     audioBlobRef.current = null;
-    setTranscript("");
-    transcriptRef.current = "";
-    setLiveHeard("");
-    setSttLogs([]);
-    setSttStatus("");
     onResultChangeRef.current(null);
-    stopRecognition();
+    onRunningChangeRef.current?.(false);
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
@@ -338,239 +250,12 @@ export function NarrativeFluencyStep({
 
   useEffect(() => {
     return () => {
-      stopRecognition();
       if (timerRef.current) clearInterval(timerRef.current);
+      onRunningChangeRef.current?.(false);
       void stopRecorder();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  function applyStatus(
-    index: number,
-    status: FluencyWordStatus,
-    _source: FluencyMarkingSource,
-    advance: boolean
-  ) {
-    if (finishedRef.current) return;
-    if (statusesRef.current[index] != null) {
-      advancingLockRef.current = false;
-      return;
-    }
-
-    const nextStatuses = [...statusesRef.current];
-    nextStatuses[index] = status;
-    statusesRef.current = nextStatuses;
-    advancingLockRef.current = false;
-
-    const nextCursor = advance ? index + 1 : index;
-    if (advance) {
-      cursorRef.current = nextCursor;
-      setCursor(nextCursor);
-      setWordsRead(String(Math.min(nextCursor, tokensRef.current.length)));
-      setUnreadAfterEnd(
-        String(
-          Math.max(0, tokensRef.current.length - Math.min(nextCursor, tokensRef.current.length))
-        )
-      );
-      resetWordSilenceClock();
-    }
-
-    setStatuses(nextStatuses);
-    setWrongByLine(buildWrongByLine(nextStatuses));
-    setErrorsOverride(null);
-
-    const pastEnd = advance && nextCursor >= tokensRef.current.length;
-    const allDone = nextStatuses.every((s) => s != null);
-    if (allDone || pastEnd) {
-      queueMicrotask(() => {
-        void finishReading(nextStatuses);
-      });
-    }
-  }
-
-  function handleAcousticSilenceTimeout() {
-    if (finishedRef.current || !isRunningRef.current || advancingLockRef.current) return;
-    const index = cursorRef.current;
-    if (index >= tokensRef.current.length) return;
-    if (statusesRef.current[index] != null) return;
-    advancingLockRef.current = true;
-    pushSttLog("info", `silêncio ${SILENCE_MS}ms → Não leu`);
-    applyStatus(index, "nao_leu", "timeout", true);
-  }
-
-  function startMeter(stream: MediaStream) {
-    const audioContext = new AudioContext();
-    audioContextRef.current = audioContext;
-    const source = audioContext.createMediaStreamSource(stream);
-    const analyser = audioContext.createAnalyser();
-    analyser.fftSize = 256;
-    source.connect(analyser);
-    analyserRef.current = analyser;
-    const data = new Uint8Array(analyser.frequencyBinCount);
-    silenceStartedAtRef.current = Date.now();
-    meterStartedAtRef.current = Date.now();
-    noiseSamplesRef.current = [];
-    voiceThresholdRef.current = RMS_SPEECH_THRESHOLD_FALLBACK;
-
-    const tick = () => {
-      const current = analyserRef.current;
-      if (!current || finishedRef.current || !isRunningRef.current) return;
-      const rms = computeRms(current, data);
-      setMicLevel(rms);
-      const elapsedMeter = Date.now() - meterStartedAtRef.current;
-      if (elapsedMeter < NOISE_CALIBRATION_MS) {
-        noiseSamplesRef.current.push(rms);
-        if (noiseSamplesRef.current.length >= 8) {
-          const sorted = [...noiseSamplesRef.current].sort((a, b) => a - b);
-          const floor = sorted[Math.floor(sorted.length * 0.2)] ?? 0;
-          const next = voiceThresholdFromNoiseFloor(floor);
-          voiceThresholdRef.current = next;
-          setVoiceThresholdUi(next);
-        }
-      } else if (noiseSamplesRef.current.length > 0 && elapsedMeter < NOISE_CALIBRATION_MS + 50) {
-        pushSttLog("info", `piso calibrado → limiar=${voiceThresholdRef.current.toFixed(3)}`);
-        noiseSamplesRef.current = [];
-      }
-
-      const speaking = rms >= voiceThresholdRef.current;
-      setHearingSpeech(speaking);
-      if (speaking) {
-        silenceStartedAtRef.current = null;
-      } else if (silenceStartedAtRef.current == null) {
-        silenceStartedAtRef.current = Date.now();
-      } else if (Date.now() - silenceStartedAtRef.current >= SILENCE_MS) {
-        silenceStartedAtRef.current = null;
-        handleAcousticSilenceTimeout();
-      }
-      rafRef.current = requestAnimationFrame(tick);
-    };
-    rafRef.current = requestAnimationFrame(tick);
-  }
-
-  function evaluateRecognitionResult(alternatives: string[], isFinal: boolean) {
-    if (!aiActiveRef.current || finishedRef.current) return;
-    const cleaned = alternatives.map((t) => t.trim()).filter(Boolean);
-    if (cleaned.length === 0) return;
-
-    const primary = cleaned[0];
-    if (isFinal) {
-      transcriptRef.current = `${transcriptRef.current} ${primary}`.trim();
-      setTranscript(transcriptRef.current);
-      setLiveHeard("");
-      pushSttLog("result", `FINAL: "${primary}"`);
-    } else {
-      setLiveHeard(primary);
-      pushSttLog("result", `interim: "${primary}"`);
-    }
-    setSttStatus(isFinal ? "hipótese final" : "ouvindo…");
-
-    for (const text of cleaned) {
-      const index = cursorRef.current;
-      if (index >= tokensRef.current.length || statusesRef.current[index] != null) return;
-      const expected = tokensRef.current[index]?.word;
-      if (!expected) return;
-      silenceStartedAtRef.current = null;
-
-      const match = hypothesisMatchesExpected(expected, text);
-      if (match.matched) {
-        pushSttLog(
-          "info",
-          `match ${match.kind} → "${expected}" / "${match.token ?? text}"`
-        );
-        applyStatus(index, "acertou", "ia", true);
-        return;
-      }
-
-      // Lookahead: se casou com a próxima, marca a atual como não leu e a próxima como acertou.
-      if (index + 1 < tokensRef.current.length) {
-        const nextExpected = tokensRef.current[index + 1]?.word;
-        if (nextExpected && hypothesisMatchesExpected(nextExpected, text).matched) {
-          pushSttLog("info", `lookahead: palavra ${index + 1} pulada → acertou ${index + 2}`);
-          applyStatus(index, "nao_leu", "timeout", true);
-          applyStatus(index + 1, "acertou", "ia", true);
-          return;
-        }
-      }
-    }
-
-    if (isFinal) {
-      const index = cursorRef.current;
-      if (index >= tokensRef.current.length || statusesRef.current[index] != null) return;
-      pushSttLog(
-        "info",
-        `sem match → inventou (esperado: "${tokensRef.current[index]?.word}", ouviu: "${primary}")`
-      );
-      applyStatus(index, "inventou", "ia", true);
-    }
-  }
-
-  function startRecognition() {
-    if (!aiActiveRef.current) {
-      setSttStatus("IA desligada");
-      return;
-    }
-    const Ctor = getSpeechRecognitionCtor();
-    if (!Ctor) {
-      toast.message("Web Speech indisponível. Use marcação manual.");
-      setAiActive(false);
-      return;
-    }
-    const recognition = new Ctor();
-    recognition.lang = "pt-BR";
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.maxAlternatives = 3;
-    recognition.onresult = (event) => {
-      for (let i = event.resultIndex; i < event.results.length; i += 1) {
-        const result = event.results[i];
-        const alts: string[] = [];
-        for (let a = 0; a < Math.max(1, result.length || 1); a += 1) {
-          const t = result[a]?.transcript?.trim();
-          if (t) alts.push(t);
-        }
-        evaluateRecognitionResult(alts, result.isFinal);
-      }
-    };
-    recognition.onerror = (event) => {
-      const code = event.error ?? "unknown";
-      pushSttLog("error", `onerror: ${code}`);
-      if (code === "no-speech" || code === "aborted") return;
-      const message = sttErrorMessage(code);
-      if (message) {
-        setSttStatus(message);
-        toast.message(message);
-      }
-      if (code === "not-allowed" || code === "service-not-allowed" || code === "network") {
-        setAiActive(false);
-        aiActiveRef.current = false;
-        stopRecognition();
-      }
-    };
-    recognition.onend = () => {
-      if (!finishedRef.current && aiActiveRef.current && recognitionRef.current === recognition) {
-        try {
-          recognition.start();
-        } catch (error) {
-          pushSttLog(
-            "error",
-            `reinício falhou: ${error instanceof Error ? error.message : String(error)}`
-          );
-        }
-      }
-    };
-    recognitionRef.current = recognition;
-    try {
-      recognition.start();
-      setSttStatus("reconhecimento ativo");
-      pushSttLog("info", "STT iniciado na Q3.");
-    } catch (error) {
-      pushSttLog(
-        "error",
-        `start falhou: ${error instanceof Error ? error.message : String(error)}`
-      );
-      setAiActive(false);
-    }
-  }
 
   async function startReading() {
     if (isRunning || !content || tokens.length === 0) return;
@@ -588,7 +273,6 @@ export function NarrativeFluencyStep({
       };
       mediaRecorderRef.current = recorder;
       recorder.start(1000);
-      startMeter(stream);
     } catch {
       toast.error("Não foi possível acessar o microfone.");
       return;
@@ -598,66 +282,46 @@ export function NarrativeFluencyStep({
     finishedRef.current = false;
     setElapsedSeconds(0);
     setIsRunning(true);
-    isRunningRef.current = true;
+    onRunningChangeRef.current?.(true);
     setIsFinished(false);
     setSkipped(false);
-    setCursor(0);
-    cursorRef.current = 0;
-    setStatuses(tokens.map(() => null));
-    statusesRef.current = tokens.map(() => null);
-    setWrongByLine(lines.map(() => 0));
-    setWordsRead("0");
-    setUnreadAfterEnd(String(tokens.length));
+    skippedRef.current = false;
+    setMarks(tokens.map(() => "unmarked"));
+    marksRef.current = tokens.map(() => "unmarked");
+    setAudioBlob(null);
     onResultChangeRef.current(null);
-    resetWordSilenceClock();
 
     timerRef.current = setInterval(() => {
       setElapsedSeconds(Math.floor((Date.now() - startedAtRef.current) / 1000));
     }, 250);
-
-    startRecognition();
   }
 
-  async function finishReading(nextStatuses?: Array<FluencyWordStatus | null>) {
-    if (finishedRef.current && !nextStatuses) return;
-    stopRecognition();
+  async function finishReading() {
+    if (finishedRef.current && !isRunning) return;
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
     const elapsed = Math.max(1, Math.floor((Date.now() - startedAtRef.current) / 1000));
     setElapsedSeconds(elapsed);
+    elapsedRef.current = elapsed;
     finishedRef.current = true;
-    isRunningRef.current = false;
     setIsRunning(false);
+    onRunningChangeRef.current?.(false);
     setIsFinished(true);
     const blob = await stopRecorder();
-    const statusesNow = nextStatuses ?? statusesRef.current;
-    const wrong = buildWrongByLine(statusesNow);
-    setWrongByLine(wrong);
-    let lastPos = 0;
-    for (let i = 0; i < statusesNow.length; i += 1) {
-      if (statusesNow[i] != null) lastPos = i + 1;
-    }
-    setWordsRead(String(lastPos));
-    setUnreadAfterEnd(String(Math.max(0, tokensRef.current.length - lastPos)));
-    const payload = buildResultFromState(statusesNow, { blob, elapsed });
-    // paused sense ainda não respondido → onResultChange fica null até o aplicador escolher
-    if (payload.obeyedSensePauses == null && !payload.skipped) {
-      onResultChangeRef.current(null);
-    } else {
-      onResultChangeRef.current(payload);
-    }
+    emitResult(marksRef.current, { blob, elapsed });
   }
 
-  function adjustWrong(lineIndex: number, delta: number) {
-    setWrongByLine((prev) => {
+  function handleWordClick(index: number) {
+    if (!isFinished || skipped) return;
+    setMarks((prev) => {
       const next = [...prev];
-      const max = lineWordCounts[lineIndex] ?? 0;
-      next[lineIndex] = Math.max(0, Math.min(max, (next[lineIndex] ?? 0) + delta));
+      next[index] = cycleTextWordMark(prev[index] ?? "unmarked");
+      marksRef.current = next;
+      emitResult(next);
       return next;
     });
-    setErrorsOverride(null);
   }
 
   function handleSkip() {
@@ -665,103 +329,52 @@ export function NarrativeFluencyStep({
       motivo === "nao_se_aplica" ? ("recusou" as FluencyNotReadReason) : (motivo as FluencyNotReadReason);
     if (motivo === "nao_se_aplica") setMotivo("recusou");
     setSkipped(true);
+    skippedRef.current = true;
     finishedRef.current = true;
-    isRunningRef.current = false;
     setIsRunning(false);
+    onRunningChangeRef.current?.(false);
     setIsFinished(true);
-    stopRecognition();
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
     void stopRecorder();
-    const empty = tokens.map(() => null);
-    setStatuses(empty);
-    statusesRef.current = empty;
-    const payload = buildResultFromState(empty, { skipped: true, reason, blob: null, elapsed: 0 });
-    onResultChangeRef.current(payload);
+    const empty = tokens.map(() => "unmarked" as const);
+    setMarks(empty);
+    marksRef.current = empty;
+    emitResult(empty, { skipped: true, reason, blob: null, elapsed: 0 });
   }
-
-  const autoErrors = useMemo(
-    () => wrongByLine.reduce((sum, value) => sum + value, 0),
-    [wrongByLine]
-  );
-  const parsedWordsRead = Number.parseInt(wordsRead, 10);
-  const parsedUnread = Number.parseInt(unreadAfterEnd, 10);
-  const parsedErrors =
-    errorsOverride != null && errorsOverride !== ""
-      ? Number.parseInt(errorsOverride, 10)
-      : autoErrors;
-  const wordsReadValid =
-    Number.isFinite(parsedWordsRead) && parsedWordsRead >= 0 && parsedWordsRead <= totalWords;
-  const errorsValid = Number.isFinite(parsedErrors) && parsedErrors >= 0;
 
   useEffect(() => {
     if (!isFinished || skipped) return;
-    if (!wordsReadValid || !errorsValid) {
-      onResultChangeRef.current(null);
-      return;
-    }
-    if (obeyedSensePauses !== "sim" && obeyedSensePauses !== "nao") {
-      onResultChangeRef.current(null);
-      return;
-    }
-    const unread = Number.isFinite(parsedUnread)
-      ? parsedUnread
-      : Math.max(0, totalWords - parsedWordsRead);
-    onResultChangeRef.current({
-      wordsRead: parsedWordsRead,
-      totalWords,
-      errorsCount: parsedErrors,
-      unreadAfterEnd: unread,
-      readingTimeSeconds: Math.max(1, elapsedSeconds),
-      skipped: false,
-      notReadReason: motivo === "nao_se_aplica" ? null : (motivo as FluencyNotReadReason),
-      obeyedSensePauses: obeyedSensePauses === "sim",
-      transcript: transcriptRef.current.trim() || null,
-      lines: lines.map((text, lineIndex) => ({
-        lineIndex,
-        text,
-        wrongWordsCount: wrongByLine[lineIndex] ?? 0,
-      })),
-      sttProvider: transcriptRef.current ? "web_speech_api" : undefined,
-      audioBlob: audioBlobRef.current,
-    });
-  }, [
-    isFinished,
-    skipped,
-    wordsReadValid,
-    errorsValid,
-    parsedWordsRead,
-    parsedErrors,
-    parsedUnread,
-    elapsedSeconds,
-    totalWords,
-    lines,
-    wrongByLine,
-    motivo,
-    obeyedSensePauses,
-    audioBlob,
-  ]);
+    emitResult(marks);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isFinished, skipped, obeyedSensePauses, motivo, audioBlob, marks]);
+
+  const wrongByLine = useMemo(() => buildWrongByLine(marks), [marks]);
+  const lastPos = lastMarkedPosition(marks);
+  const errorsCount = countTextErrors(marks);
+  const unreadAfterEnd = Math.max(0, totalWords - lastPos);
+  const sentenceStatuses = useMemo(
+    () => sentenceStatusByIndex(marks, sentenceIndex),
+    [marks, sentenceIndex]
+  );
 
   const cursorItems = useMemo(
     () =>
       tokens.map((token, index) => ({
         id: `t-${index}`,
         label: token.display,
-        status: statuses[index] ?? null,
+        status: markToStatus(marks[index] ?? "unmarked"),
+        sentenceIndex: sentenceIndex[index],
       })),
-    [tokens, statuses]
+    [tokens, marks, sentenceIndex]
   );
 
   const canContinue =
     isFinished &&
-    (skipped ||
-      (wordsReadValid &&
-        errorsValid &&
-        (obeyedSensePauses === "sim" || obeyedSensePauses === "nao")));
-
-  const levelPercent = Math.min(100, Math.round(micLevel * 400));
+    (skipped || obeyedSensePauses === "sim" || obeyedSensePauses === "nao") &&
+    !continuePending;
 
   if (!content || tokens.length === 0) {
     return (
@@ -781,109 +394,72 @@ export function NarrativeFluencyStep({
         <h2 className="text-xl font-semibold text-bluebrand-deep">{title}</h2>
       </div>
 
-      <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-950">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="font-semibold">IA — Correção automática por voz</p>
-          <label className="inline-flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={aiActive}
-              disabled={isRunning || !speechAvailable}
-              onChange={(event) => setAiActive(event.target.checked)}
-            />
-            IA ativa
-          </label>
-        </div>
-        <p className="mt-2">
-          A história é acompanhada palavra a palavra (destaque azul). Match fonético/fuzzy como nas
-          listas. Inventou só com hipótese final do STT.
-        </p>
-        {isRunning ? (
-          <div className="mt-3 space-y-2">
-            <div className="flex items-center justify-between text-xs">
-              <span>
-                {hearingSpeech ? "Fala acima do limiar" : "Abaixo do limiar…"} · limiar{" "}
-                {voiceThresholdUi.toFixed(3)}
-              </span>
-              <span>{sttStatus || "—"}</span>
-            </div>
-            <div className="h-2 overflow-hidden rounded-full bg-emerald-100">
-              <div
-                className={cn(
-                  "h-full rounded-full transition-[width] duration-75",
-                  hearingSpeech ? "bg-emerald-600" : "bg-emerald-300"
-                )}
-                style={{ width: `${levelPercent}%` }}
-              />
-            </div>
-          </div>
-        ) : null}
-      </div>
-
       <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
         <p className="font-semibold text-amber-800">[APLICADOR] COMANDO PADRONIZADO</p>
         <ul className="mt-2 list-disc space-y-1 pl-5">
           <li>Peça ao estudante para ler o texto em voz alta, com atenção.</li>
           <li>Informe que depois haverá perguntas de compreensão.</li>
+          <li>Depois da gravação, ouça o áudio e clique nas palavras para marcar.</li>
         </ul>
       </div>
 
-      <SpeechTestCard
-        disableStandaloneTest={isRunning}
-        externalLiveText={isRunning ? liveHeard : undefined}
-        externalLogs={isRunning || sttLogs.length > 0 ? sttLogs : undefined}
-      />
+      <div>
+        <p className="text-sm text-muted-foreground">Tempo de leitura</p>
+        <span className="font-mono text-3xl font-bold tabular-nums text-violet-700">
+          {formatTime(elapsedSeconds)}
+        </span>
+      </div>
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-sm text-muted-foreground">Tempo de leitura</p>
-          <span className="font-mono text-3xl font-bold tabular-nums text-violet-700">
-            {formatTime(elapsedSeconds)}
-          </span>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          {!isRunning && !isFinished ? (
+      <StudentAudioPlayer blob={audioBlob} />
+
+      <div className="flex flex-wrap items-center gap-3">
+        {!isRunning && !isFinished ? (
+          <Button
+            onClick={() => void startReading()}
+            className="bg-emerald-600 hover:bg-emerald-700"
+          >
+            <Mic className="h-4 w-4" />
+            Iniciar gravação + leitura
+          </Button>
+        ) : null}
+        {isRunning ? (
+          <>
+            <span className="flex items-center gap-2 text-sm text-red-600">
+              <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-red-600" />
+              Leitura em andamento
+            </span>
             <Button
-              onClick={() => void startReading()}
-              className="bg-emerald-600 hover:bg-emerald-700"
+              onClick={() => void finishReading()}
+              className="bg-red-600 text-white hover:bg-red-700"
             >
-              <Mic className="h-4 w-4" />
-              Iniciar gravação + leitura
+              <Square className="h-4 w-4" />
+              Finalizar leitura
             </Button>
-          ) : null}
-          {isRunning ? (
-            <>
-              <span className="flex items-center gap-2 text-sm text-red-600">
-                <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-red-600" />
-                Leitura em andamento
-              </span>
-              <Button
-                onClick={() => void finishReading()}
-                className="bg-red-600 text-white hover:bg-red-700"
-              >
-                <Square className="h-4 w-4" />
-                Finalizar leitura
-              </Button>
-            </>
-          ) : null}
-        </div>
+          </>
+        ) : null}
+        {isFinished && !skipped ? (
+          <Button variant="outline" onClick={() => void startReading()}>
+            Regravar
+          </Button>
+        ) : null}
+      </div>
+
+      <div className="flex flex-wrap gap-2 text-xs">
+        <span className="rounded bg-emerald-50 px-2 py-1 text-emerald-800">1 clique: correta</span>
+        <span className="rounded bg-red-50 px-2 py-1 text-red-800">2 cliques: errada</span>
+        <span className="rounded bg-violet-50 px-2 py-1 text-violet-800">3 cliques: soletrada</span>
+        <span className="rounded bg-amber-50 px-2 py-1 text-amber-900">frase com 1–2 erros</span>
+        <span className="rounded bg-red-100 px-2 py-1 text-red-900">frase com 3+ erros</span>
       </div>
 
       <ReadingCursorStage
         mode="narrative"
         items={cursorItems}
-        cursor={cursor}
+        cursor={Math.max(0, lastPos - 1)}
         listening={isRunning && !isFinished}
-        instruction="LEIA EM VOZ ALTA A PALAVRA DESTACADA"
-        onSelectIndex={
-          isRunning && !isFinished
-            ? (index) => {
-                setCursor(index);
-                cursorRef.current = index;
-                resetWordSilenceClock();
-              }
-            : undefined
-        }
+        instruction="LEIA EM VOZ ALTA O TEXTO"
+        sentenceStatuses={sentenceStatuses}
+        onMarkWord={isFinished && !skipped ? handleWordClick : undefined}
       />
 
       <div className="overflow-auto rounded-lg border">
@@ -903,34 +479,14 @@ export function NarrativeFluencyStep({
                 </TableCell>
                 <TableCell className="font-medium uppercase tracking-wide">{line}</TableCell>
                 <TableCell>
-                  <div className="flex items-center justify-center gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={!isFinished || skipped}
-                      onClick={() => adjustWrong(index, -1)}
-                    >
-                      −
-                    </Button>
-                    <span
-                      className={cn(
-                        "min-w-8 text-center font-mono text-lg",
-                        (wrongByLine[index] ?? 0) > 0 && "text-red-600"
-                      )}
-                    >
-                      {wrongByLine[index] ?? 0}
-                    </span>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={!isFinished || skipped}
-                      onClick={() => adjustWrong(index, 1)}
-                    >
-                      +
-                    </Button>
-                  </div>
+                  <span
+                    className={cn(
+                      "block text-center font-mono text-lg",
+                      (wrongByLine[index] ?? 0) > 0 && "text-red-600"
+                    )}
+                  >
+                    {wrongByLine[index] ?? 0}
+                  </span>
                 </TableCell>
               </TableRow>
             ))}
@@ -942,49 +498,28 @@ export function NarrativeFluencyStep({
         <h3 className="font-semibold uppercase tracking-wide text-bluebrand-deep">
           Registro de leitura de texto
         </h3>
+        <p className="text-xs text-muted-foreground">
+          Preenchido automaticamente a partir das marcações no texto.
+        </p>
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="q3-words-read">Posição da última palavra lida</Label>
             <Input
               id="q3-words-read"
-              type="number"
-              min={0}
-              max={totalWords}
-              value={wordsRead}
-              disabled={!isFinished || skipped}
-              onChange={(event) => {
-                setWordsRead(event.target.value);
-                const value = Number.parseInt(event.target.value, 10);
-                if (Number.isFinite(value)) {
-                  setUnreadAfterEnd(String(Math.max(0, totalWords - value)));
-                }
-              }}
+              readOnly
+              value={skipped ? 0 : lastPos}
             />
             <p className="text-xs text-muted-foreground">Total de palavras do texto: {totalWords}</p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="q3-errors">Total de palavras lidas de modo errado</Label>
-            <Input
-              id="q3-errors"
-              type="number"
-              min={0}
-              value={errorsOverride ?? String(autoErrors)}
-              disabled={!isFinished || skipped}
-              onChange={(event) => setErrorsOverride(event.target.value)}
-            />
+            <Input id="q3-errors" readOnly value={skipped ? 0 : errorsCount} />
           </div>
         </div>
 
         <div className="space-y-2">
           <Label htmlFor="q3-unread">Palavras não lidas (após o encerramento)</Label>
-          <Input
-            id="q3-unread"
-            type="number"
-            min={0}
-            value={unreadAfterEnd}
-            disabled={!isFinished || skipped}
-            onChange={(event) => setUnreadAfterEnd(event.target.value)}
-          />
+          <Input id="q3-unread" readOnly value={skipped ? totalWords : unreadAfterEnd} />
         </div>
 
         <div className="space-y-2">
@@ -1030,13 +565,6 @@ export function NarrativeFluencyStep({
         </div>
       </div>
 
-      {transcript ? (
-        <p className="text-xs text-muted-foreground">
-          Transcript: {transcript.slice(0, 280)}
-          {transcript.length > 280 ? "…" : ""}
-        </p>
-      ) : null}
-
       <div className="flex flex-col gap-2 sm:flex-row sm:justify-between">
         <Button
           type="button"
@@ -1046,8 +574,8 @@ export function NarrativeFluencyStep({
         >
           Pular (estudante não leu)
         </Button>
-        <Button onClick={onContinue} disabled={!canContinue || continuePending}>
-          {continuePending ? "Salvando..." : "Próximo: Compreensão →"}
+        <Button onClick={onContinue} disabled={!canContinue}>
+          {continuePending ? "Salvando..." : continueLabel}
         </Button>
       </div>
     </div>

@@ -1,3 +1,5 @@
+import { getIcaLevelStyle } from "@/lib/colors/reading-levels";
+
 export const REPORT_TAG_BASE =
   "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold leading-none uppercase tracking-wide";
 
@@ -20,14 +22,11 @@ export function getProficiencyTagClass(label?: string | null): string {
 }
 
 export function getIcaLevelTagClass(level?: string | number | null): string {
-  if (level == null || level === "" || level === "-") {
+  const style = getIcaLevelStyle(level);
+  if (!style) {
     return `${REPORT_TAG_BASE} bg-slate-100 text-slate-600 border-slate-300`;
   }
-  const num = typeof level === "number" ? level : parseInt(level, 10);
-  if (num >= 4) return `${REPORT_TAG_BASE} bg-green-800 text-green-50 border-green-900`;
-  if (num === 3) return `${REPORT_TAG_BASE} bg-green-100 text-green-800 border-green-300`;
-  if (num === 2) return `${REPORT_TAG_BASE} bg-amber-100 text-amber-800 border-amber-300`;
-  return `${REPORT_TAG_BASE} bg-red-100 text-red-800 border-red-300`;
+  return `${REPORT_TAG_BASE} ${style.tagClass}`;
 }
 
 export function getDifficultyTagClass(difficulty: string): string {

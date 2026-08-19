@@ -8,6 +8,7 @@ export {
   listClassesBySchool,
   listStudentsByClass,
   listStudentsBySchool,
+  getStudent,
   type School,
   type SchoolClass,
   type Student,

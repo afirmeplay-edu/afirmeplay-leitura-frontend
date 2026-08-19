@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Gauge, Info, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -34,6 +34,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { parsePracticeActivityTab } from "@/components/fluencia/practice-tabs";
 
 function pickPreferredList(lists: WordList[]) {
   return (
@@ -44,8 +45,14 @@ function pickPreferredList(lists: WordList[]) {
   );
 }
 
-export function FluenciaSelecao() {
+interface FluenciaSelecaoProps {
+  variant?: "oficial" | "praticar";
+}
+
+export function FluenciaSelecao({ variant = "oficial" }: FluenciaSelecaoProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const isPractice = variant === "praticar";
   const [cityReady, setCityReady] = useState(false);
   const [cityKey, setCityKey] = useState("none");
 
@@ -83,6 +90,10 @@ export function FluenciaSelecao() {
     () => texts.find((item) => item.id === textId) ?? null,
     [texts, textId]
   );
+  const practiceTab = parsePracticeActivityTab(searchParams.get("aba"));
+  const hideNarrativeText =
+    isPractice && (practiceTab === "palavras" || practiceTab === "pouco-comuns");
+  const textForSession = hideNarrativeText ? (texts[0] ?? null) : selectedText;
 
   const handleCityReadyChange = useCallback((ready: boolean, cityId: string | null) => {
     setCityReady(ready);
@@ -201,12 +212,25 @@ export function FluenciaSelecao() {
   }, [classId, cityReady]);
 
   const canStart = Boolean(
-    cityReady && schoolId && classId && studentId && textId && !creating
+    cityReady &&
+      schoolId &&
+      classId &&
+      studentId &&
+      (hideNarrativeText ? texts.length > 0 : textId) &&
+      !creating
   );
 
   async function handleStart() {
-    if (!selectedSchool || !selectedClass || !selectedStudent || !selectedText) {
-      toast.error("Selecione escola, turma, estudante e texto narrativo.");
+    if (!selectedSchool || !selectedClass || !selectedStudent) {
+      toast.error("Selecione escola, turma e estudante.");
+      return;
+    }
+    if (!textForSession) {
+      toast.error(
+        hideNarrativeText
+          ? "Não há texto cadastrado para criar a sessão. Cadastre um texto em Configurar."
+          : "Selecione o texto narrativo."
+      );
       return;
     }
 
@@ -216,12 +240,13 @@ export function FluenciaSelecao() {
         studentId: selectedStudent.id,
         classId: selectedClass.id,
         schoolId: selectedSchool.id,
-        readingTextId: selectedText.id,
+        readingTextId: textForSession.id,
         wordsWordListId: wordsList?.id ?? null,
         uncommonWordListId: uncommonList?.id ?? null,
         caderno: "A",
       });
 
+      const aba = practiceTab ?? "palavras";
       const params = new URLSearchParams({
         sessionId: session.id,
         studentId: selectedStudent.id,
@@ -230,14 +255,19 @@ export function FluenciaSelecao() {
         className: selectedClass.name,
         schoolId: selectedSchool.id,
         schoolName: selectedSchool.name,
-        readingTextId: selectedText.id,
-        textTitle: selectedText.title,
+        readingTextId: textForSession.id,
+        textTitle: textForSession.title,
         wordsWordListId: session.wordsWordListId ?? wordsList?.id ?? "",
         uncommonWordListId: session.uncommonWordListId ?? uncommonList?.id ?? "",
         caderno: session.caderno || "A",
       });
 
-      router.push(`/app/avaliacao-fluencia/aplicar?${params.toString()}`);
+      if (isPractice) {
+        params.set("aba", aba);
+        router.push(`/app/avaliacao-leitura-guiada?${params.toString()}`);
+      } else {
+        router.push(`/app/avaliacao-fluencia/aplicar?${params.toString()}`);
+      }
     } catch (error) {
       toast.error(getApiErrorMessage(error, "Não foi possível criar a sessão de fluência."));
     } finally {
@@ -249,25 +279,30 @@ export function FluenciaSelecao() {
     <div className="space-y-6 pb-8">
       <PageHeader
         eyebrow="Compromisso Criança Alfabetizada · ICA"
-        title="Avaliação de Fluência Leitora"
-        description="Aplicação individual para o 2º ano, com correção automática por voz no navegador."
+        title={isPractice ? "Praticar Avaliação de Fluência" : "Avaliação de Fluência Leitora"}
+        description={
+          isPractice
+            ? hideNarrativeText
+              ? "Escolha o estudante para iniciar a prática da lista de palavras."
+              : "Escolha o estudante e o texto para praticar a leitura do texto narrativo."
+            : "Aplicação individual para o 2º ano, com gravação de áudio e marcação manual pelo professor."
+        }
         icon={Gauge}
       />
 
       <Alert className="border-l-4 border-l-bluebrand-base">
         <Info className="h-4 w-4 text-bluebrand-base" />
         <AlertDescription className="space-y-2 text-sm">
-          <p className="font-medium">Sobre esta avaliação</p>
+          <p className="font-medium">{isPractice ? "Sobre esta prática" : "Sobre esta avaliação"}</p>
           <p>
-            Avaliação individual do 2º ano do Ensino Fundamental, com correção automática por IA
-            (Web Speech no browser). São 3 questões: lista de palavras, lista de palavras pouco
-            comuns e leitura de texto narrativo com 3 perguntas de compreensão (literal, inferência
-            e assunto global).
+            {isPractice
+              ? "Pratique lista de palavras conhecidas, palavras pouco conhecidas e texto narrativo. O professor ouve o áudio e marca manualmente."
+              : "Avaliação individual do 2º ano do Ensino Fundamental. São 3 questões: lista de palavras, lista de palavras pouco comuns e leitura de texto narrativo com perguntas de compreensão. O professor ouve a gravação e classifica cada palavra."}
           </p>
           <p>
-            Tempo: 60 segundos para cada lista. Regra de transição: avanço automático após 3
-            segundos sem leitura (palavra marcada como &quot;Não leu&quot;). Ao final, é gerado o
-            Leiturômetro com a classificação ICA.
+            {isPractice
+              ? "Tempo: 60 segundos para cada lista de palavras."
+              : "Tempo: 60 segundos para cada lista. Ao final, é gerado o Leiturômetro com a classificação ICA."}
           </p>
         </AlertDescription>
       </Alert>
@@ -360,33 +395,46 @@ export function FluenciaSelecao() {
             </Select>
           </div>
 
-          <div className="space-y-2">
-            <Label>Texto narrativo (Questão 3)</Label>
-            <Select
-              value={textId || undefined}
-              onValueChange={setTextId}
-              disabled={!cityReady || loadingTexts}
-            >
-              <SelectTrigger>
-                <SelectValue
-                  placeholder={loadingTexts ? "Carregando textos..." : "Selecione o texto"}
-                />
-              </SelectTrigger>
-              <SelectContent>
-                {texts.map((text) => (
-                  <SelectItem key={text.id} value={text.id}>
-                    {text.title}
-                    {text.source ? ` — ${text.source}` : ""}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">
-              Você pode cadastrar novos textos em Configurar.
-              {wordsList ? ` Lista Q1: ${wordsList.name}.` : null}
-              {uncommonList ? ` Lista Q2: ${uncommonList.name}.` : null}
-            </p>
-          </div>
+          {hideNarrativeText ? (
+            <div className="space-y-2">
+              <p className="text-xs text-muted-foreground">
+                {practiceTab === "palavras" && wordsList
+                  ? `Lista: ${wordsList.name}.`
+                  : null}
+                {practiceTab === "pouco-comuns" && uncommonList
+                  ? `Lista: ${uncommonList.name}.`
+                  : null}
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <Label>Texto narrativo (Questão 3)</Label>
+              <Select
+                value={textId || undefined}
+                onValueChange={setTextId}
+                disabled={!cityReady || loadingTexts}
+              >
+                <SelectTrigger>
+                  <SelectValue
+                    placeholder={loadingTexts ? "Carregando textos..." : "Selecione o texto"}
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {texts.map((text) => (
+                    <SelectItem key={text.id} value={text.id}>
+                      {text.title}
+                      {text.source ? ` — ${text.source}` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Você pode cadastrar novos textos em Configurar.
+                {wordsList ? ` Lista Q1: ${wordsList.name}.` : null}
+                {uncommonList ? ` Lista Q2: ${uncommonList.name}.` : null}
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -394,7 +442,7 @@ export function FluenciaSelecao() {
         <div className="rounded-lg border bg-muted/30 px-4 py-3 text-sm">
           <span className="font-medium">Aluno selecionado: </span>
           {selectedStudent.name} — {selectedClass.name} — {selectedSchool.name}
-          {selectedText ? ` · Texto: ${selectedText.title}` : null}
+          {!hideNarrativeText && selectedText ? ` · Texto: ${selectedText.title}` : null}
         </div>
       ) : null}
 
@@ -402,6 +450,11 @@ export function FluenciaSelecao() {
         <Button variant="outline" asChild className="w-full sm:w-auto">
           <Link href="/app/configuracao-avaliacao">Configurar listas, textos e perguntas</Link>
         </Button>
+        {isPractice ? (
+          <Button variant="outline" asChild className="w-full sm:w-auto">
+            <Link href="/app/revisao-leitura-guiada">Revisão e áudio</Link>
+          </Button>
+        ) : null}
         <Button variant="ghost" asChild className="w-full sm:w-auto">
           <Link href="/app">← Início</Link>
         </Button>
@@ -415,6 +468,8 @@ export function FluenciaSelecao() {
               <Loader2 className="h-4 w-4 animate-spin" />
               Criando sessão...
             </>
+          ) : isPractice ? (
+            "Iniciar prática →"
           ) : (
             "Iniciar Avaliação de Fluência →"
           )}

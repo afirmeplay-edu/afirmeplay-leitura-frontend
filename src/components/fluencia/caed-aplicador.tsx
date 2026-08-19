@@ -31,22 +31,31 @@ import {
   WordListFluencyStep,
   type FluencyListPartResult,
 } from "@/components/fluencia/word-list-fluency-step";
+import { isSerieTurmaCompleta } from "@/lib/fluencia/class-label";
+import { perfilFromIcaLevel } from "@/lib/colors/reading-levels";
+import { PerfilLeitorBadge } from "@/components/shared/perfil-leitor-badge";
+import { StudentInfoDialog, StudentNameButton } from "@/components/shared/student-info-dialog";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { StatCard } from "@/components/shared/stat-card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { cn } from "@/lib/utils";
+import {
+  isPracticeActivityTab,
+  parsePracticeActivityTab,
+  parsePracticeTab,
+  PRACTICE_TABS,
+  type PracticeTab,
+} from "@/components/fluencia/practice-tabs";
 
-const STEPS = [
-  "Apresentação",
-  "Microfone",
-  "Q1 Palavras",
-  "Q2 Pouco comuns",
-  "Q3 Texto",
-  "Compreensão",
-  "Leiturômetro",
-];
+type GatePhase = "apresentacao" | "microfone" | "abas";
+
+export type CaedAplicadorMode = "oficial" | "praticar";
+
+interface CaedAplicadorProps {
+  mode?: CaedAplicadorMode;
+}
 
 function pickPreferredList(lists: WordList[]) {
   return (
@@ -74,23 +83,39 @@ function todayLabel() {
   return new Intl.DateTimeFormat("pt-BR").format(new Date());
 }
 
-export function CaedAplicador() {
+export function CaedAplicador({ mode = "oficial" }: CaedAplicadorProps) {
   const router = useRouter();
   const params = useSearchParams();
+  const isPractice = mode === "praticar";
+  const backHref = isPractice ? "/app/avaliacao-leitura-guiada" : "/app/avaliacao-fluencia";
+  const layoutTitle = isPractice ? "Praticar Avaliação de Fluência" : "Avaliação de Fluência";
 
   const sessionId = params.get("sessionId") ?? "";
   const studentId = params.get("studentId") ?? params.get("aluno") ?? "";
   const studentName = params.get("studentName") ?? "";
+  const classId = params.get("classId") ?? "";
   const className = params.get("className") ?? "";
+  const schoolId = params.get("schoolId") ?? "";
   const schoolName = params.get("schoolName") ?? "";
   const textId = params.get("readingTextId") ?? params.get("texto") ?? "";
   const textTitleParam = params.get("textTitle") ?? "";
   const wordsWordListId = params.get("wordsWordListId") ?? "";
   const uncommonWordListId = params.get("uncommonWordListId") ?? "";
 
-  const [step, setStep] = useState(0);
+  const [phase, setPhase] = useState<GatePhase>(isPractice ? "microfone" : "apresentacao");
+  const [activeTab, setActiveTab] = useState<PracticeTab>(() => {
+    const fromUrl = isPractice
+      ? parsePracticeActivityTab(params.get("aba"))
+      : parsePracticeTab(params.get("aba"));
+    return fromUrl ?? "palavras";
+  });
+  const [recordingTab, setRecordingTab] = useState<PracticeTab | null>(null);
   const [answers, setAnswers] = useState<Record<string, number>>({});
   const [confirmExit, setConfirmExit] = useState(false);
+  const [studentDialogOpen, setStudentDialogOpen] = useState(false);
+  const [q1Saved, setQ1Saved] = useState(false);
+  const [q2Saved, setQ2Saved] = useState(false);
+  const [q3Saved, setQ3Saved] = useState(false);
 
   const [text, setText] = useState<ReadingText | null>(null);
   const [q1List, setQ1List] = useState<WordList | null>(null);
@@ -175,17 +200,53 @@ export function CaedAplicador() {
     };
   }, [textId, hasSession, wordsWordListId, uncommonWordListId]);
 
-  const next = () => setStep((s) => Math.min(s + 1, STEPS.length - 1));
-
   const handleQ1Result = useCallback((result: FluencyListPartResult | null) => {
     setQ1Result(result);
+    setQ1Saved(false);
   }, []);
   const handleQ2Result = useCallback((result: FluencyListPartResult | null) => {
     setQ2Result(result);
+    setQ2Saved(false);
   }, []);
   const handleQ3Result = useCallback((result: FluencyNarrativePartResult | null) => {
     setQ3Result(result);
+    setQ3Saved(false);
   }, []);
+
+  function syncTabToUrl(tab: PracticeTab) {
+    if (!isPractice) return;
+    const nextParams = new URLSearchParams(params.toString());
+    nextParams.set("aba", tab);
+    router.replace(`?${nextParams.toString()}`, { scroll: false });
+  }
+
+  function handleTabChange(next: string) {
+    const tab = next as PracticeTab;
+    if (isPractice && !isPracticeActivityTab(tab)) return;
+    if (recordingTab && recordingTab !== tab) {
+      toast.message("Finalize a gravação antes de trocar de aba.");
+      return;
+    }
+    setActiveTab(tab);
+    syncTabToUrl(tab);
+  }
+
+  useEffect(() => {
+    if (isPractice && phase === "apresentacao") {
+      setPhase("microfone");
+    }
+  }, [isPractice, phase]);
+
+  useEffect(() => {
+    if (!isPractice) return;
+    const fromUrl = parsePracticeActivityTab(params.get("aba"));
+    if (!fromUrl || fromUrl === activeTab) return;
+    if (recordingTab) {
+      toast.message("Finalize a gravação antes de trocar de aba.");
+      return;
+    }
+    setActiveTab(fromUrl);
+  }, [isPractice, params, activeTab, recordingTab]);
 
   async function persistPart(payload: {
     q1?: FluencyListPartPayload;
@@ -197,7 +258,6 @@ export function CaedAplicador() {
       kind: "FLUENCY",
       caderno: "A",
       extras: {
-        sttProvider: "web_speech_api",
         browser: typeof navigator !== "undefined" ? navigator.userAgent : undefined,
       },
       ...payload,
@@ -225,7 +285,13 @@ export function CaedAplicador() {
     setSavingMic(true);
     try {
       await uploadPartAudio("mic_test", audioBlob);
-      next();
+      const requested =
+        (isPractice
+          ? parsePracticeActivityTab(params.get("aba"))
+          : parsePracticeTab(params.get("aba"))) ?? activeTab;
+      setActiveTab(requested);
+      if (isPractice) syncTabToUrl(requested);
+      setPhase("abas");
     } finally {
       setSavingMic(false);
     }
@@ -242,7 +308,8 @@ export function CaedAplicador() {
       const { audioBlob, ...q1 } = result;
       await persistPart({ q1 });
       await uploadPartAudio("q1", audioBlob);
-      next();
+      setQ1Saved(true);
+      toast.success("Palavras salvas.");
     } catch (error) {
       toast.error(
         getApiErrorMessage(
@@ -266,7 +333,8 @@ export function CaedAplicador() {
       const { audioBlob, ...q2 } = result;
       await persistPart({ q2 });
       await uploadPartAudio("q2", audioBlob);
-      next();
+      setQ2Saved(true);
+      toast.success("Pouco comuns salvo.");
     } catch (error) {
       toast.error(
         getApiErrorMessage(
@@ -290,7 +358,8 @@ export function CaedAplicador() {
       const { audioBlob, ...q3 } = result;
       await persistPart({ q3 });
       await uploadPartAudio("q3", audioBlob);
-      next();
+      setQ3Saved(true);
+      toast.success("Texto salvo.");
     } catch (error) {
       toast.error(
         getApiErrorMessage(
@@ -326,7 +395,9 @@ export function CaedAplicador() {
 
       const reportData = await getFluencySessionReport(sessionId);
       setReport(reportData);
-      next();
+      setActiveTab("leiturometro");
+      syncTabToUrl("leiturometro");
+      toast.success("Compreensão salva.");
     } catch (error) {
       toast.error(
         getApiErrorMessage(
@@ -368,6 +439,17 @@ export function CaedAplicador() {
   }
 
   const icaLevel = icaScoreToLevel(report?.icaScore, report?.leiturimetroLevel);
+  const perfilCode = perfilFromIcaLevel(icaLevel);
+  const classLabel = className.trim();
+  const classLabelVisivel = isSerieTurmaCompleta(classLabel) ? classLabel : "";
+  const schoolLabel = schoolName.trim();
+  const textLabel = text?.title ?? textTitleParam;
+  const headerSubtitleText = loadingContent
+    ? "Carregando..."
+    : [studentLabel, classLabelVisivel || null, schoolLabel || null, textLabel || null]
+        .filter(Boolean)
+        .join(" · ");
+  const openStudentDialog = () => setStudentDialogOpen(true);
   const comprehensionLabel =
     report?.comprehension?.correctCount != null && report.comprehension.total != null
       ? `${report.comprehension.correctCount}/${report.comprehension.total}`
@@ -375,39 +457,34 @@ export function CaedAplicador() {
 
   return (
     <FullscreenLayout
-      title="Avaliação de Fluência"
+      title={layoutTitle}
+      subtitleTitle={headerSubtitleText}
       subtitle={
-        loadingContent
-          ? "Carregando..."
-          : `${studentLabel} · ${text?.title ?? textTitleParam}`
+        loadingContent ? (
+          "Carregando..."
+        ) : (
+          <>
+            <StudentNameButton name={studentLabel} onClick={openStudentDialog} />
+            {classLabelVisivel ? <span> · {classLabelVisivel}</span> : null}
+            {schoolLabel ? <span> · {schoolLabel}</span> : null}
+            {textLabel ? <span> · {textLabel}</span> : null}
+          </>
+        )
       }
-      backHref="/app/avaliacao-fluencia"
+      backHref={backHref}
       onClose={() => setConfirmExit(true)}
+      embedded={isPractice}
     >
-      <div className="mx-auto w-full min-w-0 max-w-5xl space-y-4 sm:space-y-6">
-        <div className="space-y-2">
-          <div className="flex items-center justify-between text-sm text-muted-foreground">
-            <span>
-              Etapa {step + 1} de {STEPS.length}
-            </span>
-            <span>{STEPS[step]}</span>
-          </div>
-          <Progress value={((step + 1) / STEPS.length) * 100} />
-        </div>
-        <div className="-mx-1 flex gap-2 overflow-x-auto overscroll-x-contain px-1 pb-1 snap-x sm:flex-wrap sm:overflow-visible">
-          {STEPS.map((s, i) => (
-            <Badge
-              key={s}
-              variant={i === step ? "default" : i < step ? "info" : "outline"}
-              className="shrink-0 snap-start"
-            >
-              <span className="sm:hidden">{i + 1}</span>
-              <span className="hidden sm:inline">
-                {i + 1}. {s}
-              </span>
-            </Badge>
-          ))}
-        </div>
+      <div className="mx-auto w-full min-w-0 max-w-7xl space-y-4 sm:space-y-6">
+        {phase === "abas" ? (
+          <p className="text-sm text-muted-foreground">
+            Navegue pelas abas na ordem que preferir. Grave, ouça o áudio e marque manualmente.
+          </p>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            {phase === "apresentacao" ? "Apresentação" : "Teste de microfone"}
+          </p>
+        )}
 
         {!hasSession ? (
           <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
@@ -424,7 +501,7 @@ export function CaedAplicador() {
               </div>
             ) : (
               <>
-                {step === 0 && (
+                {phase === "apresentacao" && !isPractice ? (
                   <div className="mx-auto max-w-2xl space-y-6 text-center">
                     <div>
                       <p className="text-sm text-muted-foreground">{new Date().getFullYear()}</p>
@@ -439,21 +516,33 @@ export function CaedAplicador() {
                       Resultado: <strong>Leiturômetro • Índice Criança Alfabetizada (ICA)</strong>
                     </div>
                     <div className="grid gap-3 border-t pt-4 text-left sm:grid-cols-2">
-                      <div>
+                      <div className="min-w-0">
                         <p className="text-xs text-muted-foreground">Estudante</p>
-                        <p className="font-medium">{studentLabel}</p>
+                        <StudentNameButton
+                          name={studentLabel}
+                          onClick={openStudentDialog}
+                          className="block w-full break-words text-left font-medium text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        />
                       </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">Turma</p>
-                        <p className="font-medium">{className || "—"}</p>
-                      </div>
-                      <div>
+                      {classLabelVisivel ? (
+                        <div className="min-w-0">
+                          <p className="text-xs text-muted-foreground">Série / Turma</p>
+                          <p className="break-words font-medium" title={classLabelVisivel}>
+                            {classLabelVisivel}
+                          </p>
+                        </div>
+                      ) : null}
+                      <div className="min-w-0">
                         <p className="text-xs text-muted-foreground">Escola</p>
-                        <p className="font-medium">{schoolName || "—"}</p>
+                        <p className="break-words font-medium" title={schoolName || "—"}>
+                          {schoolName || "—"}
+                        </p>
                       </div>
-                      <div>
+                      <div className="min-w-0">
                         <p className="text-xs text-muted-foreground">Data</p>
-                        <p className="font-medium">{todayLabel()}</p>
+                        <p className="truncate font-medium" title={todayLabel()}>
+                          {todayLabel()}
+                        </p>
                       </div>
                     </div>
                     <div className="rounded-lg border-l-4 border-l-bluebrand-base bg-blue-50 p-4 text-left text-sm text-blue-950">
@@ -470,178 +559,300 @@ export function CaedAplicador() {
                         </li>
                       </ul>
                     </div>
-                    <Button className="w-full" disabled={!hasSession} onClick={next}>
-                      Iniciar avaliação →
+                    <Button
+                      className="w-full"
+                      disabled={!hasSession}
+                      onClick={() => setPhase("microfone")}
+                    >
+                      {isPractice ? "Iniciar prática →" : "Iniciar avaliação →"}
                     </Button>
                   </div>
-                )}
-                {step === 1 && (
+                ) : null}
+
+                {phase === "microfone" ? (
                   <MicrophoneTestStep
                     continuePending={savingMic}
                     onContinue={(blob) => void handleMicContinue(blob)}
                   />
-                )}
-                {step === 2 && (
-                  <WordListFluencyStep
-                    questionLabel="QUESTÃO 1"
-                    title="Lista de palavras"
-                    words={q1Items}
-                    continuePending={savingFluency}
-                    onResultChange={handleQ1Result}
-                    onContinue={() => void handleContinueAfterQ1()}
-                  />
-                )}
-                {step === 3 && (
-                  <WordListFluencyStep
-                    questionLabel="QUESTÃO 2"
-                    title="Lista de palavras pouco comuns"
-                    words={q2Items}
-                    continuePending={savingFluency}
-                    onResultChange={handleQ2Result}
-                    onContinue={() => void handleContinueAfterQ2()}
-                  />
-                )}
-                {step === 4 && (
-                  <NarrativeFluencyStep
-                    title={text?.title ?? textTitleParam}
-                    content={text?.content ?? ""}
-                    continuePending={savingFluency}
-                    onResultChange={handleQ3Result}
-                    onContinue={() => void handleContinueAfterQ3()}
-                  />
-                )}
-                {step === 5 && text && (
-                  <>
-                    <h2 className="text-xl font-semibold">Compreensão leitora</h2>
-                    {questions.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">
-                        Este texto não possui perguntas de compreensão cadastradas.
-                      </p>
-                    ) : (
-                      questions.map((q) => (
-                        <div key={q.id} className="space-y-2">
-                          <p className="font-medium">{q.statement}</p>
-                          {q.descriptor ? (
-                            <p className="text-xs text-muted-foreground">{q.descriptor}</p>
-                          ) : null}
-                          <div className="space-y-1">
-                            {q.options.map((opt, i) => (
-                              <label
-                                key={`${q.id}-${i}`}
-                                className="flex cursor-pointer items-center gap-2 rounded border p-2 hover:bg-muted/50"
-                              >
-                                <input
-                                  type="radio"
-                                  name={q.id}
-                                  checked={answers[q.id] === i}
-                                  onChange={() => setAnswers((a) => ({ ...a, [q.id]: i }))}
+                ) : null}
+
+                {phase === "abas" ? (
+                  <Tabs value={activeTab} onValueChange={handleTabChange}>
+                    {isPractice ? null : (
+                      <TabsList>
+                        {PRACTICE_TABS.map((tab) => {
+                          const unsaved =
+                            (tab.id === "palavras" && q1Result && !q1Saved) ||
+                            (tab.id === "pouco-comuns" && q2Result && !q2Saved) ||
+                            (tab.id === "texto" && q3Result && !q3Saved);
+                          return (
+                            <TabsTrigger
+                              key={tab.id}
+                              value={tab.id}
+                              disabled={
+                                Boolean(savingFluency) ||
+                                (Boolean(recordingTab) && recordingTab !== tab.id)
+                              }
+                              className="gap-2"
+                            >
+                              {tab.label}
+                              {unsaved ? (
+                                <span
+                                  className="h-1.5 w-1.5 rounded-full bg-amber-500"
+                                  title="Alterações não salvas"
                                 />
-                                {opt}
-                              </label>
-                            ))}
-                          </div>
-                        </div>
-                      ))
+                              ) : null}
+                            </TabsTrigger>
+                          );
+                        })}
+                      </TabsList>
                     )}
-                    <Button
-                      onClick={() => void handleContinueAfterComprehension()}
-                      disabled={!comprehensionReady || savingComprehension || !hasSession}
-                    >
-                      {savingComprehension ? (
-                        <>
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          Salvando...
-                        </>
-                      ) : (
-                        "Ver Leiturômetro →"
+
+                    <TabsContent
+                      value="palavras"
+                      forceMount
+                      className={cn(
+                        "data-[state=inactive]:hidden",
+                        activeTab !== "palavras" && "hidden"
                       )}
-                    </Button>
-                  </>
-                )}
-                {step === 6 && (
-                  <>
-                    <h2 className="text-xl font-semibold">Relatório — Leiturômetro</h2>
-                    {report ? (
+                    >
+                      <WordListFluencyStep
+                        questionLabel="QUESTÃO 1"
+                        title={isPractice ? "Praticar palavras conhecidas" : "Lista de palavras"}
+                        words={q1Items}
+                        continuePending={savingFluency}
+                        continueLabel="Salvar esta parte"
+                        onResultChange={handleQ1Result}
+                        onContinue={() => void handleContinueAfterQ1()}
+                        onRunningChange={(running) =>
+                          setRecordingTab((prev) =>
+                            running ? "palavras" : prev === "palavras" ? null : prev
+                          )
+                        }
+                      />
+                    </TabsContent>
+
+                    <TabsContent
+                      value="pouco-comuns"
+                      forceMount
+                      className={cn(
+                        "data-[state=inactive]:hidden",
+                        activeTab !== "pouco-comuns" && "hidden"
+                      )}
+                    >
+                      <WordListFluencyStep
+                        questionLabel="QUESTÃO 2"
+                        title={
+                          isPractice
+                            ? "Praticar palavras pouco conhecidas"
+                            : "Lista de palavras pouco comuns"
+                        }
+                        words={q2Items}
+                        continuePending={savingFluency}
+                        continueLabel="Salvar esta parte"
+                        onResultChange={handleQ2Result}
+                        onContinue={() => void handleContinueAfterQ2()}
+                        onRunningChange={(running) =>
+                          setRecordingTab((prev) =>
+                            running ? "pouco-comuns" : prev === "pouco-comuns" ? null : prev
+                          )
+                        }
+                      />
+                    </TabsContent>
+
+                    <TabsContent
+                      value="texto"
+                      forceMount
+                      className={cn(
+                        "data-[state=inactive]:hidden",
+                        activeTab !== "texto" && "hidden"
+                      )}
+                    >
+                      <NarrativeFluencyStep
+                        title={text?.title ?? textTitleParam}
+                        content={text?.content ?? ""}
+                        continuePending={savingFluency}
+                        continueLabel="Salvar esta parte"
+                        onResultChange={handleQ3Result}
+                        onContinue={() => void handleContinueAfterQ3()}
+                        onRunningChange={(running) =>
+                          setRecordingTab((prev) =>
+                            running ? "texto" : prev === "texto" ? null : prev
+                          )
+                        }
+                      />
+                    </TabsContent>
+
+                    {!isPractice ? (
                       <>
-                        <Leiturometro
-                          currentLevel={icaLevel}
-                          score={report.icaScore ?? undefined}
-                        />
-                        <div className="grid gap-4 sm:grid-cols-3">
-                          <StatCard
-                            label="PLCM"
-                            value={formatMetric(
-                              report.calculatedPlcm ?? report.q3?.plcm ?? null
-                            )}
-                            icon={Gauge}
-                          />
-                          <StatCard
-                            label="Precisão"
-                            value={formatMetric(
-                              report.calculatedAccuracy ?? report.q1?.accuracy ?? null,
-                              "%"
-                            )}
-                            icon={Target}
-                          />
-                          <StatCard
-                            label="Compreensão"
-                            value={comprehensionLabel}
-                            icon={AlertTriangle}
-                          />
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          {report.icaScore != null ? `ICA: ${report.icaScore}` : null}
-                          {report.leiturimetroLevel != null
-                            ? ` · Nível: ${report.leiturimetroLevel}`
-                            : null}
-                        </p>
-                      </>
-                    ) : (
-                      <p className="text-sm text-muted-foreground">
-                        Relatório ainda não carregado. Volte e tente novamente.
-                      </p>
-                    )}
-                    <div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
-                      <Button
-                        className="w-full sm:w-auto"
-                        onClick={() => void handleSubmit()}
-                        disabled={!report || submitting || submitted || !hasSession}
-                      >
-                        {submitting ? (
-                          <>
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            Finalizando...
-                          </>
-                        ) : submitted ? (
-                          "Avaliação salva"
+                    <TabsContent
+                      value="compreensao"
+                      forceMount
+                      className={cn(
+                        "data-[state=inactive]:hidden",
+                        activeTab !== "compreensao" && "hidden"
+                      )}
+                    >
+                      <div className="space-y-6">
+                        <h2 className="text-xl font-semibold">Compreensão leitora</h2>
+                        {questions.length === 0 ? (
+                          <p className="text-sm text-muted-foreground">
+                            Este texto não possui perguntas de compreensão cadastradas.
+                          </p>
                         ) : (
-                          "Finalizar avaliação"
+                          questions.map((q) => (
+                            <div key={q.id} className="space-y-2">
+                              <p className="font-medium">{q.statement}</p>
+                              {q.descriptor ? (
+                                <p className="text-xs text-muted-foreground">{q.descriptor}</p>
+                              ) : null}
+                              <div className="space-y-1">
+                                {q.options.map((opt, i) => (
+                                  <label
+                                    key={`${q.id}-${i}`}
+                                    className="flex cursor-pointer items-center gap-2 rounded border p-2 hover:bg-muted/50"
+                                  >
+                                    <input
+                                      type="radio"
+                                      name={q.id}
+                                      checked={answers[q.id] === i}
+                                      onChange={() => setAnswers((a) => ({ ...a, [q.id]: i }))}
+                                    />
+                                    {opt}
+                                  </label>
+                                ))}
+                              </div>
+                            </div>
+                          ))
                         )}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        className="w-full sm:w-auto"
-                        onClick={() => router.push("/app/relatorios?aba=ica")}
-                      >
-                        Ver relatórios
-                      </Button>
-                    </div>
-                  </>
-                )}
+                        <Button
+                          onClick={() => void handleContinueAfterComprehension()}
+                          disabled={!comprehensionReady || savingComprehension || !hasSession}
+                        >
+                          {savingComprehension ? (
+                            <>
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              Salvando...
+                            </>
+                          ) : (
+                            "Salvar e ver Leiturômetro"
+                          )}
+                        </Button>
+                      </div>
+                    </TabsContent>
+
+                    <TabsContent
+                      value="leiturometro"
+                      forceMount
+                      className={cn(
+                        "data-[state=inactive]:hidden",
+                        activeTab !== "leiturometro" && "hidden"
+                      )}
+                    >
+                      <div className="space-y-6">
+                        <h2 className="text-xl font-semibold">Relatório — Leiturômetro</h2>
+                        {report ? (
+                          <>
+                            <Leiturometro
+                              currentLevel={icaLevel}
+                              score={report.icaScore ?? undefined}
+                            />
+                            <div className="flex flex-wrap items-center justify-center gap-2">
+                              <PerfilLeitorBadge code={perfilCode} />
+                            </div>
+                            <div className="grid gap-4 sm:grid-cols-3">
+                              <StatCard
+                                label="PLCM"
+                                value={formatMetric(
+                                  report.calculatedPlcm ?? report.q3?.plcm ?? null
+                                )}
+                                icon={Gauge}
+                              />
+                              <StatCard
+                                label="Precisão"
+                                value={formatMetric(
+                                  report.calculatedAccuracy ?? report.q1?.accuracy ?? null,
+                                  "%"
+                                )}
+                                icon={Target}
+                              />
+                              <StatCard
+                                label="Compreensão"
+                                value={comprehensionLabel}
+                                icon={AlertTriangle}
+                              />
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              {report.icaScore != null ? `ICA: ${report.icaScore}` : null}
+                              {report.leiturimetroLevel != null
+                                ? ` · Nível: ${report.leiturimetroLevel}`
+                                : null}
+                            </p>
+                          </>
+                        ) : (
+                          <p className="text-sm text-muted-foreground">
+                            Salve a compreensão para gerar o relatório. Você pode visitar esta aba
+                            a qualquer momento.
+                          </p>
+                        )}
+                        <div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
+                          <Button
+                            className="w-full sm:w-auto"
+                            onClick={() => void handleSubmit()}
+                            disabled={!report || submitting || submitted || !hasSession}
+                          >
+                            {submitting ? (
+                              <>
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                Finalizando...
+                              </>
+                            ) : submitted ? (
+                              "Avaliação salva"
+                            ) : (
+                              "Finalizar avaliação"
+                            )}
+                          </Button>
+                          <Button
+                            variant="outline"
+                            className="w-full sm:w-auto"
+                            onClick={() => router.push("/app/relatorios?aba=ica")}
+                          >
+                            Ver relatórios
+                          </Button>
+                        </div>
+                      </div>
+                    </TabsContent>
+                      </>
+                    ) : null}
+                  </Tabs>
+                ) : null}
               </>
             )}
           </CardContent>
         </Card>
       </div>
+      <StudentInfoDialog
+        open={studentDialogOpen}
+        onOpenChange={setStudentDialogOpen}
+        seed={{
+          studentId,
+          name: studentLabel,
+          className: classLabelVisivel,
+          schoolName,
+          classId,
+          schoolId,
+          perfilCode,
+        }}
+      />
       <ConfirmDialog
         open={confirmExit}
         onOpenChange={setConfirmExit}
-        title="Sair da avaliação?"
+        title={isPractice ? "Sair da prática?" : "Sair da avaliação?"}
         description="O progresso local desta sessão pode ser perdido se ainda não foi salvo."
         confirmLabel="Sair"
         variant="destructive"
         icon={AlertTriangle}
-        onConfirm={() => router.push("/app/avaliacao-fluencia")}
+        onConfirm={() => router.push(backHref)}
       />
     </FullscreenLayout>
   );

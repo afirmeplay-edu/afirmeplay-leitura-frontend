@@ -8,32 +8,49 @@ import { cn } from "@/lib/utils";
 
 interface FullscreenLayoutProps {
   title: string;
-  subtitle?: string;
+  subtitle?: ReactNode;
+  subtitleTitle?: string;
   backHref?: string;
   onClose?: () => void;
   children: ReactNode;
   className?: string;
+  /** Sem overlay: o menu lateral continua visível. */
+  embedded?: boolean;
 }
 
-export function FullscreenLayout({ title, subtitle, backHref, onClose, children, className }: FullscreenLayoutProps) {
+export function FullscreenLayout({
+  title,
+  subtitle,
+  subtitleTitle,
+  backHref,
+  onClose,
+  children,
+  className,
+  embedded = false,
+}: FullscreenLayoutProps) {
   useEffect(() => {
+    if (embedded) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = prev;
     };
-  }, []);
+  }, [embedded]);
+
+  const subtitleHint = subtitleTitle ?? (typeof subtitle === "string" ? subtitle : undefined);
 
   return (
     <div
       className={cn(
-        "fixed inset-0 z-[80] flex flex-col bg-background",
-        "pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)]",
+        "flex flex-col bg-background",
+        embedded
+          ? "min-h-0"
+          : "fixed inset-0 z-[80] pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)]",
         className
       )}
     >
-      <header className="flex shrink-0 items-center justify-between gap-2 border-b bg-white px-3 py-2.5 shadow-sm sm:px-6 sm:py-3">
-        <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
+      <header className="flex shrink-0 items-start justify-between gap-2 border-b bg-white px-3 py-2.5 shadow-sm sm:items-center sm:px-6 sm:py-3">
+        <div className="flex min-w-0 flex-1 items-start gap-2 sm:items-center sm:gap-3">
           {backHref && (
             <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" asChild>
               <Link href={backHref}>
@@ -41,11 +58,16 @@ export function FullscreenLayout({ title, subtitle, backHref, onClose, children,
               </Link>
             </Button>
           )}
-          <div className="min-w-0">
-            <h1 className="truncate text-base font-semibold text-foreground sm:text-lg">{title}</h1>
-            {subtitle && (
-              <p className="truncate text-xs text-muted-foreground sm:text-sm">{subtitle}</p>
-            )}
+          <div className="min-w-0 flex-1">
+            <h1 className="text-base font-semibold leading-snug text-foreground sm:text-lg">{title}</h1>
+            {subtitle ? (
+              <div
+                className="mt-0.5 max-w-3xl whitespace-normal break-words text-xs leading-snug text-muted-foreground sm:text-sm"
+                title={subtitleHint}
+              >
+                {subtitle}
+              </div>
+            ) : null}
           </div>
         </div>
         {onClose && (

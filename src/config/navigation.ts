@@ -44,13 +44,17 @@ export const NAV_CATEGORIES: NavCategory[] = [
       },
       {
         href: "/app/avaliacao-leitura-guiada",
-        label: "Leitura guiada",
-        description: "Fluxo de leitura guiada",
+        label: "Praticar Avaliação de Fluência",
+        description: "Prática das atividades de fluência",
         icon: BookOpen,
         children: [
-          { href: "/app/avaliacao-leitura-guiada", label: "Nova avaliacao" },
-          { href: "/app/revisao-leitura-guiada", label: "Revisao e audio" },
-          { href: "/app/avaliacao-leitura-guiada/demo", label: "Modo demonstracao" },
+          { href: "/app/revisao-leitura-guiada", label: "Revisão e áudio" },
+          { href: "/app/avaliacao-leitura-guiada?aba=palavras", label: "Praticar palavras conhecidas" },
+          {
+            href: "/app/avaliacao-leitura-guiada?aba=pouco-comuns",
+            label: "Praticar palavras pouco conhecidas",
+          },
+          { href: "/app/avaliacao-leitura-guiada?aba=texto", label: "Praticar texto" },
         ],
       },
       {
@@ -71,6 +75,12 @@ export const NAV_CATEGORIES: NavCategory[] = [
   {
     label: "Relatorios",
     items: [
+      {
+        href: "/app/relatorios-fluencia",
+        label: "Resultados de fluencia",
+        description: "IFL, perfis leitores e alertas",
+        icon: BarChart3,
+      },
       {
         href: "/app/relatorios",
         label: "Relatorios",
@@ -104,9 +114,9 @@ export const DASHBOARD_FEATURE_CARDS = [
   },
   {
     href: "/app/avaliacao-leitura-guiada",
-    label: "Avaliacao de Leitura Guiada",
+    label: "Praticar Avaliação de Fluência",
     description:
-      "Fluxo livre de avaliacao: selecione um aluno e um texto para iniciar uma sessao de leitura guiada.",
+      "Pratique listas de palavras conhecidas, palavras pouco conhecidas e texto narrativo, com marcação manual após o áudio.",
     accent: "blue",
   },
   {

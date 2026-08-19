@@ -12,6 +12,20 @@ import { useAuthStore } from "@/stores/auth-store";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
+function resolveChildHref(childHref: string, pathname: string, search: string) {
+  const [path, query] = childHref.split("?");
+  if (!query || path !== pathname) return childHref;
+
+  const childParams = new URLSearchParams(query);
+  const aba = childParams.get("aba");
+  if (!aba) return childHref;
+
+  const current = new URLSearchParams(search);
+  current.set("aba", aba);
+  const next = current.toString();
+  return next ? `${path}?${next}` : path;
+}
+
 interface SidebarProps {
   onNavigate?: () => void;
   isMobile?: boolean;
@@ -152,7 +166,7 @@ function RenderMenuItem({
             return (
               <li key={`${item.href}-${child.href}`}>
                 <Link
-                  href={child.href}
+                  href={resolveChildHref(child.href, pathname, search)}
                   onClick={onNavigate}
                   className={cn(
                     "sidebar-link block rounded-full px-3 py-2 text-xs transition-all duration-300 md:text-sm",
