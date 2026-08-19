@@ -34,7 +34,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { parsePracticeTab } from "@/components/fluencia/practice-tabs";
+import { parsePracticeActivityTab } from "@/components/fluencia/practice-tabs";
 
 function pickPreferredList(lists: WordList[]) {
   return (
@@ -90,6 +90,10 @@ export function FluenciaSelecao({ variant = "oficial" }: FluenciaSelecaoProps) {
     () => texts.find((item) => item.id === textId) ?? null,
     [texts, textId]
   );
+  const practiceTab = parsePracticeActivityTab(searchParams.get("aba"));
+  const hideNarrativeText =
+    isPractice && (practiceTab === "palavras" || practiceTab === "pouco-comuns");
+  const textForSession = hideNarrativeText ? (texts[0] ?? null) : selectedText;
 
   const handleCityReadyChange = useCallback((ready: boolean, cityId: string | null) => {
     setCityReady(ready);
@@ -208,12 +212,25 @@ export function FluenciaSelecao({ variant = "oficial" }: FluenciaSelecaoProps) {
   }, [classId, cityReady]);
 
   const canStart = Boolean(
-    cityReady && schoolId && classId && studentId && textId && !creating
+    cityReady &&
+      schoolId &&
+      classId &&
+      studentId &&
+      (hideNarrativeText ? texts.length > 0 : textId) &&
+      !creating
   );
 
   async function handleStart() {
-    if (!selectedSchool || !selectedClass || !selectedStudent || !selectedText) {
-      toast.error("Selecione escola, turma, estudante e texto narrativo.");
+    if (!selectedSchool || !selectedClass || !selectedStudent) {
+      toast.error("Selecione escola, turma e estudante.");
+      return;
+    }
+    if (!textForSession) {
+      toast.error(
+        hideNarrativeText
+          ? "Não há texto cadastrado para criar a sessão. Cadastre um texto em Configurar."
+          : "Selecione o texto narrativo."
+      );
       return;
     }
 
@@ -223,13 +240,13 @@ export function FluenciaSelecao({ variant = "oficial" }: FluenciaSelecaoProps) {
         studentId: selectedStudent.id,
         classId: selectedClass.id,
         schoolId: selectedSchool.id,
-        readingTextId: selectedText.id,
+        readingTextId: textForSession.id,
         wordsWordListId: wordsList?.id ?? null,
         uncommonWordListId: uncommonList?.id ?? null,
         caderno: "A",
       });
 
-      const aba = parsePracticeTab(searchParams.get("aba")) ?? "palavras";
+      const aba = practiceTab ?? "palavras";
       const params = new URLSearchParams({
         sessionId: session.id,
         studentId: selectedStudent.id,
@@ -238,8 +255,8 @@ export function FluenciaSelecao({ variant = "oficial" }: FluenciaSelecaoProps) {
         className: selectedClass.name,
         schoolId: selectedSchool.id,
         schoolName: selectedSchool.name,
-        readingTextId: selectedText.id,
-        textTitle: selectedText.title,
+        readingTextId: textForSession.id,
+        textTitle: textForSession.title,
         wordsWordListId: session.wordsWordListId ?? wordsList?.id ?? "",
         uncommonWordListId: session.uncommonWordListId ?? uncommonList?.id ?? "",
         caderno: session.caderno || "A",
@@ -265,7 +282,9 @@ export function FluenciaSelecao({ variant = "oficial" }: FluenciaSelecaoProps) {
         title={isPractice ? "Praticar Avaliação de Fluência" : "Avaliação de Fluência Leitora"}
         description={
           isPractice
-            ? "Escolha o estudante e o texto. Depois, selecione no menu: Praticar palavras conhecidas, Praticar palavras pouco conhecidas, Praticar texto, Compreensão ou Leiturômetro."
+            ? hideNarrativeText
+              ? "Escolha o estudante para iniciar a prática da lista de palavras."
+              : "Escolha o estudante e o texto para praticar a leitura do texto narrativo."
             : "Aplicação individual para o 2º ano, com gravação de áudio e marcação manual pelo professor."
         }
         icon={Gauge}
@@ -277,12 +296,13 @@ export function FluenciaSelecao({ variant = "oficial" }: FluenciaSelecaoProps) {
           <p className="font-medium">{isPractice ? "Sobre esta prática" : "Sobre esta avaliação"}</p>
           <p>
             {isPractice
-              ? "Pratique as mesmas atividades da avaliação de fluência: lista de palavras, palavras pouco comuns, texto narrativo, compreensão e Leiturômetro. O professor ouve o áudio e marca manualmente."
+              ? "Pratique lista de palavras conhecidas, palavras pouco conhecidas e texto narrativo. O professor ouve o áudio e marca manualmente."
               : "Avaliação individual do 2º ano do Ensino Fundamental. São 3 questões: lista de palavras, lista de palavras pouco comuns e leitura de texto narrativo com perguntas de compreensão. O professor ouve a gravação e classifica cada palavra."}
           </p>
           <p>
-            Tempo: 60 segundos para cada lista. Ao final, é gerado o Leiturômetro com a
-            classificação ICA.
+            {isPractice
+              ? "Tempo: 60 segundos para cada lista de palavras."
+              : "Tempo: 60 segundos para cada lista. Ao final, é gerado o Leiturômetro com a classificação ICA."}
           </p>
         </AlertDescription>
       </Alert>
@@ -375,33 +395,46 @@ export function FluenciaSelecao({ variant = "oficial" }: FluenciaSelecaoProps) {
             </Select>
           </div>
 
-          <div className="space-y-2">
-            <Label>Texto narrativo (Questão 3)</Label>
-            <Select
-              value={textId || undefined}
-              onValueChange={setTextId}
-              disabled={!cityReady || loadingTexts}
-            >
-              <SelectTrigger>
-                <SelectValue
-                  placeholder={loadingTexts ? "Carregando textos..." : "Selecione o texto"}
-                />
-              </SelectTrigger>
-              <SelectContent>
-                {texts.map((text) => (
-                  <SelectItem key={text.id} value={text.id}>
-                    {text.title}
-                    {text.source ? ` — ${text.source}` : ""}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">
-              Você pode cadastrar novos textos em Configurar.
-              {wordsList ? ` Lista Q1: ${wordsList.name}.` : null}
-              {uncommonList ? ` Lista Q2: ${uncommonList.name}.` : null}
-            </p>
-          </div>
+          {hideNarrativeText ? (
+            <div className="space-y-2">
+              <p className="text-xs text-muted-foreground">
+                {practiceTab === "palavras" && wordsList
+                  ? `Lista: ${wordsList.name}.`
+                  : null}
+                {practiceTab === "pouco-comuns" && uncommonList
+                  ? `Lista: ${uncommonList.name}.`
+                  : null}
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <Label>Texto narrativo (Questão 3)</Label>
+              <Select
+                value={textId || undefined}
+                onValueChange={setTextId}
+                disabled={!cityReady || loadingTexts}
+              >
+                <SelectTrigger>
+                  <SelectValue
+                    placeholder={loadingTexts ? "Carregando textos..." : "Selecione o texto"}
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {texts.map((text) => (
+                    <SelectItem key={text.id} value={text.id}>
+                      {text.title}
+                      {text.source ? ` — ${text.source}` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Você pode cadastrar novos textos em Configurar.
+                {wordsList ? ` Lista Q1: ${wordsList.name}.` : null}
+                {uncommonList ? ` Lista Q2: ${uncommonList.name}.` : null}
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -409,7 +442,7 @@ export function FluenciaSelecao({ variant = "oficial" }: FluenciaSelecaoProps) {
         <div className="rounded-lg border bg-muted/30 px-4 py-3 text-sm">
           <span className="font-medium">Aluno selecionado: </span>
           {selectedStudent.name} — {selectedClass.name} — {selectedSchool.name}
-          {selectedText ? ` · Texto: ${selectedText.title}` : null}
+          {!hideNarrativeText && selectedText ? ` · Texto: ${selectedText.title}` : null}
         </div>
       ) : null}
 

@@ -25,3 +25,12 @@ export function parsePracticeTab(value: string | null | undefined): PracticeTab 
   if (!value) return null;
   return PRACTICE_TABS.some((tab) => tab.id === value) ? (value as PracticeTab) : null;
 }
+
+export function isPracticeActivityTab(tab: PracticeTab): boolean {
+  return tab === "palavras" || tab === "pouco-comuns" || tab === "texto";
+}
+
+export function parsePracticeActivityTab(value: string | null | undefined): PracticeTab | null {
+  const tab = parsePracticeTab(value);
+  return tab && isPracticeActivityTab(tab) ? tab : null;
+}

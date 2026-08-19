@@ -457,7 +457,6 @@ export function NarrativeFluencyStep({
         items={cursorItems}
         cursor={Math.max(0, lastPos - 1)}
         listening={isRunning && !isFinished}
-        hideHero={isFinished}
         instruction="LEIA EM VOZ ALTA O TEXTO"
         sentenceStatuses={sentenceStatuses}
         onMarkWord={isFinished && !skipped ? handleWordClick : undefined}

@@ -17,6 +17,7 @@ import {
 import { ReadingCursorStage } from "@/components/fluencia/reading-cursor-stage";
 import { StudentAudioPlayer } from "@/components/fluencia/student-audio-player";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -56,6 +57,8 @@ export const ERROR_STATUSES: readonly WordStatus[] = [
   "inventou",
   "soletrou",
 ];
+
+const WORD_CURSOR_INTERVAL_MS = 3500;
 
 export interface FluencyListPartResult extends FluencyListPartPayload {
   audioBlob: Blob | null;
@@ -229,6 +232,27 @@ export function WordListFluencyStep({
     void stopRecorder();
   }
 
+  function startCursorAdvance() {
+    if (cursorTimerRef.current) {
+      clearInterval(cursorTimerRef.current);
+      cursorTimerRef.current = null;
+    }
+    cursorTimerRef.current = setInterval(() => {
+      setCursor((prev) => {
+        if (prev + 1 >= wordsRef.current.length) return prev;
+        return prev + 1;
+      });
+    }, WORD_CURSOR_INTERVAL_MS);
+  }
+
+  function goToNextWord() {
+    setCursor((prev) => {
+      if (prev + 1 >= wordsRef.current.length) return prev;
+      return prev + 1;
+    });
+    startCursorAdvance();
+  }
+
   useEffect(() => {
     resetLocalState();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -362,19 +386,7 @@ export function WordListFluencyStep({
     setResult(null);
     onResultChangeRef.current(null);
     setCursor(0);
-
-    if (cursorTimerRef.current) {
-      clearInterval(cursorTimerRef.current);
-      cursorTimerRef.current = null;
-    }
-    const wordCount = Math.max(words.length, 1);
-    const cursorIntervalMs = Math.max(700, Math.floor((durationSeconds * 1000) / wordCount));
-    cursorTimerRef.current = setInterval(() => {
-      setCursor((prev) => {
-        if (prev + 1 >= wordsRef.current.length) return prev;
-        return prev + 1;
-      });
-    }, cursorIntervalMs);
+    startCursorAdvance();
 
     timerRef.current = setInterval(() => {
       const elapsed = Math.floor((Date.now() - startedAtRef.current) / 1000);
@@ -529,6 +541,7 @@ export function WordListFluencyStep({
         cursor={isRunning ? cursor : Math.max(0, lastWordInput - 1)}
         listening={isRunning}
         showSequence={false}
+        onNextWord={isRunning ? goToNextWord : undefined}
       />
 
       <div className="max-h-[50vh] overflow-auto rounded-lg border">
@@ -569,20 +582,26 @@ export function WordListFluencyStep({
                           disabled={!result || skipped}
                           onClick={() => toggleWordStatus(index, option.id)}
                           className={cn(
-                            "h-8 w-full rounded border text-xs transition",
+                            "flex h-8 w-full items-center justify-center rounded border text-xs transition",
                             selected
                               ? option.id === "acertou"
-                                ? "border-emerald-600 bg-emerald-100 text-emerald-900"
+                                ? "border-emerald-600 bg-emerald-100"
                                 : option.id === "soletrou"
-                                  ? "border-violet-500 bg-violet-100 text-violet-900"
-                                  : "border-red-500 bg-red-100 text-red-900"
+                                  ? "border-violet-500 bg-violet-100"
+                                  : "border-red-500 bg-red-100"
                               : "border-transparent hover:bg-muted",
                             (!result || skipped) && "cursor-not-allowed opacity-50"
                           )}
                           aria-label={`${option.label}: ${word}`}
                           aria-pressed={selected}
                         >
-                          {selected ? "●" : "○"}
+                          <Checkbox
+                            checked={selected}
+                            disabled={!result || skipped}
+                            tabIndex={-1}
+                            className="pointer-events-none"
+                            aria-hidden
+                          />
                         </button>
                       </TableCell>
                     );

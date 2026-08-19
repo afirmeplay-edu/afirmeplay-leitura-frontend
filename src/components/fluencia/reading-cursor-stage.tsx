@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import type { FluencyWordStatus } from "@/lib/api/afirme-reading";
 import type { SentenceStatus } from "@/components/fluencia/manual-marking";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export interface ReadingCursorItem {
@@ -26,6 +27,8 @@ interface ReadingCursorStageProps {
   onSelectIndex?: (index: number) => void;
   /** Clique para ciclar marcação (depois da gravação). */
   onMarkWord?: (index: number) => void;
+  /** Avança manualmente para a próxima palavra durante a leitura. */
+  onNextWord?: () => void;
   sentenceStatuses?: SentenceStatus[];
   /** Esconde o card da palavra atual (modo correção do professor). */
   hideHero?: boolean;
@@ -83,6 +86,25 @@ function sentenceClass(status: SentenceStatus | undefined) {
   }
 }
 
+function ListeningStatus({ listening }: { listening: boolean }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide",
+        listening ? "text-red-600" : "text-muted-foreground"
+      )}
+    >
+      <span
+        className={cn(
+          "inline-block h-2 w-2 rounded-full",
+          listening ? "animate-pulse bg-red-600" : "bg-slate-300"
+        )}
+      />
+      {listening ? "Ouvindo a leitura" : "Aguardando início"}
+    </span>
+  );
+}
+
 export function ReadingCursorStage({
   items,
   cursor,
@@ -92,6 +114,7 @@ export function ReadingCursorStage({
   instruction = "LEIA EM VOZ ALTA A PALAVRA",
   onSelectIndex,
   onMarkWord,
+  onNextWord,
   sentenceStatuses,
   hideHero = false,
   className,
@@ -133,24 +156,13 @@ export function ReadingCursorStage({
 
   return (
     <div className={cn("space-y-4", className)}>
-      {!hideHero ? (
+      {!hideHero && mode !== "narrative" ? (
         <div className="rounded-xl border-2 border-bluebrand-base bg-white p-5">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-2 text-xs font-semibold uppercase tracking-wide">
-            <span
-              className={cn(
-                "inline-flex items-center gap-2",
-                listening ? "text-red-600" : "text-muted-foreground"
-              )}
-            >
-              <span
-                className={cn(
-                  "inline-block h-2 w-2 rounded-full",
-                  listening ? "animate-pulse bg-red-600" : "bg-slate-300"
-                )}
-              />
-              {listening ? "Ouvindo a leitura" : "Aguardando início"}
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+            <ListeningStatus listening={listening} />
+            <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              {progressLabel}
             </span>
-            <span className="text-muted-foreground">{progressLabel}</span>
           </div>
 
           <p className="text-center text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
@@ -159,14 +171,28 @@ export function ReadingCursorStage({
           <p className="mt-3 break-words text-center text-4xl font-bold tracking-wide text-bluebrand-deep sm:text-5xl">
             {current?.label ?? "—"}
           </p>
+          {listening && onNextWord ? (
+            <div className="mt-5 flex justify-end">
+              <Button
+                type="button"
+                onClick={onNextWord}
+                disabled={total === 0 || cursor >= total - 1}
+              >
+                Próxima Palavra
+              </Button>
+            </div>
+          ) : null}
         </div>
       ) : null}
 
       {mode === "narrative" ? (
         <div className="rounded-xl border bg-white p-4 leading-relaxed">
-          <p className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-            Texto narrativo
-          </p>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Texto narrativo
+            </p>
+            <ListeningStatus listening={listening} />
+          </div>
           {onMarkWord ? (
             <p className="mb-3 text-xs text-muted-foreground">
               Clique na palavra: 1× correta · 2× errada · 3× soletrada · 4× limpar

@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import Link from "next/link";
 import { AlertTriangle, Gauge, Loader2, Target } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -43,6 +42,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import {
+  isPracticeActivityTab,
+  parsePracticeActivityTab,
   parsePracticeTab,
   PRACTICE_TABS,
   type PracticeTab,
@@ -101,10 +102,13 @@ export function CaedAplicador({ mode = "oficial" }: CaedAplicadorProps) {
   const wordsWordListId = params.get("wordsWordListId") ?? "";
   const uncommonWordListId = params.get("uncommonWordListId") ?? "";
 
-  const [phase, setPhase] = useState<GatePhase>("apresentacao");
-  const [activeTab, setActiveTab] = useState<PracticeTab>(
-    () => parsePracticeTab(params.get("aba")) ?? "palavras"
-  );
+  const [phase, setPhase] = useState<GatePhase>(isPractice ? "microfone" : "apresentacao");
+  const [activeTab, setActiveTab] = useState<PracticeTab>(() => {
+    const fromUrl = isPractice
+      ? parsePracticeActivityTab(params.get("aba"))
+      : parsePracticeTab(params.get("aba"));
+    return fromUrl ?? "palavras";
+  });
   const [recordingTab, setRecordingTab] = useState<PracticeTab | null>(null);
   const [answers, setAnswers] = useState<Record<string, number>>({});
   const [confirmExit, setConfirmExit] = useState(false);
@@ -218,6 +222,7 @@ export function CaedAplicador({ mode = "oficial" }: CaedAplicadorProps) {
 
   function handleTabChange(next: string) {
     const tab = next as PracticeTab;
+    if (isPractice && !isPracticeActivityTab(tab)) return;
     if (recordingTab && recordingTab !== tab) {
       toast.message("Finalize a gravação antes de trocar de aba.");
       return;
@@ -227,8 +232,14 @@ export function CaedAplicador({ mode = "oficial" }: CaedAplicadorProps) {
   }
 
   useEffect(() => {
+    if (isPractice && phase === "apresentacao") {
+      setPhase("microfone");
+    }
+  }, [isPractice, phase]);
+
+  useEffect(() => {
     if (!isPractice) return;
-    const fromUrl = parsePracticeTab(params.get("aba"));
+    const fromUrl = parsePracticeActivityTab(params.get("aba"));
     if (!fromUrl || fromUrl === activeTab) return;
     if (recordingTab) {
       toast.message("Finalize a gravação antes de trocar de aba.");
@@ -274,7 +285,10 @@ export function CaedAplicador({ mode = "oficial" }: CaedAplicadorProps) {
     setSavingMic(true);
     try {
       await uploadPartAudio("mic_test", audioBlob);
-      const requested = parsePracticeTab(params.get("aba")) ?? activeTab;
+      const requested =
+        (isPractice
+          ? parsePracticeActivityTab(params.get("aba"))
+          : parsePracticeTab(params.get("aba"))) ?? activeTab;
       setActiveTab(requested);
       if (isPractice) syncTabToUrl(requested);
       setPhase("abas");
@@ -487,7 +501,7 @@ export function CaedAplicador({ mode = "oficial" }: CaedAplicadorProps) {
               </div>
             ) : (
               <>
-                {phase === "apresentacao" ? (
+                {phase === "apresentacao" && !isPractice ? (
                   <div className="mx-auto max-w-2xl space-y-6 text-center">
                     <div>
                       <p className="text-sm text-muted-foreground">{new Date().getFullYear()}</p>
@@ -564,41 +578,35 @@ export function CaedAplicador({ mode = "oficial" }: CaedAplicadorProps) {
 
                 {phase === "abas" ? (
                   <Tabs value={activeTab} onValueChange={handleTabChange}>
-                    <TabsList>
-                      {isPractice ? (
-                        <Link
-                          href="/app/revisao-leitura-guiada"
-                          className="inline-flex min-h-10 flex-1 items-center justify-center whitespace-nowrap rounded-md px-3 py-2 text-xs font-medium transition-colors hover:bg-background/80 sm:flex-none sm:px-4 sm:text-sm"
-                        >
-                          Revisão e áudio
-                        </Link>
-                      ) : null}
-                      {PRACTICE_TABS.map((tab) => {
-                        const unsaved =
-                          (tab.id === "palavras" && q1Result && !q1Saved) ||
-                          (tab.id === "pouco-comuns" && q2Result && !q2Saved) ||
-                          (tab.id === "texto" && q3Result && !q3Saved);
-                        return (
-                          <TabsTrigger
-                            key={tab.id}
-                            value={tab.id}
-                            disabled={
-                              Boolean(savingFluency) ||
-                              (Boolean(recordingTab) && recordingTab !== tab.id)
-                            }
-                            className="gap-2"
-                          >
-                            {isPractice ? tab.practiceLabel : tab.label}
-                            {unsaved ? (
-                              <span
-                                className="h-1.5 w-1.5 rounded-full bg-amber-500"
-                                title="Alterações não salvas"
-                              />
-                            ) : null}
-                          </TabsTrigger>
-                        );
-                      })}
-                    </TabsList>
+                    {isPractice ? null : (
+                      <TabsList>
+                        {PRACTICE_TABS.map((tab) => {
+                          const unsaved =
+                            (tab.id === "palavras" && q1Result && !q1Saved) ||
+                            (tab.id === "pouco-comuns" && q2Result && !q2Saved) ||
+                            (tab.id === "texto" && q3Result && !q3Saved);
+                          return (
+                            <TabsTrigger
+                              key={tab.id}
+                              value={tab.id}
+                              disabled={
+                                Boolean(savingFluency) ||
+                                (Boolean(recordingTab) && recordingTab !== tab.id)
+                              }
+                              className="gap-2"
+                            >
+                              {tab.label}
+                              {unsaved ? (
+                                <span
+                                  className="h-1.5 w-1.5 rounded-full bg-amber-500"
+                                  title="Alterações não salvas"
+                                />
+                              ) : null}
+                            </TabsTrigger>
+                          );
+                        })}
+                      </TabsList>
+                    )}
 
                     <TabsContent
                       value="palavras"
@@ -675,6 +683,8 @@ export function CaedAplicador({ mode = "oficial" }: CaedAplicadorProps) {
                       />
                     </TabsContent>
 
+                    {!isPractice ? (
+                      <>
                     <TabsContent
                       value="compreensao"
                       forceMount
@@ -812,6 +822,8 @@ export function CaedAplicador({ mode = "oficial" }: CaedAplicadorProps) {
                         </div>
                       </div>
                     </TabsContent>
+                      </>
+                    ) : null}
                   </Tabs>
                 ) : null}
               </>
