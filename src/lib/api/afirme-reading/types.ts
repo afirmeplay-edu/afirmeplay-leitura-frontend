@@ -65,6 +65,31 @@ export interface ReadingText {
   updatedAt: string;
 }
 
+export interface CreateReadingTextQuestionOptionPayload {
+  text: string;
+  isCorrect: boolean;
+}
+
+export interface CreateReadingTextQuestionPayload {
+  statement: string;
+  options: CreateReadingTextQuestionOptionPayload[];
+  descriptor: string;
+}
+
+export interface CreateReadingQuestionPayload {
+  statement: string;
+  options: string[];
+  correctOption: number;
+  descriptor: string;
+}
+
+export interface UpdateReadingQuestionPayload {
+  statement?: string;
+  descriptor?: string;
+  options?: string[] | CreateReadingTextQuestionOptionPayload[];
+  correctOption?: number;
+}
+
 export interface CreateReadingTextPayload {
   title: string;
   content: string;
@@ -73,9 +98,10 @@ export interface CreateReadingTextPayload {
   targetSkills?: string[];
   source?: string | null;
   isCalibrated?: boolean;
+  questions?: CreateReadingTextQuestionPayload[];
 }
 
-export type UpdateReadingTextPayload = Partial<CreateReadingTextPayload>;
+export type UpdateReadingTextPayload = Partial<Omit<CreateReadingTextPayload, "questions">>;
 
 export interface ListReadingTextsParams {
   gradeId?: string;

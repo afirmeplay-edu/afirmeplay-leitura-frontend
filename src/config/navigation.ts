@@ -55,9 +55,6 @@ export const NAV_CATEGORIES: NavCategory[] = [
             label: "Praticar palavras pouco conhecidas",
           },
           { href: "/app/avaliacao-leitura-guiada?aba=texto", label: "Praticar texto" },
-          { href: "/app/avaliacao-leitura-guiada?aba=compreensao", label: "Compreensão" },
-          { href: "/app/avaliacao-leitura-guiada?aba=leiturometro", label: "Leiturômetro" },
-          { href: "/app/avaliacao-leitura-guiada/demo", label: "Modo demonstração" },
         ],
       },
       {
@@ -119,7 +116,7 @@ export const DASHBOARD_FEATURE_CARDS = [
     href: "/app/avaliacao-leitura-guiada",
     label: "Praticar Avaliação de Fluência",
     description:
-      "Pratique listas de palavras, texto, compreensão e o Leiturômetro com marcação manual após o áudio.",
+      "Pratique listas de palavras conhecidas, palavras pouco conhecidas e texto narrativo, com marcação manual após o áudio.",
     accent: "blue",
   },
   {

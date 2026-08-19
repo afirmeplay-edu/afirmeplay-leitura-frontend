@@ -1,8 +1,11 @@
 import { afirmeReadingApi } from "@/lib/api/afirme-reading/client";
 import type {
+  CreateReadingQuestionPayload,
   CreateReadingTextPayload,
   ListReadingTextsParams,
+  ReadingQuestion,
   ReadingText,
+  UpdateReadingQuestionPayload,
   UpdateReadingTextPayload,
 } from "@/lib/api/afirme-reading/types";
 
@@ -40,5 +43,43 @@ export async function updateReadingText(id: string, payload: UpdateReadingTextPa
 
 export async function deleteReadingText(id: string) {
   const { data } = await afirmeReadingApi.delete<{ message: string }>(`/texts/${id}`);
+  return data;
+}
+
+export async function createReadingQuestion(textId: string, payload: CreateReadingQuestionPayload) {
+  const { data } = await afirmeReadingApi.post<ReadingQuestion>(
+    `/texts/${textId}/questions`,
+    payload
+  );
+  return data;
+}
+
+export async function createReadingQuestionsBulk(
+  textId: string,
+  payload: CreateReadingQuestionPayload[]
+) {
+  const { data } = await afirmeReadingApi.post<ReadingQuestion[]>(
+    `/texts/${textId}/questions/bulk`,
+    payload
+  );
+  return data;
+}
+
+export async function updateReadingQuestion(
+  textId: string,
+  questionId: string,
+  payload: UpdateReadingQuestionPayload
+) {
+  const { data } = await afirmeReadingApi.patch<ReadingQuestion>(
+    `/texts/${textId}/questions/${questionId}`,
+    payload
+  );
+  return data;
+}
+
+export async function deleteReadingQuestion(textId: string, questionId: string) {
+  const { data } = await afirmeReadingApi.delete<{ message: string }>(
+    `/texts/${textId}/questions/${questionId}`
+  );
   return data;
 }
