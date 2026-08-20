@@ -38,9 +38,13 @@ export const NAV_CATEGORIES: NavCategory[] = [
     items: [
       {
         href: "/app/avaliacao-fluencia",
-        label: "Avaliacao de fluencia",
+        label: "Avaliação de Fluência",
         description: "Leiturometro e ICA",
         icon: Gauge,
+        children: [
+          { href: "/app/avaliacao-fluencia/criar", label: "Criar Avaliação" },
+          { href: "/app/avaliacao-fluencia/listar", label: "Listar Avaliação" },
+        ],
       },
       {
         href: "/app/avaliacao-leitura-guiada",
@@ -138,12 +142,19 @@ export function getAllNavLinks(): NavLink[] {
   return NAV_CATEGORIES.flatMap((c) => c.items);
 }
 
-export function isNavLinkActive(pathname: string, search: string, href: string): boolean {
+export function isNavLinkActive(
+  pathname: string,
+  search: string,
+  href: string,
+  options?: { exactPath?: boolean }
+): boolean {
   const [path, query] = href.split("?");
 
   if (path === "/app") return pathname === "/app";
 
-  const pathMatch = pathname === path || pathname.startsWith(`${path}/`);
+  const pathMatch = options?.exactPath
+    ? pathname === path
+    : pathname === path || pathname.startsWith(`${path}/`);
 
   if (!query) return pathMatch;
 

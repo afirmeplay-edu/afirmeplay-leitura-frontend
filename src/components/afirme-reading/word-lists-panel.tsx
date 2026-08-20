@@ -11,6 +11,7 @@ import {
   type WordList,
   type WordListKind,
 } from "@/lib/api/afirme-reading";
+import { isKnownWordListKind } from "@/lib/afirme-reading/evaluation-contract";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,7 +34,7 @@ function parseItems(text: string): string[] {
 }
 
 function kindLabel(kind: WordListKind) {
-  return kind === "PALAVRAS" ? "Palavras (Q1)" : "Pouco comuns (Q2)";
+  return kind === "POUCO_COMUNS" ? "Pouco comuns (Q2)" : "Palavras conhecidas (Q1)";
 }
 
 interface FormState {
@@ -47,7 +48,7 @@ interface FormState {
 
 const EMPTY_FORM: FormState = {
   name: "",
-  kind: "PALAVRAS",
+  kind: "PALAVRAS_CONHECIDAS",
   itemsText: "",
   description: "",
   isDefault: false,
@@ -89,7 +90,7 @@ export function WordListsPanel() {
     setEditingId(list.id);
     setForm({
       name: list.name,
-      kind: list.kind,
+      kind: isKnownWordListKind(list.kind) ? "PALAVRAS_CONHECIDAS" : list.kind,
       itemsText: list.items.join("\n"),
       description: list.description ?? "",
       isDefault: list.isDefault,
@@ -266,8 +267,8 @@ export function WordListsPanel() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="PALAVRAS">
-                      Palavras comuns (Q1) — 60 itens recomendados
+                    <SelectItem value="PALAVRAS_CONHECIDAS">
+                      Palavras conhecidas (Q1) — 60 itens recomendados
                     </SelectItem>
                     <SelectItem value="POUCO_COMUNS">
                       Palavras pouco comuns / Pseudopalavras (Q2) — 40 itens recomendados

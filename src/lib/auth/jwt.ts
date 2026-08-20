@@ -36,6 +36,11 @@ export function isAdminRole(role: string | null | undefined) {
   return (role ?? "").trim().toLowerCase() === "admin";
 }
 
+export function isPrivilegedStaffRole(role: string | null | undefined) {
+  const normalized = (role ?? "").trim().toLowerCase();
+  return normalized === "admin" || normalized === "tecadm";
+}
+
 /** Roles em que o município vem do JWT (não precisam escolher cidade nas telas). */
 export function roleUsesJwtCity(role: string | null | undefined) {
   const normalized = (role ?? "").trim().toLowerCase();
