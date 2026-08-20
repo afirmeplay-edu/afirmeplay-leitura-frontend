@@ -28,8 +28,11 @@ export {
   resolveGuidedSessionAudioUrl,
 } from "@/lib/api/afirme-reading/guided-sessions";
 export {
+  createEvaluation,
   listEvaluations,
   getEvaluation,
+  updateEvaluation,
+  deleteEvaluation,
   listReadingSessions,
 } from "@/lib/api/afirme-reading/evaluations";
 export {
@@ -94,5 +97,10 @@ export type {
   ReadingEvaluation,
   ReadingEvaluationStatus,
   ReadingAssessmentType,
+  EvaluationKind,
+  EvaluationCreator,
+  EvaluationScope,
+  CreateReadingEvaluationPayload,
+  UpdateReadingEvaluationPayload,
   ListReadingEvaluationsParams,
 } from "@/lib/api/afirme-reading/types";

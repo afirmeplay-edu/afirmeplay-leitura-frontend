@@ -7,8 +7,11 @@ import Link from "next/link";
 import { toast } from "sonner";
 import {
   createFluencySession,
+  getEvaluation,
+  listEvaluations,
   listReadingTexts,
   listWordLists,
+  type ReadingEvaluation,
   type ReadingText,
   type WordList,
 } from "@/lib/api/afirme-reading";
@@ -21,6 +24,8 @@ import {
   type Student,
 } from "@/lib/api/students";
 import { getApiErrorMessage } from "@/lib/api/errors";
+import { canApplyEvaluation, getEvaluationKindLabel, getKnownWordListId } from "@/lib/afirme-reading/evaluation-contract";
+import { useAuthStore } from "@/stores/auth-store";
 import { AdminCityPicker } from "@/components/auth/admin-city-picker";
 import { PageHeader } from "@/components/layout/page-header";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -45,6 +50,16 @@ function pickPreferredList(lists: WordList[]) {
   );
 }
 
+function asEvaluationList(data: unknown): ReadingEvaluation[] {
+  if (Array.isArray(data)) return data;
+  if (data && typeof data === "object") {
+    const record = data as { items?: unknown; data?: unknown };
+    if (Array.isArray(record.items)) return record.items as ReadingEvaluation[];
+    if (Array.isArray(record.data)) return record.data as ReadingEvaluation[];
+  }
+  return [];
+}
+
 interface FluenciaSelecaoProps {
   variant?: "oficial" | "praticar";
 }
@@ -52,10 +67,14 @@ interface FluenciaSelecaoProps {
 export function FluenciaSelecao({ variant = "oficial" }: FluenciaSelecaoProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const user = useAuthStore((state) => state.user);
   const isPractice = variant === "praticar";
   const [cityReady, setCityReady] = useState(false);
   const [cityKey, setCityKey] = useState("none");
 
+  const [evaluations, setEvaluations] = useState<ReadingEvaluation[]>([]);
+  const [evaluationDetail, setEvaluationDetail] = useState<ReadingEvaluation | null>(null);
+  const [evaluationId, setEvaluationId] = useState("");
   const [schools, setSchools] = useState<School[]>([]);
   const [classes, setClasses] = useState<SchoolClass[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
@@ -91,6 +110,12 @@ export function FluenciaSelecao({ variant = "oficial" }: FluenciaSelecaoProps) {
     [texts, textId]
   );
   const practiceTab = parsePracticeActivityTab(searchParams.get("aba"));
+  const presetEvaluationId = searchParams.get("evaluationId") ?? "";
+  const presetSchoolId = searchParams.get("schoolId") ?? "";
+  const presetClassId = searchParams.get("classId") ?? "";
+  const presetTextId = searchParams.get("readingTextId") ?? "";
+  const presetWordsListId = searchParams.get("wordsWordListId") ?? "";
+  const presetUncommonListId = searchParams.get("uncommonWordListId") ?? "";
   const hideNarrativeText =
     isPractice && (practiceTab === "palavras" || practiceTab === "pouco-comuns");
   const textForSession = hideNarrativeText ? (texts[0] ?? null) : selectedText;
@@ -103,12 +128,15 @@ export function FluenciaSelecao({ variant = "oficial" }: FluenciaSelecaoProps) {
       setClasses([]);
       setStudents([]);
       setTexts([]);
+      setEvaluations([]);
+      setEvaluationDetail(null);
       setWordsList(null);
       setUncommonList(null);
       setSchoolId("");
       setClassId("");
       setStudentId("");
       setTextId("");
+      setEvaluationId("");
     }
   }, []);
 
@@ -116,27 +144,97 @@ export function FluenciaSelecao({ variant = "oficial" }: FluenciaSelecaoProps) {
     setLoadingSchools(true);
     setLoadingTexts(true);
     try {
-      const [schoolData, textData, palavras, poucoComuns] = await Promise.all([
-        listSchools(),
-        listReadingTexts({ orderBy: "title" }),
-        listWordLists({ kind: "PALAVRAS", active: true }),
-        listWordLists({ kind: "POUCO_COMUNS", active: true }),
-      ]);
+      const [schoolResult, textResult, palavrasResult, poucoResult, evaluationResult] =
+        await Promise.allSettled([
+          listSchools(),
+          listReadingTexts({ orderBy: "title" }),
+          listWordLists({ kind: "PALAVRAS", active: true }),
+          listWordLists({ kind: "POUCO_COMUNS", active: true }),
+          isPractice ? Promise.resolve([] as ReadingEvaluation[]) : listEvaluations(),
+        ]);
+
+      const schoolData = schoolResult.status === "fulfilled" ? schoolResult.value : [];
+      const textData = textResult.status === "fulfilled" ? textResult.value : [];
+      const palavras = palavrasResult.status === "fulfilled" ? palavrasResult.value : [];
+      const poucoComuns = poucoResult.status === "fulfilled" ? poucoResult.value : [];
+      const evaluationData =
+        evaluationResult.status === "fulfilled" ? asEvaluationList(evaluationResult.value) : [];
+
+      if (schoolResult.status === "rejected") {
+        toast.error(getApiErrorMessage(schoolResult.reason, "Não foi possível carregar as escolas."));
+      }
+      if (textResult.status === "rejected") {
+        toast.error(getApiErrorMessage(textResult.reason, "Não foi possível carregar os textos."));
+      }
+      if (!isPractice && evaluationResult.status === "rejected") {
+        toast.error(
+          getApiErrorMessage(evaluationResult.reason, "Não foi possível carregar as avaliações.")
+        );
+      }
+
       setSchools(schoolData);
       setTexts(textData);
-      setWordsList(pickPreferredList(palavras));
-      setUncommonList(pickPreferredList(poucoComuns));
+      const listed = evaluationData.filter((item) => canApplyEvaluation(item, user?.id));
+      const visibleEvaluations = listed.length ? listed : evaluationData;
+      setEvaluations(visibleEvaluations);
+      setWordsList(
+        presetWordsListId
+          ? (palavras.find((list) => list.id === presetWordsListId) ?? pickPreferredList(palavras))
+          : pickPreferredList(palavras)
+      );
+      setUncommonList(
+        presetUncommonListId
+          ? (poucoComuns.find((list) => list.id === presetUncommonListId) ?? pickPreferredList(poucoComuns))
+          : pickPreferredList(poucoComuns)
+      );
+      if (presetTextId && textData.some((text) => text.id === presetTextId)) {
+        setTextId(presetTextId);
+      }
+      if (presetSchoolId && schoolData.some((school) => school.id === presetSchoolId)) {
+        setSchoolId(presetSchoolId);
+      }
+      if (presetEvaluationId) {
+        const preset =
+          visibleEvaluations.find((item) => item.id === presetEvaluationId) ??
+          evaluationData.find((item) => item.id === presetEvaluationId);
+        if (preset) {
+          setEvaluations((current) =>
+            current.some((item) => item.id === preset.id) ? current : [preset, ...current]
+          );
+          setEvaluationId(preset.id);
+        } else {
+          try {
+            const detail = await getEvaluation(presetEvaluationId);
+            setEvaluations((current) =>
+              current.some((item) => item.id === detail.id) ? current : [detail, ...current]
+            );
+            setEvaluationId(detail.id);
+          } catch {
+            setEvaluationId(presetEvaluationId);
+          }
+        }
+      }
     } catch (error) {
       toast.error(getApiErrorMessage(error, "Não foi possível carregar escolas/textos/listas."));
       setSchools([]);
       setTexts([]);
+      setEvaluations([]);
       setWordsList(null);
       setUncommonList(null);
     } finally {
       setLoadingSchools(false);
       setLoadingTexts(false);
     }
-  }, []);
+  }, [
+    isPractice,
+    presetClassId,
+    presetEvaluationId,
+    presetSchoolId,
+    presetTextId,
+    presetUncommonListId,
+    presetWordsListId,
+    user?.id,
+  ]);
 
   useEffect(() => {
     if (!cityReady) return;
@@ -148,6 +246,43 @@ export function FluenciaSelecao({ variant = "oficial" }: FluenciaSelecaoProps) {
     setStudents([]);
     void loadBase();
   }, [cityReady, cityKey, loadBase]);
+
+  useEffect(() => {
+    if (isPractice || !evaluationId || !cityReady) {
+      if (!evaluationId) setEvaluationDetail(null);
+      return;
+    }
+    let cancelled = false;
+    async function load() {
+      try {
+        const detail = await getEvaluation(evaluationId);
+        if (cancelled) return;
+        if (!canApplyEvaluation(detail, user?.id)) {
+          toast.error("Você só pode aplicar avaliações que você mesmo criou.");
+          setEvaluationDetail(null);
+          setEvaluationId("");
+          return;
+        }
+        setEvaluationDetail(detail);
+        const nextSchool = detail.scope?.schools[0]?.id || detail.schoolIds?.[0] || "";
+        const nextClass = detail.scope?.classes[0]?.id || detail.classIds?.[0] || "";
+        if (nextSchool) setSchoolId(nextSchool);
+        if (nextClass) setClassId(nextClass);
+        if (detail.readingTextId) setTextId(detail.readingTextId);
+        if (detail.knownWordList) setWordsList(detail.knownWordList);
+        if (detail.uncommonWordList) setUncommonList(detail.uncommonWordList);
+      } catch (error) {
+        if (!cancelled) {
+          toast.error(getApiErrorMessage(error, "Não foi possível carregar a avaliação."));
+          setEvaluationDetail(null);
+        }
+      }
+    }
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [cityReady, evaluationId, isPractice, user?.id]);
 
   useEffect(() => {
     if (!schoolId || !cityReady) {
@@ -166,7 +301,12 @@ export function FluenciaSelecao({ variant = "oficial" }: FluenciaSelecaoProps) {
       setStudents([]);
       try {
         const data = await listClassesBySchool(schoolId);
-        if (!cancelled) setClasses(data);
+        if (!cancelled) {
+          setClasses(data);
+          if (presetClassId && data.some((item) => item.id === presetClassId)) {
+            setClassId(presetClassId);
+          }
+        }
       } catch (error) {
         if (!cancelled) {
           toast.error(getApiErrorMessage(error, "Não foi possível carregar as turmas."));
@@ -180,7 +320,7 @@ export function FluenciaSelecao({ variant = "oficial" }: FluenciaSelecaoProps) {
     return () => {
       cancelled = true;
     };
-  }, [schoolId, cityReady]);
+  }, [schoolId, cityReady, presetClassId]);
 
   useEffect(() => {
     if (!classId || !cityReady) {
@@ -195,7 +335,14 @@ export function FluenciaSelecao({ variant = "oficial" }: FluenciaSelecaoProps) {
       setStudentId("");
       try {
         const data = await listStudentsByClass(classId);
-        if (!cancelled) setStudents(data);
+        if (!cancelled) {
+          const scoped = evaluationDetail?.scope?.students ?? [];
+          setStudents(
+            scoped.length
+              ? data.filter((student) => scoped.some((item) => item.id === student.id))
+              : data
+          );
+        }
       } catch (error) {
         if (!cancelled) {
           toast.error(getApiErrorMessage(error, "Não foi possível carregar os alunos."));
@@ -209,19 +356,75 @@ export function FluenciaSelecao({ variant = "oficial" }: FluenciaSelecaoProps) {
     return () => {
       cancelled = true;
     };
-  }, [classId, cityReady]);
+  }, [classId, cityReady, evaluationDetail]);
 
-  const canStart = Boolean(
-    cityReady &&
-      schoolId &&
-      classId &&
-      studentId &&
-      (hideNarrativeText ? texts.length > 0 : textId) &&
-      !creating
-  );
+  const canStart = isPractice
+    ? Boolean(
+        cityReady &&
+          schoolId &&
+          classId &&
+          studentId &&
+          (hideNarrativeText ? texts.length > 0 : textId) &&
+          !creating
+      )
+    : Boolean(cityReady && evaluationId && studentId && classId && !creating);
 
   async function handleStart() {
-    if (!selectedSchool || !selectedClass || !selectedStudent) {
+    if (!selectedStudent) {
+      toast.error("Selecione o estudante.");
+      return;
+    }
+
+    if (!isPractice) {
+      if (!evaluationId) {
+        toast.error("Selecione a avaliação que será aplicada.");
+        return;
+      }
+      setCreating(true);
+      try {
+        const session = await createFluencySession({
+          evaluationId,
+          studentId: selectedStudent.id,
+          classId: selectedClass?.id || classId || undefined,
+          schoolId: selectedSchool?.id || schoolId || undefined,
+        });
+        const knownListId =
+          (evaluationDetail ? getKnownWordListId(evaluationDetail) : null) ||
+          session.knownWordListId ||
+          session.wordsWordListId ||
+          wordsList?.id ||
+          "";
+        const textTitle =
+          evaluationDetail?.readingText?.title || selectedText?.title || "";
+        const params = new URLSearchParams({
+          sessionId: session.id,
+          evaluationId,
+          studentId: selectedStudent.id,
+          studentName: selectedStudent.name,
+          classId: selectedClass?.id ?? session.classId ?? classId ?? "",
+          className: selectedClass?.name ?? "",
+          schoolId: selectedSchool?.id ?? session.schoolId ?? schoolId ?? "",
+          schoolName: selectedSchool?.name ?? "",
+          readingTextId: session.readingTextId || evaluationDetail?.readingTextId || textId,
+          textTitle,
+          wordsWordListId: knownListId,
+          uncommonWordListId:
+            session.uncommonWordListId ||
+            evaluationDetail?.uncommonWordListId ||
+            uncommonList?.id ||
+            "",
+          caderno: session.caderno || "A",
+        });
+        router.push(`/app/avaliacao-fluencia/aplicar?${params.toString()}`);
+      } catch (error) {
+        toast.error(getApiErrorMessage(error, "Não foi possível criar a sessão de fluência."));
+      } finally {
+        setCreating(false);
+      }
+      return;
+    }
+
+    if (!selectedSchool || !selectedClass) {
       toast.error("Selecione escola, turma e estudante.");
       return;
     }
@@ -262,12 +465,8 @@ export function FluenciaSelecao({ variant = "oficial" }: FluenciaSelecaoProps) {
         caderno: session.caderno || "A",
       });
 
-      if (isPractice) {
-        params.set("aba", aba);
-        router.push(`/app/avaliacao-leitura-guiada?${params.toString()}`);
-      } else {
-        router.push(`/app/avaliacao-fluencia/aplicar?${params.toString()}`);
-      }
+      params.set("aba", aba);
+      router.push(`/app/avaliacao-leitura-guiada?${params.toString()}`);
     } catch (error) {
       toast.error(getApiErrorMessage(error, "Não foi possível criar a sessão de fluência."));
     } finally {
@@ -311,6 +510,49 @@ export function FluenciaSelecao({ variant = "oficial" }: FluenciaSelecaoProps) {
 
       <Card>
         <CardContent className="grid gap-6 pt-6 md:grid-cols-2">
+          {!isPractice ? (
+            <div className="space-y-2 md:col-span-2">
+              <Label>Avaliação</Label>
+              <Select
+                value={evaluationId || undefined}
+                onValueChange={setEvaluationId}
+                disabled={!cityReady || loadingTexts}
+              >
+                <SelectTrigger>
+                  <SelectValue
+                    placeholder={
+                      loadingTexts
+                        ? "Carregando avaliações..."
+                        : evaluations.length
+                          ? "Selecione a avaliação"
+                          : "Crie uma avaliação primeiro"
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {evaluations.map((item) => (
+                    <SelectItem key={item.id} value={item.id}>
+                      {item.title} — {getEvaluationKindLabel(item)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {evaluationDetail?.readingText?.title ? (
+                <p className="text-xs text-muted-foreground">
+                  Texto e listas vêm da avaliação: {evaluationDetail.readingText.title}
+                  {evaluationDetail.knownWordList ? ` · Q1 ${evaluationDetail.knownWordList.name}` : ""}
+                  {evaluationDetail.uncommonWordList
+                    ? ` · Q2 ${evaluationDetail.uncommonWordList.name}`
+                    : ""}
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Texto e listas vêm da avaliação selecionada.
+                </p>
+              )}
+            </div>
+          ) : null}
+
           <div className="space-y-2">
             <Label>Escola</Label>
             <Select
@@ -406,7 +648,7 @@ export function FluenciaSelecao({ variant = "oficial" }: FluenciaSelecaoProps) {
                   : null}
               </p>
             </div>
-          ) : (
+          ) : isPractice ? (
             <div className="space-y-2">
               <Label>Texto narrativo (Questão 3)</Label>
               <Select
@@ -434,7 +676,7 @@ export function FluenciaSelecao({ variant = "oficial" }: FluenciaSelecaoProps) {
                 {uncommonList ? ` Lista Q2: ${uncommonList.name}.` : null}
               </p>
             </div>
-          )}
+          ) : null}
         </CardContent>
       </Card>
 

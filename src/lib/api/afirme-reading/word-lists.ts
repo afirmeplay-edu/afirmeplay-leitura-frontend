@@ -6,6 +6,17 @@ import type {
   WordList,
 } from "@/lib/api/afirme-reading/types";
 
+function unwrapList<T>(data: unknown): T[] {
+  if (Array.isArray(data)) return data as T[];
+  if (data && typeof data === "object") {
+    const obj = data as Record<string, unknown>;
+    for (const key of ["data", "items", "results"]) {
+      if (Array.isArray(obj[key])) return obj[key] as T[];
+    }
+  }
+  return [];
+}
+
 export async function listWordLists(params?: ListWordListsParams) {
   const { data } = await afirmeReadingApi.get<WordList[]>("/word-lists", {
     params: {
@@ -14,7 +25,7 @@ export async function listWordLists(params?: ListWordListsParams) {
         params?.active === undefined ? undefined : params.active ? "true" : "false",
     },
   });
-  return data;
+  return unwrapList<WordList>(data);
 }
 
 export async function getWordList(id: string) {

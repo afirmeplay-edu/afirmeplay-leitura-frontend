@@ -7,11 +7,15 @@ import { toast } from "sonner";
 import {
   getFluencySessionReport,
   getReadingText,
+  getReport,
   getWordList,
   listWordLists,
+  saveComprehensionAnswers,
+  saveFluency,
   saveFluencyComprehensionAnswers,
   saveFluencySessionPart,
   submitFluencySession,
+  submitSession,
   uploadFluencySessionAudio,
   type FluencyListPartPayload,
   type FluencySessionReport,
@@ -91,6 +95,8 @@ export function CaedAplicador({ mode = "oficial" }: CaedAplicadorProps) {
   const layoutTitle = isPractice ? "Praticar Avaliação de Fluência" : "Avaliação de Fluência";
 
   const sessionId = params.get("sessionId") ?? "";
+  const evaluationId = params.get("evaluationId") ?? "";
+  const isOfficialSession = !isPractice && Boolean(evaluationId);
   const studentId = params.get("studentId") ?? params.get("aluno") ?? "";
   const studentName = params.get("studentName") ?? "";
   const classId = params.get("classId") ?? "";
@@ -254,21 +260,26 @@ export function CaedAplicador({ mode = "oficial" }: CaedAplicadorProps) {
     q3?: FluencyTextPartPayload;
   }) {
     if (!hasSession) throw new Error("Sessão não informada.");
-    await saveFluencySessionPart(sessionId, {
-      kind: "FLUENCY",
+    const body = {
+      kind: "FLUENCY" as const,
       caderno: "A",
       extras: {
         browser: typeof navigator !== "undefined" ? navigator.userAgent : undefined,
       },
       ...payload,
-    });
+    };
+    if (isOfficialSession) {
+      await saveFluency(evaluationId, sessionId, body);
+      return;
+    }
+    await saveFluencySessionPart(sessionId, body);
   }
 
   async function uploadPartAudio(
     part: "q1" | "q2" | "q3" | "mic_test",
     blob: Blob | null | undefined
   ) {
-    if (!hasSession || !blob || blob.size === 0) return;
+    if (!hasSession || !blob || blob.size === 0 || isOfficialSession) return;
     try {
       await uploadFluencySessionAudio(sessionId, part, blob, `${part}.webm`);
     } catch (error) {
@@ -385,15 +396,22 @@ export function CaedAplicador({ mode = "oficial" }: CaedAplicadorProps) {
     setSavingComprehension(true);
     try {
       if (questions.length > 0) {
-        await saveFluencyComprehensionAnswers(sessionId, {
+        const answersPayload = {
           answers: questions.map((q) => ({
             readingTextQuestionId: q.id,
             selectedOption: answers[q.id],
           })),
-        });
+        };
+        if (isOfficialSession) {
+          await saveComprehensionAnswers(evaluationId, sessionId, answersPayload);
+        } else {
+          await saveFluencyComprehensionAnswers(sessionId, answersPayload);
+        }
       }
 
-      const reportData = await getFluencySessionReport(sessionId);
+      const reportData = isOfficialSession
+        ? await getReport(evaluationId, sessionId)
+        : await getFluencySessionReport(sessionId);
       setReport(reportData);
       setActiveTab("leiturometro");
       syncTabToUrl("leiturometro");
@@ -417,9 +435,15 @@ export function CaedAplicador({ mode = "oficial" }: CaedAplicadorProps) {
     }
     setSubmitting(true);
     try {
-      await submitFluencySession(sessionId);
+      if (isOfficialSession) {
+        await submitSession(evaluationId, sessionId);
+      } else {
+        await submitFluencySession(sessionId);
+      }
       try {
-        const fresh = await getFluencySessionReport(sessionId);
+        const fresh = isOfficialSession
+          ? await getReport(evaluationId, sessionId)
+          : await getFluencySessionReport(sessionId);
         setReport(fresh);
       } catch {
         /* report anterior permanece */

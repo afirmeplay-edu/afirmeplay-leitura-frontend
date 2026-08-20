@@ -1,4 +1,4 @@
-export type WordListKind = "PALAVRAS" | "POUCO_COMUNS";
+export type WordListKind = "PALAVRAS_CONHECIDAS" | "PALAVRAS" | "POUCO_COMUNS";
 
 export type ScopeType = "GLOBAL" | "CITY" | "PRIVATE";
 
@@ -261,11 +261,14 @@ export interface SaveFluencyPayload {
 }
 
 export interface CreateFluencySessionPayload {
+  evaluationId?: string;
   studentId: string;
-  classId: string;
-  schoolId: string;
-  readingTextId: string;
+  /** Campos legados — a prática ainda pode enviá-los; o fluxo oficial usa só evaluationId + studentId. */
+  classId?: string;
+  schoolId?: string;
+  readingTextId?: string;
   wordsWordListId?: string | null;
+  knownWordListId?: string | null;
   uncommonWordListId?: string | null;
   caderno?: string;
 }
@@ -277,7 +280,9 @@ export interface FluencySession {
   classId: string | null;
   schoolId: string | null;
   readingTextId: string;
+  evaluationId?: string | null;
   wordsWordListId: string | null;
+  knownWordListId?: string | null;
   uncommonWordListId: string | null;
   caderno: string;
   status: ReadingSessionStatus;
@@ -299,32 +304,95 @@ export type ReadingEvaluationStatus =
   | "concluida"
   | "cancelada";
 
-export type ReadingAssessmentType = "fluencia" | "compreensao" | "completa";
+export type EvaluationKind = "entrada" | "formativa" | "saida";
+
+/** Campo legado; o contrato atual usa evaluationKind. */
+export type ReadingAssessmentType =
+  | "fluencia"
+  | "compreensao"
+  | "completa"
+  | EvaluationKind;
+
+export interface EvaluationCreator {
+  id: string;
+  name: string;
+}
+
+export interface EvaluationScopeSchool {
+  id: string;
+  name: string;
+}
+
+export interface EvaluationScopeClass {
+  id: string;
+  name: string;
+  schoolId?: string | null;
+  gradeId?: string | null;
+}
+
+export interface EvaluationScopeStudent {
+  id: string;
+  name: string;
+  classId?: string | null;
+  schoolId?: string | null;
+}
+
+export interface EvaluationScope {
+  grade?: GradeRef | null;
+  schools: EvaluationScopeSchool[];
+  classes: EvaluationScopeClass[];
+  students: EvaluationScopeStudent[];
+}
 
 export interface ReadingEvaluation {
   id: string;
   title: string;
   description: string | null;
   readingTextId: string;
-  wordsWordListId: string | null;
+  knownWordListId?: string | null;
+  wordsWordListId?: string | null;
   uncommonWordListId: string | null;
   gradeId: string | null;
   grade?: GradeRef | null;
   classIds: string[];
   schoolIds: string[];
-  assessmentType: ReadingAssessmentType;
+  studentIds?: string[];
+  evaluationKind?: EvaluationKind;
+  evaluationKindLabel?: string;
+  assessmentType?: ReadingAssessmentType;
   status: ReadingEvaluationStatus;
   applicationStart: string | null;
   applicationEnd: string | null;
   timezone: string | null;
+  createdBy?: EvaluationCreator | null;
   createdAt: string | null;
   updatedAt: string | null;
+  readingText?: ReadingText | null;
+  knownWordList?: WordList | null;
+  uncommonWordList?: WordList | null;
+  scope?: EvaluationScope | null;
   sessions?: ReadingEvaluationSession[];
 }
 
+export interface CreateReadingEvaluationPayload {
+  title: string;
+  evaluationKind: EvaluationKind;
+  readingTextId: string;
+  knownWordListId?: string | null;
+  wordsWordListId?: string | null;
+  uncommonWordListId?: string | null;
+  description?: string | null;
+  gradeId?: string | null;
+  classIds?: string[];
+  schoolIds?: string[];
+  studentIds?: string[];
+}
+
+export type UpdateReadingEvaluationPayload = Partial<CreateReadingEvaluationPayload>;
+
 export interface ListReadingEvaluationsParams {
   status?: ReadingEvaluationStatus;
-  assessmentType?: ReadingAssessmentType;
+  evaluationKind?: EvaluationKind;
 }
 
 export interface SaveComprehensionAnswerItem {

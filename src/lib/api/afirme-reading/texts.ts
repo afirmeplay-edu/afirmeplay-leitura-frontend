@@ -23,7 +23,14 @@ export async function listReadingTexts(params?: ListReadingTextsParams) {
       orderBy: params?.orderBy,
     },
   });
-  return data;
+  if (Array.isArray(data)) return data;
+  if (data && typeof data === "object") {
+    const obj = data as Record<string, unknown>;
+    for (const key of ["data", "items", "results"]) {
+      if (Array.isArray(obj[key])) return obj[key] as ReadingText[];
+    }
+  }
+  return [];
 }
 
 export async function getReadingText(id: string) {

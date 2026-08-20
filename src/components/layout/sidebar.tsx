@@ -162,7 +162,7 @@ function RenderMenuItem({
       {hasChildren && isOpen && !isCollapsed && (
         <ul className="ml-1.5 mt-1 space-y-1 border-l pl-2 md:ml-2 md:pl-3" style={{ borderColor: "var(--sidebar-border)" }}>
           {item.children?.map((child) => {
-            const childActive = isNavLinkActive(pathname, search, child.href);
+            const childActive = isNavLinkActive(pathname, search, child.href, { exactPath: true });
             return (
               <li key={`${item.href}-${child.href}`}>
                 <Link
