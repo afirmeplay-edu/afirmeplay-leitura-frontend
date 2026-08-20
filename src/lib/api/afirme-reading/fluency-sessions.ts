@@ -8,8 +8,22 @@ import type {
   SaveFluencyPayload,
 } from "@/lib/api/afirme-reading/types";
 
-/** POST /fluency-sessions */
+/** Cria a sessão oficial (evaluationId + studentId) ou a sessão livre de prática. */
 export async function createFluencySession(payload: CreateFluencySessionPayload) {
+  if (payload.evaluationId) {
+    const { data: created } = await afirmeReadingApi.post<FluencySession>(
+      `/evaluations/${payload.evaluationId}/sessions`,
+      {
+        studentId: payload.studentId,
+        classId: payload.classId,
+      }
+    );
+    await afirmeReadingApi.post(
+      `/evaluations/${payload.evaluationId}/sessions/${created.id}/start`
+    );
+    return created;
+  }
+
   const { data } = await afirmeReadingApi.post<FluencySession>("/fluency-sessions", payload);
   return data;
 }
