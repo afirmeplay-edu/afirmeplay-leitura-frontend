@@ -186,10 +186,11 @@ export function CriarAvaliacaoPage() {
 
   useEffect(() => {
     if (!editingId || !cityReady || loadingCatalog) return;
+    const evaluationId = editingId;
     let cancelled = false;
     async function load() {
       try {
-        const evaluation = await getEvaluation(editingId);
+        const evaluation = await getEvaluation(evaluationId);
         if (cancelled) return;
         setTitle(evaluation.title);
         const kind = evaluation.evaluationKind;
