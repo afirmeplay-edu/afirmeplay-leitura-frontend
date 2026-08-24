@@ -103,7 +103,7 @@ export function RevisaoLeituraGuiadaPage() {
   }, [cityReady, statusFilter, textFilter]);
 
   useEffect(() => {
-    if (!cityReady) return;
+    if (!cityReady || cityKey === "none") return;
     void loadTexts();
     void loadSessions();
   }, [cityReady, cityKey, loadTexts, loadSessions]);

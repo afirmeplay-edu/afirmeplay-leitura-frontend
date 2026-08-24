@@ -181,7 +181,7 @@ export function CriarAvaliacaoPage() {
   }, []);
 
   useEffect(() => {
-    if (!cityReady) return;
+    if (!cityReady || cityKey === "none") return;
     setSchoolId("");
     setGradeIds([]);
     setClassIds([]);

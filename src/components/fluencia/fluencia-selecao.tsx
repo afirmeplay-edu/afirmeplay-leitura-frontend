@@ -224,7 +224,7 @@ export function FluenciaSelecao({ variant = "oficial" }: FluenciaSelecaoProps) {
   }, [isPractice, presetEvaluationId, presetSchoolId, user?.id]);
 
   useEffect(() => {
-    if (!cityReady) return;
+    if (!cityReady || cityKey === "none") return;
     setSchoolId("");
     setClassId("");
     setStudentId("");

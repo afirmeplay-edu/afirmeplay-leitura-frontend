@@ -96,7 +96,7 @@ export function GuidedSelectionForm({ onStart }: GuidedSelectionFormProps) {
   }, []);
 
   useEffect(() => {
-    if (!cityReady) return;
+    if (!cityReady || cityKey === "none") return;
     setSchoolId("");
     setClassId("");
     setStudentId("");

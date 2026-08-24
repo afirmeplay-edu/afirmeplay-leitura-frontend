@@ -192,30 +192,31 @@ export function LoginForm() {
 
   if (!mounted) {
     return (
-      <div className="fixed inset-0 z-50 flex min-h-screen items-center justify-center bg-[#1E3A8A]">
-        <Loader2 className="h-8 w-8 animate-spin text-white" />
+      <div className="fixed inset-0 z-50 flex min-h-screen items-center justify-center bg-gradient-to-b from-[#EAF2FF] to-[#B8D4FF]">
+        <Loader2 className="h-8 w-8 animate-spin text-[#1E3A8A]" />
       </div>
     );
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex min-h-screen flex-col bg-[#1E3A8A] lg:flex-row">
-      <section className="relative flex w-full items-center justify-center overflow-hidden bg-gradient-to-b from-[#1E3A8A] to-[#2563EB] p-8 lg:w-1/2 lg:p-12">
+    <div className="fixed inset-0 z-50 flex min-h-screen flex-col bg-gradient-to-b from-[#EAF2FF] to-[#B8D4FF] lg:flex-row">
+      <section className="relative flex w-full items-center justify-center overflow-hidden p-8 lg:w-1/2 lg:p-12">
         <div className="absolute inset-0 opacity-20">
           <div className="absolute left-16 top-16 h-64 w-64 rounded-full bg-blue-100 blur-3xl" />
           <div className="absolute bottom-16 right-16 h-72 w-72 rounded-full bg-cyan-200 blur-3xl" />
         </div>
-        <div className="relative z-10 text-center text-white">
+        <div className="relative z-10 text-center">
           <Image
-            src="/AFIRME-PLAY-LOGO-branco.png"
-            alt="Afirme Play"
-            width={280}
-            height={95}
-            style={{ width: 280, height: "auto" }}
-            className="mx-auto max-w-full rounded-xl shadow-2xl"
+            src="/AFIRME-LER-LOGO.png"
+            alt="Afirme Ler"
+            width={537}
+            height={249}
+            style={{ width: 560, height: "auto" }}
+            className="mx-auto max-w-full object-contain"
+            unoptimized
             priority
           />
-          <p className="mt-5 text-lg font-medium text-blue-100">APRENDIZAGEM E RESULTADO</p>
+          <p className="mt-5 text-lg font-medium text-[#1E3A8A]">APRENDIZAGEM E RESULTADO</p>
         </div>
       </section>
 

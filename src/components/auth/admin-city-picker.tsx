@@ -38,6 +38,10 @@ function resolveSlugForCity(
   return getSelectedCitySlug();
 }
 
+function cityIdInCatalog(cityId: string | null | undefined, catalog: CatalogCity[]) {
+  return Boolean(cityId && catalog.some((city) => city.id === cityId));
+}
+
 export function AdminCityPicker({ onCityReadyChange }: AdminCityPickerProps) {
   const user = useAuthStore((state) => state.user);
   const selectedCityId = useAuthStore((state) => state.selectedCityId);
@@ -48,7 +52,8 @@ export function AdminCityPicker({ onCityReadyChange }: AdminCityPickerProps) {
 
   const [cities, setCities] = useState<CatalogCity[]>([]);
   const [discoveryCities, setDiscoveryCities] = useState<AvailableCity[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(isAdmin);
+  const [catalogLoaded, setCatalogLoaded] = useState(false);
 
   const notify = useCallback(
     (ready: boolean, cityId: string | null) => {
@@ -141,14 +146,13 @@ export function AdminCityPicker({ onCityReadyChange }: AdminCityPickerProps) {
             storedSlug ||
             null;
           setAdminCityContext({ cityId: nextId, slug });
-          notify(true, nextId);
-          return;
         }
 
-        notify(false, null);
+        setCatalogLoaded(true);
       } catch (error) {
         if (!cancelled) {
           toast.error(getApiErrorMessage(error, "Nao foi possivel carregar os municipios."));
+          setCatalogLoaded(true);
           notify(false, null);
         }
       } finally {
@@ -162,10 +166,14 @@ export function AdminCityPicker({ onCityReadyChange }: AdminCityPickerProps) {
     };
   }, [isAdmin, notify, setAdminCityContext]);
 
+  // Admin: só fica ready quando o id existe no catálogo do picker.
+  // Impede disparar escolas/tenant com id residual do login antes da seleção.
   useEffect(() => {
     if (!isAdmin) return;
-    notify(Boolean(selectedCityId), selectedCityId);
-  }, [isAdmin, notify, selectedCityId]);
+    if (!catalogLoaded) return;
+    const matched = cityIdInCatalog(selectedCityId, cities);
+    notify(matched, matched ? selectedCityId : null);
+  }, [isAdmin, catalogLoaded, cities, selectedCityId, notify]);
 
   if (!isAdmin) {
     return null;
@@ -175,7 +183,7 @@ export function AdminCityPicker({ onCityReadyChange }: AdminCityPickerProps) {
     <div className="space-y-2 rounded-lg border border-blue-100 bg-blue-50/60 p-4">
       <Label>Municipio</Label>
       <Select
-        value={selectedCityId || undefined}
+        value={cityIdInCatalog(selectedCityId, cities) ? selectedCityId ?? undefined : undefined}
         onValueChange={(value) => {
           const slug = slugById.get(value) || getSelectedCitySlug();
           setAdminCityContext({ cityId: value, slug });

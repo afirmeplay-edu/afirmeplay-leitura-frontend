@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ChevronDown, ChevronLeft, LogOut } from "lucide-react";
-import Image from "next/image";
 import { useEffect, useState, type CSSProperties } from "react";
 import { cn } from "@/lib/utils";
 import { getSidebarThemeStyles } from "@/constants/sidebarThemes";
@@ -245,21 +244,17 @@ export function Sidebar({ onNavigate, isMobile, onCollapsedChange }: SidebarProp
         >
           <div className={cn("flex items-center", collapsed ? "justify-center" : "justify-between gap-2")}>
             {!collapsed ? (
-              <Image
-                src="/AFIRME-PLAY-LOGO-branco.png"
-                alt="Afirme Play"
-                width={150}
-                height={50}
-                className="h-8 w-auto object-contain [filter:brightness(0)_saturate(100%)_invert(18%)_sepia(90%)_saturate(1500%)_hue-rotate(205deg)]"
+              <img
+                src="/AFIRME-LER-LOGO.png"
+                alt="Afirme Ler"
+                className="h-14 w-auto max-w-[240px] shrink-0 object-contain"
               />
             ) : (
               <button type="button" onClick={toggleCollapsed} className="rounded-full p-1 hover:bg-[var(--sidebar-link-hover-bg)]">
-                <Image
-                  src="/AFIRME-PLAY-LOGO-branco.png"
-                  alt="Afirme Play"
-                  width={32}
-                  height={32}
-                  className="h-8 w-8 object-contain [filter:brightness(0)_saturate(100%)_invert(18%)_sepia(90%)_saturate(1500%)_hue-rotate(205deg)]"
+                <img
+                  src="/AFIRME-LER-LOGO.png"
+                  alt="Afirme Ler"
+                  className="h-8 w-8 shrink-0 object-contain"
                 />
               </button>
             )}
