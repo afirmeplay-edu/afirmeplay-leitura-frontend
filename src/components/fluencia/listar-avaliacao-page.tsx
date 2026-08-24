@@ -171,7 +171,7 @@ export function ListarAvaliacaoPage() {
   }, [cityReady]);
 
   useEffect(() => {
-    if (!cityReady) return;
+    if (!cityReady || cityKey === "none") return;
     void loadEvaluations();
   }, [cityReady, cityKey, loadEvaluations]);
 

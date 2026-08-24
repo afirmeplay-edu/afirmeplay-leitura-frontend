@@ -237,7 +237,7 @@ export function FluenciaSelecao({ variant = "oficial" }: FluenciaSelecaoProps) {
   ]);
 
   useEffect(() => {
-    if (!cityReady) return;
+    if (!cityReady || cityKey === "none") return;
     setSchoolId("");
     setClassId("");
     setStudentId("");

@@ -207,12 +207,13 @@ export function LoginForm() {
         </div>
         <div className="relative z-10 text-center text-white">
           <Image
-            src="/AFIRME-PLAY-LOGO-branco.png"
-            alt="Afirme Play"
-            width={280}
-            height={95}
-            style={{ width: 280, height: "auto" }}
-            className="mx-auto max-w-full rounded-xl shadow-2xl"
+            src="/AFIRME-LER-LOGO.png"
+            alt="Afirme Ler"
+            width={537}
+            height={249}
+            style={{ width: 560, height: "auto" }}
+            className="mx-auto max-w-full object-contain"
+            unoptimized
             priority
           />
           <p className="mt-5 text-lg font-medium text-blue-100">APRENDIZAGEM E RESULTADO</p>

@@ -60,7 +60,7 @@ export function ConfiguracaoAvaliacaoPage() {
         </div>
 
         <div className="p-6">
-          {!cityReady ? (
+          {!cityReady || cityKey === "none" ? (
             <p className="text-sm text-muted-foreground">
               Selecione o municipio para carregar o catalogo.
             </p>

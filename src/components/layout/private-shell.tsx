@@ -2,7 +2,6 @@
 
 import { Suspense, useEffect, useState, type ReactNode } from "react";
 import { Menu, X } from "lucide-react";
-import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Sidebar } from "@/components/layout/sidebar";
 import { useScrollToTop } from "@/hooks/use-scroll-to-top";
@@ -46,12 +45,10 @@ export function PrivateShell({ children }: { children: ReactNode }) {
           {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </Button>
         <div className="flex min-w-0 flex-1 items-center justify-center px-2">
-          <Image
-            src="/AFIRME-PLAY-LOGO-branco.png"
-            alt="Afirme Play"
-            width={130}
-            height={44}
-            className="h-8 w-auto max-w-[140px] object-contain [filter:brightness(0)_saturate(100%)_invert(18%)_sepia(90%)_saturate(1500%)_hue-rotate(205deg)]"
+          <img
+            src="/AFIRME-LER-LOGO.png"
+            alt="Afirme Ler"
+            className="h-10 w-auto max-w-[160px] object-contain"
           />
         </div>
         <div className="h-9 w-9 shrink-0" aria-hidden />
