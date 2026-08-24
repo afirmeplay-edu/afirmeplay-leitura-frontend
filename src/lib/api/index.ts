@@ -2,7 +2,7 @@ export { api, createCityApi } from "@/lib/api/client";
 export { fetchAvailableCities, type AvailableCity } from "@/lib/api/cities";
 export { listCatalogCities, type CatalogCity } from "@/lib/api/catalog-cities";
 export { listGrades, listEducationStages } from "@/lib/api/grades";
-export { getApiErrorMessage } from "@/lib/api/errors";
+export { getApiErrorMessage, getApiErrorBody, getApiErrorStatus } from "@/lib/api/errors";
 export {
   listSchools,
   listClassesBySchool,
@@ -21,6 +21,7 @@ export {
   updateWordList,
   deleteWordList,
   listReadingTexts,
+  listReadingTextsByGradeIds,
   getReadingText,
   createReadingText,
   updateReadingText,

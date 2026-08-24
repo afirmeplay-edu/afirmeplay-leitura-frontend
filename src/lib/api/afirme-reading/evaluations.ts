@@ -1,6 +1,7 @@
 import { afirmeReadingApi } from "@/lib/api/afirme-reading/client";
 import type {
   CreateReadingEvaluationPayload,
+  EvaluationApplicants,
   ListReadingEvaluationsParams,
   ReadingEvaluation,
   ReadingEvaluationSession,
@@ -59,6 +60,14 @@ export async function deleteEvaluation(evaluationId: string) {
 export async function listReadingSessions(evaluationId: string) {
   const { data } = await afirmeReadingApi.get<ReadingEvaluationSession[]>(
     `/evaluations/${evaluationId}/sessions`
+  );
+  return data;
+}
+
+/** GET /evaluations/:evaluationId/applicants — turmas do escopo + alunos e flags. */
+export async function getEvaluationApplicants(evaluationId: string) {
+  const { data } = await afirmeReadingApi.get<EvaluationApplicants>(
+    `/evaluations/${evaluationId}/applicants`
   );
   return data;
 }

@@ -1,4 +1,5 @@
 import { afirmeReadingApi } from "@/lib/api/afirme-reading/client";
+import { fetchGuidedAudioObjectUrl } from "@/lib/api/afirme-reading/guided-sessions";
 import type {
   CreateFluencySessionPayload,
   FluencyAudioPart,
@@ -10,21 +11,10 @@ import type {
 
 /** Cria a sessão oficial (evaluationId + studentId) ou a sessão livre de prática. */
 export async function createFluencySession(payload: CreateFluencySessionPayload) {
-  if (payload.evaluationId) {
-    const { data: created } = await afirmeReadingApi.post<FluencySession>(
-      `/evaluations/${payload.evaluationId}/sessions`,
-      {
-        studentId: payload.studentId,
-        classId: payload.classId,
-      }
-    );
-    await afirmeReadingApi.post(
-      `/evaluations/${payload.evaluationId}/sessions/${created.id}/start`
-    );
-    return created;
-  }
-
-  const { data } = await afirmeReadingApi.post<FluencySession>("/fluency-sessions", payload);
+  const body = payload.evaluationId
+    ? { evaluationId: payload.evaluationId, studentId: payload.studentId }
+    : payload;
+  const { data } = await afirmeReadingApi.post<FluencySession>("/fluency-sessions", body);
   return data;
 }
 
@@ -58,6 +48,16 @@ export async function uploadFluencySessionAudio(
     form
   );
   return data;
+}
+
+/** Path canônico para stream autenticado do áudio da parte. */
+export function fluencySessionAudioPath(id: string, part: FluencyAudioPart) {
+  return `/afirme-reading/fluency-sessions/${id}/audio?part=${part}`;
+}
+
+/** Fetch autenticado (JWT + cidade) → object URL para `<audio src>`. */
+export async function fetchFluencyAudioObjectUrl(id: string, part: FluencyAudioPart) {
+  return fetchGuidedAudioObjectUrl(fluencySessionAudioPath(id, part));
 }
 
 /** POST /fluency-sessions/:id/comprehension-answers */

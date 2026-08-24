@@ -8,6 +8,7 @@ export {
 } from "@/lib/api/afirme-reading/word-lists";
 export {
   listReadingTexts,
+  listReadingTextsByGradeIds,
   getReadingText,
   createReadingText,
   updateReadingText,
@@ -34,6 +35,7 @@ export {
   updateEvaluation,
   deleteEvaluation,
   listReadingSessions,
+  getEvaluationApplicants,
 } from "@/lib/api/afirme-reading/evaluations";
 export {
   startReadingSession,
@@ -47,6 +49,8 @@ export {
   getFluencySession,
   saveFluencySessionPart,
   uploadFluencySessionAudio,
+  fluencySessionAudioPath,
+  fetchFluencyAudioObjectUrl,
   saveFluencyComprehensionAnswers,
   getFluencySessionReport,
   submitFluencySession,
@@ -103,4 +107,8 @@ export type {
   CreateReadingEvaluationPayload,
   UpdateReadingEvaluationPayload,
   ListReadingEvaluationsParams,
+  EvaluationApplicantApplication,
+  EvaluationApplicantStudent,
+  EvaluationApplicantClass,
+  EvaluationApplicants,
 } from "@/lib/api/afirme-reading/types";

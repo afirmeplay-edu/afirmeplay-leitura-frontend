@@ -11,6 +11,7 @@ export interface SchoolClass {
   year?: number | null;
   className?: string | null;
   schoolId?: string | null;
+  gradeId?: string | null;
 }
 
 export interface Student {
@@ -49,6 +50,7 @@ function normalizeClass(raw: Record<string, unknown>): SchoolClass {
     year != null && className
       ? `${year}º Ano ${className}`
       : className || (typeof raw.name === "string" ? raw.name : "Turma");
+  const grade = asRecord(raw.grade);
 
   return {
     id: String(raw.id),
@@ -56,6 +58,14 @@ function normalizeClass(raw: Record<string, unknown>): SchoolClass {
     year,
     className: typeof raw.className === "string" ? raw.className : null,
     schoolId: raw.schoolId != null ? String(raw.schoolId) : null,
+    gradeId:
+      raw.gradeId != null
+        ? String(raw.gradeId)
+        : raw.grade_id != null
+          ? String(raw.grade_id)
+          : grade?.id != null
+            ? String(grade.id)
+            : null,
   };
 }
 

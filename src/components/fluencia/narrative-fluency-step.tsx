@@ -56,6 +56,8 @@ interface NarrativeFluencyStepProps {
   content: string;
   continuePending?: boolean;
   continueLabel?: string;
+  remoteAudioSrc?: string | null;
+  readOnly?: boolean;
   onResultChange: (result: FluencyNarrativePartResult | null) => void;
   onContinue: () => void;
   onRunningChange?: (running: boolean) => void;
@@ -80,6 +82,8 @@ export function NarrativeFluencyStep({
   content,
   continuePending = false,
   continueLabel = "Salvar esta parte",
+  remoteAudioSrc = null,
+  readOnly = false,
   onResultChange,
   onContinue,
   onRunningChange,
@@ -410,10 +414,10 @@ export function NarrativeFluencyStep({
         </span>
       </div>
 
-      <StudentAudioPlayer blob={audioBlob} />
+      <StudentAudioPlayer blob={audioBlob} src={remoteAudioSrc} />
 
       <div className="flex flex-wrap items-center gap-3">
-        {!isRunning && !isFinished ? (
+        {!readOnly && !isRunning && !isFinished ? (
           <Button
             onClick={() => void startReading()}
             className="bg-emerald-600 hover:bg-emerald-700"
@@ -437,7 +441,7 @@ export function NarrativeFluencyStep({
             </Button>
           </>
         ) : null}
-        {isFinished && !skipped ? (
+        {isFinished && !skipped && !readOnly ? (
           <Button variant="outline" onClick={() => void startReading()}>
             Regravar
           </Button>
@@ -565,6 +569,7 @@ export function NarrativeFluencyStep({
         </div>
       </div>
 
+      {readOnly ? null : (
       <div className="flex flex-col gap-2 sm:flex-row sm:justify-between">
         <Button
           type="button"
@@ -578,6 +583,7 @@ export function NarrativeFluencyStep({
           {continuePending ? "Salvando..." : continueLabel}
         </Button>
       </div>
+      )}
     </div>
   );
 }

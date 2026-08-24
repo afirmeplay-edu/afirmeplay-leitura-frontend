@@ -71,6 +71,8 @@ interface WordListFluencyStepProps {
   durationSeconds?: number;
   continuePending?: boolean;
   continueLabel?: string;
+  remoteAudioSrc?: string | null;
+  readOnly?: boolean;
   onResultChange: (result: FluencyListPartResult | null) => void;
   onContinue: () => void;
   onRunningChange?: (running: boolean) => void;
@@ -134,6 +136,8 @@ export function WordListFluencyStep({
   durationSeconds = 60,
   continuePending = false,
   continueLabel = "Salvar esta parte",
+  remoteAudioSrc = null,
+  readOnly = false,
   onResultChange,
   onContinue,
   onRunningChange,
@@ -488,10 +492,13 @@ export function WordListFluencyStep({
         </span>
       </div>
 
-      <StudentAudioPlayer blob={result?.audioBlob ?? audioBlobRef.current} />
+      <StudentAudioPlayer
+        blob={result?.audioBlob ?? audioBlobRef.current}
+        src={remoteAudioSrc}
+      />
 
       <div className="flex flex-wrap items-center gap-3">
-        {!isRunning && !isFinished ? (
+        {!readOnly && !isRunning && !isFinished ? (
           <Button onClick={() => void startTimer()} className="bg-emerald-600 hover:bg-emerald-700">
             <Mic className="h-4 w-4" />
             Iniciar gravação + cronômetro
@@ -517,7 +524,7 @@ export function WordListFluencyStep({
             <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-800">
               Ouça o áudio e marque a tabela
             </span>
-            {!skipped ? (
+            {!readOnly && !skipped ? (
               <Button variant="outline" onClick={() => void startTimer()}>
                 Regravar
               </Button>
@@ -646,6 +653,7 @@ export function WordListFluencyStep({
         </div>
       </div>
 
+      {readOnly ? null : (
       <div className="flex flex-col gap-2 sm:flex-row sm:justify-between">
         <Button type="button" variant="outline" onClick={handleSkip} disabled={continuePending || isRunning}>
           Pular (estudante não leu)
@@ -654,6 +662,7 @@ export function WordListFluencyStep({
           {continuePending ? "Salvando..." : continueLabel}
         </Button>
       </div>
+      )}
     </div>
   );
 }

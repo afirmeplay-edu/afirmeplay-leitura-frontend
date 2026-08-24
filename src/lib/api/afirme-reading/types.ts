@@ -13,12 +13,15 @@ export interface WordList {
   isDefault: boolean;
   active: boolean;
   scopeType: ScopeType;
+  gradeId?: string | null;
+  grade?: GradeRef | null;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface CreateWordListPayload {
   name: string;
+  gradeId: string;
   kind?: WordListKind;
   items?: string[] | string;
   description?: string | null;
@@ -31,6 +34,8 @@ export type UpdateWordListPayload = Partial<CreateWordListPayload>;
 export interface ListWordListsParams {
   kind?: WordListKind;
   active?: boolean;
+  gradeId?: string;
+  gradeIds?: string[];
 }
 
 export interface GradeRef {
@@ -105,6 +110,7 @@ export type UpdateReadingTextPayload = Partial<Omit<CreateReadingTextPayload, "q
 
 export interface ListReadingTextsParams {
   gradeId?: string;
+  gradeIds?: string[];
   difficultyLevel?: DifficultyLevel;
   isCalibrated?: boolean;
   orderBy?: "title" | "difficulty" | "grade";
@@ -181,6 +187,8 @@ export interface ListGuidedSessionsParams {
 export interface ApiErrorBody {
   error?: string;
   message?: string;
+  sessionId?: string;
+  status?: string;
 }
 
 export type ReadingSessionStatus =
@@ -354,6 +362,8 @@ export interface ReadingEvaluation {
   uncommonWordListId: string | null;
   gradeId: string | null;
   grade?: GradeRef | null;
+  gradeIds?: string[];
+  grades?: GradeRef[] | null;
   classIds: string[];
   schoolIds: string[];
   studentIds?: string[];
@@ -378,17 +388,54 @@ export interface CreateReadingEvaluationPayload {
   title: string;
   evaluationKind: EvaluationKind;
   readingTextId: string;
-  knownWordListId?: string | null;
+  knownWordListId: string;
   wordsWordListId?: string | null;
-  uncommonWordListId?: string | null;
+  uncommonWordListId: string;
   description?: string | null;
-  gradeId?: string | null;
-  classIds?: string[];
-  schoolIds?: string[];
+  gradeIds: string[];
+  gradeId?: string;
+  classIds: string[];
+  schoolIds: string[];
   studentIds?: string[];
+  timezone?: string;
 }
 
 export type UpdateReadingEvaluationPayload = Partial<CreateReadingEvaluationPayload>;
+
+export interface EvaluationApplicantApplication {
+  sessionId: string;
+  status: ReadingSessionStatus;
+  startedAt: string | null;
+  submittedAt: string | null;
+}
+
+export interface EvaluationApplicantStudent {
+  id: string;
+  name: string;
+  classId: string;
+  schoolId?: string | null;
+  application: EvaluationApplicantApplication | null;
+  canStart: boolean;
+  canContinue: boolean;
+  canView: boolean;
+}
+
+export interface EvaluationApplicantClass {
+  id: string;
+  name: string;
+  schoolId: string;
+  schoolName: string;
+  gradeId?: string | null;
+  students: EvaluationApplicantStudent[];
+}
+
+export interface EvaluationApplicants {
+  evaluationId: string;
+  evaluationTitle: string;
+  evaluationKind?: EvaluationKind;
+  grade?: GradeRef | null;
+  classes: EvaluationApplicantClass[];
+}
 
 export interface ListReadingEvaluationsParams {
   status?: ReadingEvaluationStatus;

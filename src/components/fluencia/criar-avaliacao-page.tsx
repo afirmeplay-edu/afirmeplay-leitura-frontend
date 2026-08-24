@@ -9,7 +9,7 @@ import {
   createEvaluation,
   getEvaluation,
   getReadingText,
-  listReadingTexts,
+  listReadingTextsByGradeIds,
   listWordLists,
   updateEvaluation,
   type EvaluationKind,
@@ -17,21 +17,23 @@ import {
   type ReadingText,
   type WordList,
 } from "@/lib/api/afirme-reading";
+import { listGrades } from "@/lib/api/grades";
 import {
   listClassesBySchool,
   listSchools,
-  listStudentsByClass,
   type School,
   type SchoolClass,
-  type Student,
 } from "@/lib/api/students";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import { getKnownWordListId } from "@/lib/afirme-reading/evaluation-contract";
+import { classMatchesAnyGrade } from "@/lib/fluencia/class-label";
 import { EDICAO_LABEL, EDICOES_ORDEM } from "@/lib/relatorios-fluencia/types";
+import { cn } from "@/lib/utils";
 import { AdminCityPicker } from "@/components/auth/admin-city-picker";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -41,16 +43,26 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import type { Grade } from "@/lib/api/afirme-reading/types";
 
-type WordListKindOption = "conhecidas" | "pouco-comuns";
+function defaultTimezone() {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || "America/Sao_Paulo";
+  } catch {
+    return "America/Sao_Paulo";
+  }
+}
 
-function pickPreferredList(lists: WordList[]) {
-  return (
-    lists.find((list) => list.isDefault && list.active) ??
-    lists.find((list) => list.active) ??
-    lists[0] ??
-    null
-  );
+const SELECT_EMPTY = "__empty__";
+
+function listOptionLabel(list: WordList) {
+  const grade = list.grade?.name ? ` — ${list.grade.name}` : "";
+  const fallback = list.isDefault ? " (padrão)" : "";
+  return `${list.name}${grade}${fallback}`;
+}
+
+function selectValue(value: string) {
+  return value || SELECT_EMPTY;
 }
 
 export function CriarAvaliacaoPage() {
@@ -63,50 +75,59 @@ export function CriarAvaliacaoPage() {
   const [title, setTitle] = useState("");
   const [evaluationKind, setEvaluationKind] = useState<EvaluationKind | "">("");
 
+  const [grades, setGrades] = useState<Grade[]>([]);
   const [schools, setSchools] = useState<School[]>([]);
   const [classes, setClasses] = useState<SchoolClass[]>([]);
-  const [students, setStudents] = useState<Student[]>([]);
   const [knownLists, setKnownLists] = useState<WordList[]>([]);
   const [uncommonLists, setUncommonLists] = useState<WordList[]>([]);
   const [texts, setTexts] = useState<ReadingText[]>([]);
   const [questions, setQuestions] = useState<ReadingQuestion[]>([]);
 
+  const [gradeIds, setGradeIds] = useState<string[]>([]);
   const [schoolId, setSchoolId] = useState("");
-  const [classId, setClassId] = useState("");
-  const [studentId, setStudentId] = useState("");
-  const [wordListKind, setWordListKind] = useState<WordListKindOption | "">("");
-  const [wordListId, setWordListId] = useState("");
+  const [classIds, setClassIds] = useState<string[]>([]);
+  const [knownWordListId, setKnownWordListId] = useState("");
+  const [uncommonWordListId, setUncommonWordListId] = useState("");
   const [textId, setTextId] = useState("");
 
   const [loadingSchools, setLoadingSchools] = useState(false);
   const [loadingClasses, setLoadingClasses] = useState(false);
-  const [loadingStudents, setLoadingStudents] = useState(false);
   const [loadingCatalog, setLoadingCatalog] = useState(false);
+  const [loadingMaterials, setLoadingMaterials] = useState(false);
   const [loadingQuestions, setLoadingQuestions] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  const selectedGrades = useMemo(
+    () => grades.filter((item) => gradeIds.includes(item.id)),
+    [grades, gradeIds]
+  );
   const selectedSchool = useMemo(
     () => schools.find((item) => item.id === schoolId) ?? null,
     [schools, schoolId]
-  );
-  const selectedClass = useMemo(
-    () => classes.find((item) => item.id === classId) ?? null,
-    [classes, classId]
-  );
-  const selectedStudent = useMemo(
-    () => students.find((item) => item.id === studentId) ?? null,
-    [students, studentId]
   );
   const selectedText = useMemo(
     () => texts.find((item) => item.id === textId) ?? null,
     [texts, textId]
   );
-  const wordListKindLabel =
-    wordListKind === "conhecidas"
-      ? "Lista de Palavras Conhecidas"
-      : wordListKind === "pouco-comuns"
-        ? "Lista de Palavras pouco Comuns"
-        : null;
+  const selectedKnownList = useMemo(
+    () => knownLists.find((item) => item.id === knownWordListId) ?? null,
+    [knownLists, knownWordListId]
+  );
+  const selectedUncommonList = useMemo(
+    () => uncommonLists.find((item) => item.id === uncommonWordListId) ?? null,
+    [uncommonLists, uncommonWordListId]
+  );
+  const visibleClasses = useMemo(
+    () => classes.filter((item) => classMatchesAnyGrade(item, selectedGrades)),
+    [classes, selectedGrades]
+  );
+  const selectedClassNames = useMemo(
+    () =>
+      visibleClasses
+        .filter((item) => classIds.includes(item.id))
+        .map((item) => item.name),
+    [visibleClasses, classIds]
+  );
 
   const handleCityReadyChange = useCallback((ready: boolean, cityId: string | null) => {
     setCityReady(ready);
@@ -114,16 +135,16 @@ export function CriarAvaliacaoPage() {
     if (!ready) {
       setSchools([]);
       setClasses([]);
-      setStudents([]);
+      setGrades([]);
       setKnownLists([]);
       setUncommonLists([]);
       setTexts([]);
       setQuestions([]);
       setSchoolId("");
-      setClassId("");
-      setStudentId("");
-      setWordListKind("");
-      setWordListId("");
+      setGradeIds([]);
+      setClassIds([]);
+      setKnownWordListId("");
+      setUncommonWordListId("");
       setTextId("");
     }
   }, []);
@@ -132,38 +153,27 @@ export function CriarAvaliacaoPage() {
     setLoadingSchools(true);
     setLoadingCatalog(true);
     try {
-      const [schoolResult, knownResult, uncommonResult, textResult] = await Promise.allSettled([
+      const [schoolResult, gradeResult] = await Promise.allSettled([
         listSchools(),
-        listWordLists({ kind: "PALAVRAS", active: true }),
-        listWordLists({ kind: "POUCO_COMUNS", active: true }),
-        listReadingTexts({ orderBy: "title" }),
+        listGrades(),
       ]);
 
       const schoolData = schoolResult.status === "fulfilled" ? schoolResult.value : [];
-      const palavras = knownResult.status === "fulfilled" ? knownResult.value : [];
-      const poucoComuns = uncommonResult.status === "fulfilled" ? uncommonResult.value : [];
-      const textData = textResult.status === "fulfilled" ? textResult.value : [];
+      const gradeData = gradeResult.status === "fulfilled" ? gradeResult.value : [];
 
       if (schoolResult.status === "rejected") {
         toast.error(getApiErrorMessage(schoolResult.reason, "Não foi possível carregar as escolas."));
       }
-      if (knownResult.status === "rejected" || uncommonResult.status === "rejected") {
-        toast.error("Não foi possível carregar as listas de palavras.");
-      }
-      if (textResult.status === "rejected") {
-        toast.error(getApiErrorMessage(textResult.reason, "Não foi possível carregar os textos."));
+      if (gradeResult.status === "rejected") {
+        toast.error(getApiErrorMessage(gradeResult.reason, "Não foi possível carregar as séries."));
       }
 
       setSchools(schoolData);
-      setKnownLists(palavras);
-      setUncommonLists(poucoComuns);
-      setTexts(textData);
+      setGrades(Array.isArray(gradeData) ? gradeData : []);
     } catch (error) {
-      toast.error(getApiErrorMessage(error, "Não foi possível carregar escolas, listas e textos."));
+      toast.error(getApiErrorMessage(error, "Não foi possível carregar escolas e séries."));
       setSchools([]);
-      setKnownLists([]);
-      setUncommonLists([]);
-      setTexts([]);
+      setGrades([]);
     } finally {
       setLoadingSchools(false);
       setLoadingCatalog(false);
@@ -173,13 +183,12 @@ export function CriarAvaliacaoPage() {
   useEffect(() => {
     if (!cityReady) return;
     setSchoolId("");
-    setClassId("");
-    setStudentId("");
-    setWordListKind("");
-    setWordListId("");
+    setGradeIds([]);
+    setClassIds([]);
+    setKnownWordListId("");
+    setUncommonWordListId("");
     setTextId("");
     setClasses([]);
-    setStudents([]);
     setQuestions([]);
     void loadCatalog();
   }, [cityReady, cityKey, loadCatalog]);
@@ -197,19 +206,27 @@ export function CriarAvaliacaoPage() {
         if (kind) setEvaluationKind(kind);
         setTextId(evaluation.readingTextId);
         const knownId = getKnownWordListId(evaluation);
-        if (knownId) {
-          setWordListKind("conhecidas");
-          setWordListId(knownId);
-        } else if (evaluation.uncommonWordListId) {
-          setWordListKind("pouco-comuns");
-          setWordListId(evaluation.uncommonWordListId);
-        }
+        if (knownId) setKnownWordListId(knownId);
+        if (evaluation.uncommonWordListId) setUncommonWordListId(evaluation.uncommonWordListId);
+        const nextGrades = [
+          ...new Set(
+            [
+              ...(evaluation.gradeIds ?? []),
+              evaluation.gradeId,
+              evaluation.scope?.grade?.id,
+              ...(evaluation.grades?.map((item) => item.id) ?? []),
+              ...(evaluation.scope?.classes.map((item) => item.gradeId) ?? []),
+            ].filter((id): id is string => Boolean(id))
+          ),
+        ];
         const nextSchool = evaluation.schoolIds?.[0] ?? evaluation.scope?.schools[0]?.id ?? "";
-        const nextClass = evaluation.classIds?.[0] ?? evaluation.scope?.classes[0]?.id ?? "";
-        const nextStudent = evaluation.studentIds?.[0] ?? evaluation.scope?.students[0]?.id ?? "";
+        const nextClasses =
+          evaluation.classIds?.length
+            ? evaluation.classIds
+            : (evaluation.scope?.classes.map((item) => item.id) ?? []);
+        if (nextGrades.length) setGradeIds(nextGrades);
         if (nextSchool) setSchoolId(nextSchool);
-        if (nextClass) setClassId(nextClass);
-        if (nextStudent) setStudentId(nextStudent);
+        if (nextClasses.length) setClassIds(nextClasses);
       } catch (error) {
         toast.error(getApiErrorMessage(error, "Não foi possível carregar a avaliação para edição."));
       }
@@ -224,9 +241,8 @@ export function CriarAvaliacaoPage() {
     if (!schoolId || !cityReady) {
       setClasses([]);
       if (!editingId) {
-        setClassId("");
-        setStudents([]);
-        setStudentId("");
+        setGradeIds([]);
+        setClassIds([]);
       }
       return;
     }
@@ -252,32 +268,73 @@ export function CriarAvaliacaoPage() {
     };
   }, [schoolId, cityReady, editingId]);
 
+  const gradeIdsKey = gradeIds.join(",");
+
   useEffect(() => {
-    if (!classId || !cityReady) {
-      setStudents([]);
+    if (!cityReady) return;
+    if (!gradeIds.length) {
+      setTexts([]);
+      setTextId("");
+      setQuestions([]);
+      setKnownLists([]);
+      setUncommonLists([]);
+      setKnownWordListId("");
+      setUncommonWordListId("");
+      setLoadingMaterials(false);
       return;
     }
 
     let cancelled = false;
     async function load() {
-      setLoadingStudents(true);
+      setLoadingMaterials(true);
       try {
-        const data = await listStudentsByClass(classId);
-        if (!cancelled) setStudents(data);
+        const [textResult, knownResult, uncommonResult] = await Promise.allSettled([
+          listReadingTextsByGradeIds(gradeIds),
+          listWordLists({ kind: "PALAVRAS", active: true, gradeIds }),
+          listWordLists({ kind: "POUCO_COMUNS", active: true, gradeIds }),
+        ]);
+        if (cancelled) return;
+
+        const textData = textResult.status === "fulfilled" ? textResult.value : [];
+        const palavras = knownResult.status === "fulfilled" ? knownResult.value : [];
+        const poucoComuns = uncommonResult.status === "fulfilled" ? uncommonResult.value : [];
+
+        if (textResult.status === "rejected") {
+          toast.error(getApiErrorMessage(textResult.reason, "Não foi possível carregar os textos da série."));
+        }
+        if (knownResult.status === "rejected" || uncommonResult.status === "rejected") {
+          toast.error("Não foi possível carregar as listas de palavras da série.");
+        }
+
+        setTexts(textData);
+        setTextId((current) => (current && textData.some((item) => item.id === current) ? current : ""));
+        setKnownLists(palavras);
+        setUncommonLists(poucoComuns);
+        setKnownWordListId((current) =>
+          current && palavras.some((item) => item.id === current) ? current : ""
+        );
+        setUncommonWordListId((current) =>
+          current && poucoComuns.some((item) => item.id === current) ? current : ""
+        );
       } catch (error) {
         if (!cancelled) {
-          toast.error(getApiErrorMessage(error, "Não foi possível carregar os alunos."));
-          setStudents([]);
+          toast.error(getApiErrorMessage(error, "Não foi possível carregar textos e listas da série."));
+          setTexts([]);
+          setTextId("");
+          setKnownLists([]);
+          setUncommonLists([]);
+          setKnownWordListId("");
+          setUncommonWordListId("");
         }
       } finally {
-        if (!cancelled) setLoadingStudents(false);
+        if (!cancelled) setLoadingMaterials(false);
       }
     }
     void load();
     return () => {
       cancelled = true;
     };
-  }, [classId, cityReady]);
+  }, [cityReady, cityKey, gradeIdsKey, gradeIds]);
 
   useEffect(() => {
     if (!textId || !cityReady) {
@@ -310,15 +367,61 @@ export function CriarAvaliacaoPage() {
     cityReady &&
       title.trim() &&
       evaluationKind &&
-      wordListKind &&
-      wordListId &&
+      schoolId &&
+      gradeIds.length > 0 &&
+      classIds.length > 0 &&
+      knownWordListId &&
+      uncommonWordListId &&
       textId &&
       !saving
   );
 
+  function toggleId(list: string[], id: string, checked: boolean) {
+    return checked ? [...list, id] : list.filter((item) => item !== id);
+  }
+
+  function toggleGrade(id: string, checked: boolean) {
+    setGradeIds((current) => {
+      const next = toggleId(current, id, checked);
+      const remaining = grades.filter((grade) => next.includes(grade.id));
+      setClassIds((selected) =>
+        selected.filter((classId) => {
+          const item = classes.find((entry) => entry.id === classId);
+          return item ? classMatchesAnyGrade(item, remaining) : false;
+        })
+      );
+      return next;
+    });
+  }
+
+  function toggleClass(id: string, checked: boolean) {
+    setClassIds((current) => toggleId(current, id, checked));
+  }
+
+  function setAllVisibleClasses(checked: boolean) {
+    setClassIds(checked ? visibleClasses.map((item) => item.id) : []);
+  }
+
+  function setAllGrades(checked: boolean) {
+    if (!checked) {
+      setGradeIds([]);
+      setClassIds([]);
+      return;
+    }
+    setGradeIds(grades.map((item) => item.id));
+  }
+
   async function handleSave() {
-    if (!evaluationKind || !textId || !wordListKind || !wordListId) {
-      toast.error("Preencha nome, tipo, a lista de palavras e o texto.");
+    if (
+      !evaluationKind ||
+      !textId ||
+      !schoolId ||
+      !gradeIds.length ||
+      !classIds.length ||
+      !knownWordListId ||
+      !uncommonWordListId
+    ) {
+      toast.error("Preencha nome, tipo, escola, ao menos uma série, ao menos uma turma, as duas listas e o texto.");
       return;
     }
 
@@ -326,12 +429,14 @@ export function CriarAvaliacaoPage() {
       title: title.trim(),
       evaluationKind,
       readingTextId: textId,
-      ...(wordListKind === "conhecidas"
-        ? { wordsWordListId: wordListId, knownWordListId: wordListId }
-        : { uncommonWordListId: wordListId }),
-      schoolIds: selectedSchool ? [selectedSchool.id] : [],
-      classIds: selectedClass ? [selectedClass.id] : [],
-      studentIds: selectedStudent ? [selectedStudent.id] : [],
+      knownWordListId,
+      wordsWordListId: knownWordListId,
+      uncommonWordListId,
+      gradeIds,
+      gradeId: gradeIds[0],
+      schoolIds: [schoolId],
+      classIds,
+      timezone: defaultTimezone(),
     };
 
     setSaving(true);
@@ -361,7 +466,7 @@ export function CriarAvaliacaoPage() {
       <PageHeader
         icon={PlusCircle}
         title={editingId ? "Editar Avaliação" : "Criar Avaliação"}
-        description="Instrumento de fluência leitora: tipo, texto e lista de palavras."
+        description="Instrumento de fluência leitora: escola, séries, turmas, texto e as duas listas de palavras."
       />
 
       <AdminCityPicker onCityReadyChange={handleCityReadyChange} />
@@ -382,14 +487,20 @@ export function CriarAvaliacaoPage() {
           <div className="space-y-2">
             <Label>Tipo</Label>
             <Select
-              value={evaluationKind || undefined}
-              onValueChange={(value) => setEvaluationKind(value as EvaluationKind)}
+              value={selectValue(evaluationKind)}
+              onValueChange={(value) => {
+                if (value === SELECT_EMPTY) return;
+                setEvaluationKind(value as EvaluationKind);
+              }}
               disabled={!cityReady}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Selecione o tipo" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value={SELECT_EMPTY} disabled className="hidden">
+                  Selecione o tipo
+                </SelectItem>
                 {EDICOES_ORDEM.map((code) => (
                   <SelectItem key={code} value={code}>
                     {EDICAO_LABEL[code]}
@@ -402,11 +513,12 @@ export function CriarAvaliacaoPage() {
           <div className="space-y-2">
             <Label>Escola</Label>
             <Select
-              value={schoolId || undefined}
+              value={selectValue(schoolId)}
               onValueChange={(value) => {
+                if (value === SELECT_EMPTY) return;
                 setSchoolId(value);
-                setClassId("");
-                setStudentId("");
+                setGradeIds([]);
+                setClassIds([]);
               }}
               disabled={!cityReady || loadingSchools}
             >
@@ -422,6 +534,9 @@ export function CriarAvaliacaoPage() {
                 />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value={SELECT_EMPTY} disabled className="hidden">
+                  Selecione a escola
+                </SelectItem>
                 {schools.map((school) => (
                   <SelectItem key={school.id} value={school.id}>
                     {school.name}
@@ -431,31 +546,140 @@ export function CriarAvaliacaoPage() {
             </Select>
           </div>
 
+          <div className="space-y-2 md:col-span-2">
+            <div className="flex items-center justify-between gap-2">
+              <Label>Séries</Label>
+              {schoolId && grades.length > 0 ? (
+                <button
+                  type="button"
+                  className="text-xs text-primary underline-offset-2 hover:underline"
+                  onClick={() => setAllGrades(gradeIds.length !== grades.length)}
+                >
+                  {gradeIds.length === grades.length ? "Limpar" : "Selecionar todas"}
+                </button>
+              ) : null}
+            </div>
+            <div className="max-h-48 overflow-auto rounded-md border bg-muted/20 px-2 py-2">
+              {!schoolId ? (
+                <p className="px-1 text-sm text-muted-foreground">
+                  Selecione a escola para listar as séries.
+                </p>
+              ) : loadingCatalog ? (
+                <p className="px-1 text-sm text-muted-foreground">Carregando séries...</p>
+              ) : grades.length === 0 ? (
+                <p className="px-1 text-sm text-muted-foreground">Nenhuma série cadastrada.</p>
+              ) : (
+                <ul className="grid gap-1 sm:grid-cols-2">
+                  {grades.map((grade) => {
+                    const checked = gradeIds.includes(grade.id);
+                    return (
+                      <li key={grade.id}>
+                        <label
+                          className={cn(
+                            "flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm",
+                            checked ? "bg-primary/10 text-foreground" : "hover:bg-muted/60"
+                          )}
+                        >
+                          <Checkbox
+                            checked={checked}
+                            onCheckedChange={(value) => toggleGrade(grade.id, value === true)}
+                          />
+                          <span>{grade.name}</span>
+                        </label>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">Selecione uma ou mais séries.</p>
+          </div>
+
+          <div className="space-y-2 md:col-span-2">
+            <div className="flex items-center justify-between gap-2">
+              <Label>Turmas</Label>
+              {visibleClasses.length > 0 ? (
+                <button
+                  type="button"
+                  className="text-xs text-primary underline-offset-2 hover:underline"
+                  onClick={() =>
+                    setAllVisibleClasses(classIds.length !== visibleClasses.length)
+                  }
+                >
+                  {classIds.length === visibleClasses.length
+                    ? "Limpar"
+                    : "Selecionar todas"}
+                </button>
+              ) : null}
+            </div>
+            <div className="max-h-56 overflow-auto rounded-md border bg-muted/20 px-2 py-2">
+              {!schoolId || gradeIds.length === 0 ? (
+                <p className="px-1 text-sm text-muted-foreground">
+                  Selecione a escola e ao menos uma série para listar as turmas.
+                </p>
+              ) : loadingClasses ? (
+                <p className="px-1 text-sm text-muted-foreground">Carregando turmas...</p>
+              ) : visibleClasses.length === 0 ? (
+                <p className="px-1 text-sm text-muted-foreground">
+                  Nenhuma turma destas séries nesta escola.
+                </p>
+              ) : (
+                <ul className="grid gap-1 sm:grid-cols-2 lg:grid-cols-3">
+                  {visibleClasses.map((item) => {
+                    const checked = classIds.includes(item.id);
+                    return (
+                      <li key={item.id}>
+                        <label
+                          className={cn(
+                            "flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm",
+                            checked ? "bg-primary/10 text-foreground" : "hover:bg-muted/60"
+                          )}
+                        >
+                          <Checkbox
+                            checked={checked}
+                            onCheckedChange={(value) => toggleClass(item.id, value === true)}
+                          />
+                          <span>{item.name}</span>
+                        </label>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              A avaliação é criada para uma ou mais turmas. O aluno é escolhido na hora de aplicar.
+            </p>
+          </div>
+
           <div className="space-y-2">
-            <Label>Turma</Label>
+            <Label>Lista de palavras conhecidas</Label>
             <Select
-              value={classId || undefined}
+              value={selectValue(knownWordListId)}
               onValueChange={(value) => {
-                setClassId(value);
-                setStudentId("");
+                if (value === SELECT_EMPTY) return;
+                setKnownWordListId(value);
               }}
-              disabled={!schoolId || loadingClasses}
+              disabled={!cityReady || loadingMaterials || gradeIds.length === 0}
             >
               <SelectTrigger>
                 <SelectValue
                   placeholder={
-                    !schoolId
-                      ? "Selecione a escola primeiro"
-                      : loadingClasses
+                    gradeIds.length === 0
+                      ? "Selecione a série primeiro"
+                      : loadingMaterials
                         ? "Carregando..."
-                        : "Selecione a turma"
+                        : "Selecione a lista de conhecidas"
                   }
                 />
               </SelectTrigger>
               <SelectContent>
-                {classes.map((item) => (
-                  <SelectItem key={item.id} value={item.id}>
-                    {item.name}
+                <SelectItem value={SELECT_EMPTY} disabled className="hidden">
+                  Selecione a lista de conhecidas
+                </SelectItem>
+                {knownLists.map((list) => (
+                  <SelectItem key={list.id} value={list.id}>
+                    {listOptionLabel(list)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -463,53 +687,35 @@ export function CriarAvaliacaoPage() {
           </div>
 
           <div className="space-y-2">
-            <Label>Estudante</Label>
+            <Label>Lista de palavras pouco comuns</Label>
             <Select
-              value={studentId || undefined}
-              onValueChange={setStudentId}
-              disabled={!classId || loadingStudents}
+              value={selectValue(uncommonWordListId)}
+              onValueChange={(value) => {
+                if (value === SELECT_EMPTY) return;
+                setUncommonWordListId(value);
+              }}
+              disabled={!cityReady || loadingMaterials || gradeIds.length === 0}
             >
               <SelectTrigger>
                 <SelectValue
                   placeholder={
-                    !classId
-                      ? "Selecione a turma primeiro"
-                      : loadingStudents
+                    gradeIds.length === 0
+                      ? "Selecione a série primeiro"
+                      : loadingMaterials
                         ? "Carregando..."
-                        : "Selecione o estudante"
+                        : "Selecione a lista de pouco comuns"
                   }
                 />
               </SelectTrigger>
               <SelectContent>
-                {students.map((student) => (
-                  <SelectItem key={student.id} value={student.id}>
-                    {student.name}
+                <SelectItem value={SELECT_EMPTY} disabled className="hidden">
+                  Selecione a lista de pouco comuns
+                </SelectItem>
+                {uncommonLists.map((list) => (
+                  <SelectItem key={list.id} value={list.id}>
+                    {listOptionLabel(list)}
                   </SelectItem>
                 ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label>Lista de Palavras</Label>
-            <Select
-              value={wordListKind || undefined}
-              onValueChange={(value) => {
-                const nextKind = value as WordListKindOption;
-                setWordListKind(nextKind);
-                const lists = nextKind === "conhecidas" ? knownLists : uncommonLists;
-                setWordListId(pickPreferredList(lists)?.id ?? "");
-              }}
-              disabled={!cityReady || loadingCatalog}
-            >
-              <SelectTrigger>
-                <SelectValue
-                  placeholder={loadingCatalog ? "Carregando..." : "Selecione o tipo de lista"}
-                />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="conhecidas">Lista de Palavras Conhecidas</SelectItem>
-                <SelectItem value="pouco-comuns">Lista de Palavras pouco Comuns</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -517,19 +723,32 @@ export function CriarAvaliacaoPage() {
           <div className="space-y-2 md:col-span-2">
             <Label>Textos e perguntas</Label>
             <Select
-              value={textId || undefined}
-              onValueChange={setTextId}
-              disabled={!cityReady || loadingCatalog}
+              value={selectValue(textId)}
+              onValueChange={(value) => {
+                if (value === SELECT_EMPTY) return;
+                setTextId(value);
+              }}
+              disabled={!cityReady || loadingMaterials || gradeIds.length === 0}
             >
               <SelectTrigger>
                 <SelectValue
-                  placeholder={loadingCatalog ? "Carregando textos..." : "Selecione o texto"}
+                  placeholder={
+                    gradeIds.length === 0
+                      ? "Selecione a série primeiro"
+                      : loadingMaterials
+                        ? "Carregando textos da série..."
+                        : "Selecione o texto"
+                  }
                 />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value={SELECT_EMPTY} disabled className="hidden">
+                  Selecione o texto
+                </SelectItem>
                 {texts.map((text) => (
                   <SelectItem key={text.id} value={text.id}>
                     {text.title}
+                    {text.grade?.name ? ` — ${text.grade.name}` : ""}
                     {text.source ? ` — ${text.source}` : ""}
                   </SelectItem>
                 ))}
@@ -556,7 +775,9 @@ export function CriarAvaliacaoPage() {
               </div>
             ) : (
               <p className="text-xs text-muted-foreground">
-                A avaliação inclui texto narrativo, compreensão e a lista de palavras escolhida.
+                {gradeIds.length === 0
+                  ? "Selecione a série para listar os textos daquela série."
+                  : "A avaliação inclui texto narrativo, compreensão e as duas listas de palavras."}
               </p>
             )}
           </div>
@@ -568,10 +789,12 @@ export function CriarAvaliacaoPage() {
           <span className="font-medium">Instrumento: </span>
           {title.trim() ? `${title.trim()} · ` : null}
           {evaluationKind ? `${EDICAO_LABEL[evaluationKind]} · ` : null}
+          {selectedGrades.length ? `${selectedGrades.map((item) => item.name).join(", ")} · ` : null}
           {selectedText ? `Texto: ${selectedText.title}` : "Selecione o texto"}
-          {wordListKindLabel ? ` · ${wordListKindLabel}` : null}
-          {selectedStudent && selectedClass && selectedSchool
-            ? ` · ${selectedStudent.name} — ${selectedClass.name} — ${selectedSchool.name}`
+          {selectedKnownList ? ` · Q1 ${selectedKnownList.name}` : null}
+          {selectedUncommonList ? ` · Q2 ${selectedUncommonList.name}` : null}
+          {selectedSchool && selectedClassNames.length
+            ? ` · ${selectedSchool.name} — ${selectedClassNames.join(", ")}`
             : null}
         </div>
       ) : null}

@@ -1,4 +1,5 @@
 import { afirmeReadingApi } from "@/lib/api/afirme-reading/client";
+import { gradeListQuery } from "@/lib/api/afirme-reading/grade-query";
 import type {
   CreateReadingQuestionPayload,
   CreateReadingTextPayload,
@@ -12,7 +13,7 @@ import type {
 export async function listReadingTexts(params?: ListReadingTextsParams) {
   const { data } = await afirmeReadingApi.get<ReadingText[]>("/texts", {
     params: {
-      gradeId: params?.gradeId,
+      ...gradeListQuery(params),
       difficultyLevel: params?.difficultyLevel,
       isCalibrated:
         params?.isCalibrated === undefined
@@ -31,6 +32,16 @@ export async function listReadingTexts(params?: ListReadingTextsParams) {
     }
   }
   return [];
+}
+
+/** Lista textos das séries informadas (`gradeId` ou `gradeIds=uuid1,uuid2`). */
+export async function listReadingTextsByGradeIds(
+  gradeIds: string[],
+  orderBy: ListReadingTextsParams["orderBy"] = "title"
+) {
+  const unique = [...new Set(gradeIds.filter(Boolean))];
+  if (!unique.length) return [];
+  return listReadingTexts({ gradeIds: unique, orderBy });
 }
 
 export async function getReadingText(id: string) {

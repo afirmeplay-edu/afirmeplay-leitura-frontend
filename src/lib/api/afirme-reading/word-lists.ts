@@ -1,4 +1,5 @@
 import { afirmeReadingApi } from "@/lib/api/afirme-reading/client";
+import { gradeListQuery } from "@/lib/api/afirme-reading/grade-query";
 import type {
   CreateWordListPayload,
   ListWordListsParams,
@@ -23,6 +24,7 @@ export async function listWordLists(params?: ListWordListsParams) {
       kind: params?.kind,
       active:
         params?.active === undefined ? undefined : params.active ? "true" : "false",
+      ...gradeListQuery(params),
     },
   });
   return unwrapList<WordList>(data);

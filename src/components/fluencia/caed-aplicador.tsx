@@ -5,18 +5,17 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { AlertTriangle, Gauge, Loader2, Target } from "lucide-react";
 import { toast } from "sonner";
 import {
+  fetchFluencyAudioObjectUrl,
+  getFluencySession,
   getFluencySessionReport,
   getReadingText,
-  getReport,
   getWordList,
   listWordLists,
-  saveComprehensionAnswers,
-  saveFluency,
   saveFluencyComprehensionAnswers,
   saveFluencySessionPart,
   submitFluencySession,
-  submitSession,
   uploadFluencySessionAudio,
+  type FluencyAudioPart,
   type FluencyListPartPayload,
   type FluencySessionReport,
   type FluencyTextPartPayload,
@@ -35,6 +34,7 @@ import {
   WordListFluencyStep,
   type FluencyListPartResult,
 } from "@/components/fluencia/word-list-fluency-step";
+import { StudentAudioPlayer } from "@/components/fluencia/student-audio-player";
 import { isSerieTurmaCompleta } from "@/lib/fluencia/class-label";
 import { perfilFromIcaLevel } from "@/lib/colors/reading-levels";
 import { PerfilLeitorBadge } from "@/components/shared/perfil-leitor-badge";
@@ -91,12 +91,16 @@ export function CaedAplicador({ mode = "oficial" }: CaedAplicadorProps) {
   const router = useRouter();
   const params = useSearchParams();
   const isPractice = mode === "praticar";
-  const backHref = isPractice ? "/app/avaliacao-leitura-guiada" : "/app/avaliacao-fluencia";
   const layoutTitle = isPractice ? "Praticar Avaliação de Fluência" : "Avaliação de Fluência";
 
   const sessionId = params.get("sessionId") ?? "";
   const evaluationId = params.get("evaluationId") ?? "";
-  const isOfficialSession = !isPractice && Boolean(evaluationId);
+  const viewMode = params.get("view") === "1";
+  const backHref = isPractice
+    ? "/app/avaliacao-leitura-guiada"
+    : evaluationId
+      ? `/app/avaliacao-fluencia?evaluationId=${encodeURIComponent(evaluationId)}`
+      : "/app/avaliacao-fluencia";
   const studentId = params.get("studentId") ?? params.get("aluno") ?? "";
   const studentName = params.get("studentName") ?? "";
   const classId = params.get("classId") ?? "";
@@ -108,8 +112,13 @@ export function CaedAplicador({ mode = "oficial" }: CaedAplicadorProps) {
   const wordsWordListId = params.get("wordsWordListId") ?? "";
   const uncommonWordListId = params.get("uncommonWordListId") ?? "";
 
-  const [phase, setPhase] = useState<GatePhase>(isPractice ? "microfone" : "apresentacao");
+  const [phase, setPhase] = useState<GatePhase>(() => {
+    if (isPractice) return "microfone";
+    if (viewMode) return "abas";
+    return "apresentacao";
+  });
   const [activeTab, setActiveTab] = useState<PracticeTab>(() => {
+    if (viewMode) return "leiturometro";
     const fromUrl = isPractice
       ? parsePracticeActivityTab(params.get("aba"))
       : parsePracticeTab(params.get("aba"));
@@ -122,6 +131,7 @@ export function CaedAplicador({ mode = "oficial" }: CaedAplicadorProps) {
   const [q1Saved, setQ1Saved] = useState(false);
   const [q2Saved, setQ2Saved] = useState(false);
   const [q3Saved, setQ3Saved] = useState(false);
+  const [remoteAudio, setRemoteAudio] = useState<Partial<Record<FluencyAudioPart, string>>>({});
 
   const [text, setText] = useState<ReadingText | null>(null);
   const [q1List, setQ1List] = useState<WordList | null>(null);
@@ -137,7 +147,7 @@ export function CaedAplicador({ mode = "oficial" }: CaedAplicadorProps) {
   const [savingMic, setSavingMic] = useState(false);
   const [savingComprehension, setSavingComprehension] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
+  const [submitted, setSubmitted] = useState(viewMode);
 
   const q1ResultRef = useRef(q1Result);
   const q2ResultRef = useRef(q2Result);
@@ -160,32 +170,120 @@ export function CaedAplicador({ mode = "oficial" }: CaedAplicadorProps) {
   useEffect(() => {
     let cancelled = false;
 
-    async function load() {
-      if (!textId) {
-        toast.error("Texto não informado na URL.");
-        setLoadingContent(false);
-        return;
+    async function loadRemoteAudio(id: string) {
+      const parts: FluencyAudioPart[] = ["q1", "q2", "q3", "mic_test"];
+      const next: Partial<Record<FluencyAudioPart, string>> = {};
+      await Promise.all(
+        parts.map(async (part) => {
+          try {
+            next[part] = await fetchFluencyAudioObjectUrl(id, part);
+          } catch {
+            /* parte sem áudio */
+          }
+        })
+      );
+      if (!cancelled) {
+        setRemoteAudio((current) => {
+          Object.values(current).forEach((url) => {
+            if (url) URL.revokeObjectURL(url);
+          });
+          return next;
+        });
+      } else {
+        Object.values(next).forEach((url) => {
+          if (url) URL.revokeObjectURL(url);
+        });
       }
+    }
+
+    async function load() {
       if (!hasSession) {
         toast.error("sessionId ausente. Volte e monte a aplicação novamente.");
       }
 
       setLoadingContent(true);
       try {
-        const [fullText, q1, q2, fallbackPalavras, fallbackPouco] = await Promise.all([
-          getReadingText(textId),
-          wordsWordListId ? getWordList(wordsWordListId).catch(() => null) : Promise.resolve(null),
-          uncommonWordListId
-            ? getWordList(uncommonWordListId).catch(() => null)
-            : Promise.resolve(null),
-          listWordLists({ kind: "PALAVRAS", active: true }),
-          listWordLists({ kind: "POUCO_COMUNS", active: true }),
+        let nextTextId = textId;
+        let nextKnownId = wordsWordListId;
+        let nextUncommonId = uncommonWordListId;
+
+        if (sessionId) {
+          const session = await getFluencySession(sessionId);
+          if (cancelled) return;
+          nextTextId = nextTextId || session.readingTextId || "";
+          nextKnownId =
+            nextKnownId || session.knownWordListId || session.wordsWordListId || "";
+          nextUncommonId = nextUncommonId || session.uncommonWordListId || "";
+
+          if (session.answers?.length) {
+            const nextAnswers: Record<string, number> = {};
+            for (const answer of session.answers) {
+              nextAnswers[answer.readingTextQuestionId] = answer.selectedOption;
+            }
+            setAnswers(nextAnswers);
+          }
+
+          const isView = viewMode || session.status === "finalizada";
+          if (isView) {
+            setPhase("abas");
+            setActiveTab("leiturometro");
+            setSubmitted(true);
+            try {
+              const reportData = await getFluencySessionReport(sessionId);
+              if (!cancelled) setReport(reportData);
+            } catch {
+              /* relatório pode falhar se ainda não houver dados */
+            }
+          } else if (!isPractice && session.status === "em_andamento") {
+            setPhase("abas");
+          }
+
+          if (
+            !isPractice &&
+            (viewMode ||
+              session.status === "finalizada" ||
+              session.hasAudio ||
+              Object.keys(session.audioUrls ?? {}).length > 0)
+          ) {
+            void loadRemoteAudio(sessionId);
+          }
+        }
+
+        if (!nextTextId) {
+          toast.error("Texto não informado na URL.");
+          setLoadingContent(false);
+          return;
+        }
+
+        const fullText = await getReadingText(nextTextId);
+        if (cancelled) return;
+
+        const [q1, q2] = await Promise.all([
+          nextKnownId ? getWordList(nextKnownId).catch(() => null) : Promise.resolve(null),
+          nextUncommonId ? getWordList(nextUncommonId).catch(() => null) : Promise.resolve(null),
         ]);
         if (cancelled) return;
+
+        let nextQ1 = q1;
+        let nextQ2 = q2;
+        if (!nextQ1 || !nextQ2) {
+          const gradeId = fullText.gradeId || undefined;
+          const [fallbackPalavras, fallbackPouco] = await Promise.all([
+            nextQ1
+              ? Promise.resolve([] as WordList[])
+              : listWordLists({ kind: "PALAVRAS", active: true, gradeId }),
+            nextQ2
+              ? Promise.resolve([] as WordList[])
+              : listWordLists({ kind: "POUCO_COMUNS", active: true, gradeId }),
+          ]);
+          if (cancelled) return;
+          nextQ1 = nextQ1 ?? pickPreferredList(fallbackPalavras);
+          nextQ2 = nextQ2 ?? pickPreferredList(fallbackPouco);
+        }
+
         setText(fullText);
-        setQ1List(q1 ?? pickPreferredList(fallbackPalavras));
-        setQ2List(q2 ?? pickPreferredList(fallbackPouco));
-        setAnswers({});
+        setQ1List(nextQ1);
+        setQ2List(nextQ2);
       } catch (error) {
         if (!cancelled) {
           toast.error(
@@ -203,8 +301,22 @@ export function CaedAplicador({ mode = "oficial" }: CaedAplicadorProps) {
     void load();
     return () => {
       cancelled = true;
+      setRemoteAudio((current) => {
+        Object.values(current).forEach((url) => {
+          if (url) URL.revokeObjectURL(url);
+        });
+        return {};
+      });
     };
-  }, [textId, hasSession, wordsWordListId, uncommonWordListId]);
+  }, [
+    textId,
+    hasSession,
+    sessionId,
+    wordsWordListId,
+    uncommonWordListId,
+    viewMode,
+    isPractice,
+  ]);
 
   const handleQ1Result = useCallback((result: FluencyListPartResult | null) => {
     setQ1Result(result);
@@ -268,10 +380,6 @@ export function CaedAplicador({ mode = "oficial" }: CaedAplicadorProps) {
       },
       ...payload,
     };
-    if (isOfficialSession) {
-      await saveFluency(evaluationId, sessionId, body);
-      return;
-    }
     await saveFluencySessionPart(sessionId, body);
   }
 
@@ -279,9 +387,16 @@ export function CaedAplicador({ mode = "oficial" }: CaedAplicadorProps) {
     part: "q1" | "q2" | "q3" | "mic_test",
     blob: Blob | null | undefined
   ) {
-    if (!hasSession || !blob || blob.size === 0 || isOfficialSession) return;
+    // Prática: áudio só no browser (blob local). Some ao sair da página.
+    if (isPractice || !hasSession || !blob || blob.size === 0) return;
     try {
       await uploadFluencySessionAudio(sessionId, part, blob, `${part}.webm`);
+      const objectUrl = URL.createObjectURL(blob);
+      setRemoteAudio((current) => {
+        const previous = current[part];
+        if (previous) URL.revokeObjectURL(previous);
+        return { ...current, [part]: objectUrl };
+      });
     } catch (error) {
       toast.error(
         getApiErrorMessage(
@@ -395,23 +510,17 @@ export function CaedAplicador({ mode = "oficial" }: CaedAplicadorProps) {
 
     setSavingComprehension(true);
     try {
-      if (questions.length > 0) {
+        if (questions.length > 0) {
         const answersPayload = {
           answers: questions.map((q) => ({
             readingTextQuestionId: q.id,
             selectedOption: answers[q.id],
           })),
         };
-        if (isOfficialSession) {
-          await saveComprehensionAnswers(evaluationId, sessionId, answersPayload);
-        } else {
-          await saveFluencyComprehensionAnswers(sessionId, answersPayload);
-        }
+        await saveFluencyComprehensionAnswers(sessionId, answersPayload);
       }
 
-      const reportData = isOfficialSession
-        ? await getReport(evaluationId, sessionId)
-        : await getFluencySessionReport(sessionId);
+      const reportData = await getFluencySessionReport(sessionId);
       setReport(reportData);
       setActiveTab("leiturometro");
       syncTabToUrl("leiturometro");
@@ -435,15 +544,9 @@ export function CaedAplicador({ mode = "oficial" }: CaedAplicadorProps) {
     }
     setSubmitting(true);
     try {
-      if (isOfficialSession) {
-        await submitSession(evaluationId, sessionId);
-      } else {
-        await submitFluencySession(sessionId);
-      }
+      await submitFluencySession(sessionId);
       try {
-        const fresh = isOfficialSession
-          ? await getReport(evaluationId, sessionId)
-          : await getFluencySessionReport(sessionId);
+        const fresh = await getFluencySessionReport(sessionId);
         setReport(fresh);
       } catch {
         /* report anterior permanece */
@@ -646,6 +749,8 @@ export function CaedAplicador({ mode = "oficial" }: CaedAplicadorProps) {
                         words={q1Items}
                         continuePending={savingFluency}
                         continueLabel="Salvar esta parte"
+                        remoteAudioSrc={remoteAudio.q1}
+                        readOnly={viewMode || submitted}
                         onResultChange={handleQ1Result}
                         onContinue={() => void handleContinueAfterQ1()}
                         onRunningChange={(running) =>
@@ -674,6 +779,8 @@ export function CaedAplicador({ mode = "oficial" }: CaedAplicadorProps) {
                         words={q2Items}
                         continuePending={savingFluency}
                         continueLabel="Salvar esta parte"
+                        remoteAudioSrc={remoteAudio.q2}
+                        readOnly={viewMode || submitted}
                         onResultChange={handleQ2Result}
                         onContinue={() => void handleContinueAfterQ2()}
                         onRunningChange={(running) =>
@@ -697,6 +804,8 @@ export function CaedAplicador({ mode = "oficial" }: CaedAplicadorProps) {
                         content={text?.content ?? ""}
                         continuePending={savingFluency}
                         continueLabel="Salvar esta parte"
+                        remoteAudioSrc={remoteAudio.q3}
+                        readOnly={viewMode || submitted}
                         onResultChange={handleQ3Result}
                         onContinue={() => void handleContinueAfterQ3()}
                         onRunningChange={(running) =>
@@ -740,6 +849,7 @@ export function CaedAplicador({ mode = "oficial" }: CaedAplicadorProps) {
                                       type="radio"
                                       name={q.id}
                                       checked={answers[q.id] === i}
+                                      disabled={viewMode || submitted}
                                       onChange={() => setAnswers((a) => ({ ...a, [q.id]: i }))}
                                     />
                                     {opt}
@@ -751,7 +861,13 @@ export function CaedAplicador({ mode = "oficial" }: CaedAplicadorProps) {
                         )}
                         <Button
                           onClick={() => void handleContinueAfterComprehension()}
-                          disabled={!comprehensionReady || savingComprehension || !hasSession}
+                          disabled={
+                            !comprehensionReady ||
+                            savingComprehension ||
+                            !hasSession ||
+                            viewMode ||
+                            submitted
+                          }
                         >
                           {savingComprehension ? (
                             <>
@@ -812,6 +928,26 @@ export function CaedAplicador({ mode = "oficial" }: CaedAplicadorProps) {
                                 ? ` · Nível: ${report.leiturimetroLevel}`
                                 : null}
                             </p>
+                            <div className="grid gap-3 sm:grid-cols-2">
+                              {remoteAudio.mic_test ? (
+                                <StudentAudioPlayer
+                                  src={remoteAudio.mic_test}
+                                  label="Áudio — teste de microfone"
+                                />
+                              ) : null}
+                              {remoteAudio.q1 ? (
+                                <StudentAudioPlayer src={remoteAudio.q1} label="Áudio — Q1 palavras" />
+                              ) : null}
+                              {remoteAudio.q2 ? (
+                                <StudentAudioPlayer
+                                  src={remoteAudio.q2}
+                                  label="Áudio — Q2 pouco comuns"
+                                />
+                              ) : null}
+                              {remoteAudio.q3 ? (
+                                <StudentAudioPlayer src={remoteAudio.q3} label="Áudio — Q3 texto" />
+                              ) : null}
+                            </div>
                           </>
                         ) : (
                           <p className="text-sm text-muted-foreground">
@@ -823,7 +959,7 @@ export function CaedAplicador({ mode = "oficial" }: CaedAplicadorProps) {
                           <Button
                             className="w-full sm:w-auto"
                             onClick={() => void handleSubmit()}
-                            disabled={!report || submitting || submitted || !hasSession}
+                            disabled={!report || submitting || submitted || viewMode || !hasSession}
                           >
                             {submitting ? (
                               <>

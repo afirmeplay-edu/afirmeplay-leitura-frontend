@@ -8,9 +8,11 @@ import {
   deleteWordList,
   listWordLists,
   updateWordList,
+  type Grade,
   type WordList,
   type WordListKind,
 } from "@/lib/api/afirme-reading";
+import { listGrades } from "@/lib/api/grades";
 import { isKnownWordListKind } from "@/lib/afirme-reading/evaluation-contract";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import { Button } from "@/components/ui/button";
@@ -40,6 +42,7 @@ function kindLabel(kind: WordListKind) {
 interface FormState {
   name: string;
   kind: WordListKind;
+  gradeId: string;
   itemsText: string;
   description: string;
   isDefault: boolean;
@@ -49,6 +52,7 @@ interface FormState {
 const EMPTY_FORM: FormState = {
   name: "",
   kind: "PALAVRAS_CONHECIDAS",
+  gradeId: "",
   itemsText: "",
   description: "",
   isDefault: false,
@@ -57,24 +61,41 @@ const EMPTY_FORM: FormState = {
 
 export function WordListsPanel() {
   const [lists, setLists] = useState<WordList[]>([]);
+  const [grades, setGrades] = useState<Grade[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [filterGradeId, setFilterGradeId] = useState<string>("all");
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
 
+  const loadGrades = useCallback(async () => {
+    try {
+      const data = await listGrades();
+      setGrades(data);
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, "Nao foi possivel carregar as series."));
+    }
+  }, []);
+
   const loadLists = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await listWordLists();
+      const data = await listWordLists({
+        gradeId: filterGradeId === "all" ? undefined : filterGradeId,
+      });
       setLists(data);
     } catch (error) {
       toast.error(getApiErrorMessage(error, "Nao foi possivel carregar as listas."));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [filterGradeId]);
+
+  useEffect(() => {
+    void loadGrades();
+  }, [loadGrades]);
 
   useEffect(() => {
     void loadLists();
@@ -82,7 +103,10 @@ export function WordListsPanel() {
 
   function openCreate() {
     setEditingId(null);
-    setForm(EMPTY_FORM);
+    setForm({
+      ...EMPTY_FORM,
+      gradeId: filterGradeId !== "all" ? filterGradeId : grades[0]?.id ?? "",
+    });
     setFormOpen(true);
   }
 
@@ -91,6 +115,7 @@ export function WordListsPanel() {
     setForm({
       name: list.name,
       kind: isKnownWordListKind(list.kind) ? "PALAVRAS_CONHECIDAS" : list.kind,
+      gradeId: list.gradeId ?? "",
       itemsText: list.items.join("\n"),
       description: list.description ?? "",
       isDefault: list.isDefault,
@@ -112,6 +137,10 @@ export function WordListsPanel() {
       toast.error("Informe o nome da lista.");
       return;
     }
+    if (!form.gradeId) {
+      toast.error("Selecione a serie.");
+      return;
+    }
     const items = parseItems(form.itemsText);
     if (items.length === 0) {
       toast.error("Adicione ao menos uma palavra.");
@@ -120,6 +149,7 @@ export function WordListsPanel() {
 
     const payload = {
       name,
+      gradeId: form.gradeId,
       kind: form.kind,
       items,
       description: form.description.trim() || null,
@@ -164,12 +194,27 @@ export function WordListsPanel() {
 
   return (
     <div>
-      <div className="mb-4 flex items-center justify-between gap-3">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-xl font-bold text-bluebrand-deep">Listas de palavras</h2>
-        <Button onClick={openCreate} className="bg-bluebrand-deep text-white hover:opacity-95">
-          <Plus className="h-4 w-4" />
-          Nova lista
-        </Button>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <Select value={filterGradeId} onValueChange={setFilterGradeId}>
+            <SelectTrigger className="w-full sm:w-52">
+              <SelectValue placeholder="Filtrar serie" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas as series</SelectItem>
+              {grades.map((grade) => (
+                <SelectItem key={grade.id} value={grade.id}>
+                  {grade.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button onClick={openCreate} className="bg-bluebrand-deep text-white hover:opacity-95">
+            <Plus className="h-4 w-4" />
+            Nova lista
+          </Button>
+        </div>
       </div>
 
       {loading ? (
@@ -185,6 +230,7 @@ export function WordListsPanel() {
             <thead>
               <tr className="bg-slate-100 text-left">
                 <th className="border-b p-3 font-medium">Nome</th>
+                <th className="border-b p-3 font-medium">Serie</th>
                 <th className="border-b p-3 font-medium">Tipo</th>
                 <th className="border-b p-3 text-center font-medium">Itens</th>
                 <th className="border-b p-3 text-center font-medium">Padrao</th>
@@ -196,6 +242,7 @@ export function WordListsPanel() {
               {lists.map((list) => (
                 <tr key={list.id} className="hover:bg-slate-50">
                   <td className="border-b p-3 font-medium text-bluebrand-deep">{list.name}</td>
+                  <td className="border-b p-3">{list.grade?.name ?? "—"}</td>
                   <td className="border-b p-3">{kindLabel(list.kind)}</td>
                   <td className="border-b p-3 text-center">{list.items.length}</td>
                   <td className="border-b p-3 text-center">{list.isDefault ? "★" : ""}</td>
@@ -252,6 +299,26 @@ export function WordListsPanel() {
                   placeholder="Ex: Lista de palavras complementar"
                   disabled={saving}
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Serie</Label>
+                <Select
+                  value={form.gradeId || undefined}
+                  onValueChange={(value) => setForm((prev) => ({ ...prev, gradeId: value }))}
+                  disabled={saving || grades.length === 0}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione a serie" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {grades.map((grade) => (
+                      <SelectItem key={grade.id} value={grade.id}>
+                        {grade.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2">

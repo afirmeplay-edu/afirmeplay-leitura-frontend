@@ -93,11 +93,17 @@ const TYPE_BADGE_CLASS: Record<string, string> = {
 function applyHref(evaluation: ReadingEvaluation) {
   const params = new URLSearchParams();
   params.set("evaluationId", evaluation.id);
-  const schoolId = evaluation.schoolIds?.[0];
-  const classId = evaluation.classIds?.[0];
-  if (schoolId) params.set("schoolId", schoolId);
-  if (classId) params.set("classId", classId);
   return `/app/avaliacao-fluencia?${params.toString()}`;
+}
+
+function applyAction(evaluation: ReadingEvaluation) {
+  if (evaluation.status === "em_andamento") {
+    return { label: "Continuar", disabled: false };
+  }
+  if (evaluation.status === "concluida" || evaluation.status === "cancelada") {
+    return { label: STATUS_LABEL[evaluation.status], disabled: true };
+  }
+  return { label: "Aplicar", disabled: false };
 }
 
 function formatDate(value: string | null) {
@@ -191,7 +197,10 @@ export function ListarAvaliacaoPage() {
       if (statusFilter !== "all" && item.status !== statusFilter) return false;
       if (listFilter === "conhecidas" && !getKnownWordListId(item)) return false;
       if (listFilter === "pouco-comuns" && !item.uncommonWordListId) return false;
-      if (gradeFilter !== "all" && item.gradeId !== gradeFilter) return false;
+      if (gradeFilter !== "all") {
+        const ids = item.gradeIds?.length ? item.gradeIds : item.gradeId ? [item.gradeId] : [];
+        if (!ids.includes(gradeFilter)) return false;
+      }
       return true;
     });
   }, [evaluations, search, typeFilter, statusFilter, listFilter, gradeFilter, tab, user?.id]);
@@ -235,15 +244,11 @@ export function ListarAvaliacaoPage() {
 
   async function handleDelete() {
     if (!deleting) return;
-    try {
-      await deleteEvaluation(deleting.id);
-      toast.success("Avaliação excluída.");
-      setDeleting(null);
-      setViewing((current) => (current?.id === deleting.id ? null : current));
-      await loadEvaluations();
-    } catch (error) {
-      toast.error(getApiErrorMessage(error, "Não foi possível excluir a avaliação."));
-    }
+    await deleteEvaluation(deleting.id);
+    toast.success("Avaliação excluída.");
+    setViewing((current) => (current?.id === deleting.id ? null : current));
+    setDeleting(null);
+    await loadEvaluations();
   }
 
   return (
@@ -420,6 +425,7 @@ export function ListarAvaliacaoPage() {
         <ul className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3" role="list">
           {filtered.map((evaluation) => {
             const checked = selectedIds.includes(evaluation.id);
+            const action = applyAction(evaluation);
             return (
               <li key={evaluation.id}>
                 <Card
@@ -469,11 +475,16 @@ export function ListarAvaliacaoPage() {
                           Palavras pouco comuns
                         </Badge>
                       ) : null}
-                      {evaluation.grade?.name ? (
-                        <Badge variant="outline" className="text-xs">
-                          {evaluation.grade.name}
+                      {(evaluation.grades?.length
+                        ? evaluation.grades
+                        : evaluation.grade
+                          ? [evaluation.grade]
+                          : []
+                      ).map((grade) => (
+                        <Badge key={grade.id} variant="outline" className="text-xs">
+                          {grade.name}
                         </Badge>
-                      ) : null}
+                      ))}
                     </div>
 
                     <div className="space-y-1.5 border-t border-border/60 pt-2 text-xs text-muted-foreground">
@@ -505,11 +516,15 @@ export function ListarAvaliacaoPage() {
                       <Button
                         type="button"
                         size="sm"
+                        disabled={action.disabled}
                         className="min-h-9 min-w-0 flex-1 gap-1 whitespace-nowrap bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500"
-                        onClick={() => router.push(applyHref(evaluation))}
+                        onClick={() => {
+                          if (action.disabled) return;
+                          router.push(applyHref(evaluation));
+                        }}
                       >
                         <Play className="h-3.5 w-3.5" />
-                        Aplicar
+                        {action.label}
                       </Button>
                       <Button
                         type="button"
@@ -551,7 +566,10 @@ export function ListarAvaliacaoPage() {
                             {canDeleteEvaluation(evaluation, user?.id, user?.role) ? (
                               <DropdownMenuItem
                                 className="cursor-pointer text-red-600 focus:text-red-700"
-                                onClick={() => setDeleting(evaluation)}
+                                onSelect={(event) => {
+                                  event.preventDefault();
+                                  window.setTimeout(() => setDeleting(evaluation), 0);
+                                }}
                               >
                                 <Trash2 className="mr-2 h-4 w-4" />
                                 Excluir
@@ -637,30 +655,36 @@ export function ListarAvaliacaoPage() {
               {viewing.scope ? (
                 <p>
                   <span className="font-medium">Escopo: </span>
+                  {viewing.grade?.name || viewing.scope.grade?.name
+                    ? `${viewing.grade?.name || viewing.scope.grade?.name} · `
+                    : null}
                   {viewing.scope.schools.length
                     ? `${viewing.scope.schools.length} escola(s)`
                     : "sem escola"}
                   {" · "}
                   {viewing.scope.classes.length
-                    ? `${viewing.scope.classes.length} turma(s)`
+                    ? `${viewing.scope.classes.map((item) => item.name).join(", ")}`
                     : "sem turma"}
-                  {" · "}
-                  {viewing.scope.students.length
-                    ? `${viewing.scope.students.length} aluno(s)`
-                    : "sem aluno"}
+                </p>
+              ) : viewing.classIds?.length ? (
+                <p>
+                  <span className="font-medium">Turmas: </span>
+                  {viewing.classIds.length}
                 </p>
               ) : null}
               <div className="pt-2">
                 <Button
                   className="bg-emerald-600 text-white hover:bg-emerald-700"
+                  disabled={applyAction(viewing).disabled}
                   onClick={() => {
+                    if (applyAction(viewing).disabled) return;
                     const evaluation = viewing;
                     setViewing(null);
                     router.push(applyHref(evaluation));
                   }}
                 >
                   <Play className="h-3.5 w-3.5" />
-                  Aplicar
+                  {applyAction(viewing).label}
                 </Button>
               </div>
             </div>
