@@ -55,6 +55,11 @@ export {
   getFluencySessionReport,
   submitFluencySession,
 } from "@/lib/api/afirme-reading/fluency-sessions";
+export {
+  getResultadosFiltros,
+  getRelatorioResultados,
+  getPerfilEstudanteResultados,
+} from "@/lib/api/afirme-reading/resultados";
 export type {
   WordList,
   WordListKind,

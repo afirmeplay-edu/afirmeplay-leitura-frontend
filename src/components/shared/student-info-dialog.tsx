@@ -1,12 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { FileSpreadsheet, Loader2, Presentation, UserRound } from "lucide-react";
 import { toast } from "sonner";
 import { getStudent, type Student } from "@/lib/api/students";
-import { getMockClassById } from "@/lib/mock/classes";
-import { getMockSchoolById } from "@/lib/mock/schools";
-import { getMockStudentById } from "@/lib/mock/students";
+import { getPerfilEstudanteResultados } from "@/lib/api/afirme-reading/resultados";
 import { PerfilLeitorBadge } from "@/components/shared/perfil-leitor-badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,12 +16,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { getPerfilLeitorStyle, type PerfilLeitorCode } from "@/lib/colors/reading-levels";
-import {
-  exportarAlunoExcel,
-  exportarAlunoPptx,
-} from "@/lib/relatorios-fluencia/exportar-aluno";
-import { getHistoricoEstudanteMock } from "@/lib/relatorios-fluencia/relatorios.mock";
-import { EDICAO_LABEL, NIVEIS } from "@/lib/relatorios-fluencia/types";
+import { exportarAlunoExcel, exportarAlunoPptx } from "@/lib/relatorios-fluencia/exportar-aluno";
+import { formatDecimal, formatPct } from "@/lib/relatorios-fluencia/format";
+import type { EdicaoCode, PerfilEstudanteRelatorio } from "@/lib/relatorios-fluencia/types";
 
 export type StudentInfoSeed = {
   studentId?: string;
@@ -33,6 +28,9 @@ export type StudentInfoSeed = {
   classId?: string;
   schoolId?: string;
   perfilCode?: PerfilLeitorCode | null;
+  ano?: number;
+  edicao?: EdicaoCode;
+  avaliacaoId?: string;
 };
 
 function formatDate(value?: string | null) {
@@ -42,29 +40,20 @@ function formatDate(value?: string | null) {
   return date.toLocaleDateString("pt-BR");
 }
 
-function iflDoNivel(code: PerfilLeitorCode | null | undefined) {
-  if (!code) return null;
-  return NIVEIS.find((n) => n.code === code)?.pesoIfl ?? null;
-}
-
 function mergeStudent(seed: StudentInfoSeed, fetched: Student | null): Student {
-  const mock = seed.studentId ? getMockStudentById(seed.studentId) : undefined;
-  const mockClass = mock ? getMockClassById(mock.classId) : undefined;
-  const mockSchool = mock ? getMockSchoolById(mock.schoolId) : undefined;
-
   return {
     id: fetched?.id ?? seed.studentId ?? "",
-    name: fetched?.name || seed.name || mock?.name || "Estudante",
-    classId: fetched?.classId ?? seed.classId ?? mock?.classId ?? null,
-    schoolId: fetched?.schoolId ?? seed.schoolId ?? mock?.schoolId ?? null,
+    name: fetched?.name || seed.name || "Estudante",
+    classId: fetched?.classId ?? seed.classId ?? null,
+    schoolId: fetched?.schoolId ?? seed.schoolId ?? null,
     registration: fetched?.registration ?? fetched?.registrationNumber ?? null,
     registrationNumber: fetched?.registrationNumber ?? fetched?.registration ?? null,
-    email: fetched?.email ?? mock?.email ?? null,
-    birthDate: fetched?.birthDate ?? mock?.birthDate ?? null,
-    gender: fetched?.gender ?? mock?.gender ?? null,
-    schoolName: fetched?.schoolName || seed.schoolName || mockSchool?.name || null,
-    className: fetched?.className || seed.className || mockClass?.name || null,
-    gradeName: fetched?.gradeName || (mockClass ? `${mockClass.grade}º Ano` : null),
+    email: fetched?.email ?? null,
+    birthDate: fetched?.birthDate ?? null,
+    gender: fetched?.gender ?? null,
+    schoolName: fetched?.schoolName || seed.schoolName || null,
+    className: fetched?.className || seed.className || null,
+    gradeName: fetched?.gradeName ?? null,
   };
 }
 
@@ -78,30 +67,42 @@ export function StudentInfoDialog({
   seed: StudentInfoSeed | null;
 }) {
   const [student, setStudent] = useState<Student | null>(null);
+  const [perfil, setPerfil] = useState<PerfilEstudanteRelatorio | null>(null);
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState<"xlsx" | "pptx" | null>(null);
 
   useEffect(() => {
     if (!open || !seed) {
       setStudent(null);
+      setPerfil(null);
       return;
     }
 
     const current = seed;
     let cancelled = false;
     setStudent(mergeStudent(current, null));
+    setPerfil(null);
 
     const id = current.studentId?.trim();
     if (!id) return;
 
     setLoading(true);
-    void getStudent(id)
-      .then((fetched) => {
+    void Promise.allSettled([
+      getStudent(id),
+      getPerfilEstudanteResultados(id, {
+        ano: current.ano ?? new Date().getFullYear(),
+        edicao: current.edicao,
+        avaliacaoId: current.avaliacaoId,
+      }),
+    ])
+      .then(([cadastro, resultados]) => {
         if (cancelled) return;
-        setStudent(mergeStudent(current, fetched));
-      })
-      .catch(() => {
-        /* cadastro mock / seed já preenchido */
+        if (cadastro.status === "fulfilled") {
+          setStudent(mergeStudent(current, cadastro.value));
+        }
+        if (resultados.status === "fulfilled") {
+          setPerfil(resultados.value);
+        }
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -118,26 +119,12 @@ export function StudentInfoDialog({
     seed?.schoolName,
     seed?.classId,
     seed?.schoolId,
+    seed?.ano,
+    seed?.edicao,
+    seed?.avaliacaoId,
   ]);
 
-  const historico = useMemo(() => {
-    if (!open || !seed) return [];
-    return getHistoricoEstudanteMock({
-      studentId: seed.studentId,
-      nome: seed.name || student?.name,
-    });
-  }, [open, seed, student?.name]);
-
-  const ultima = useMemo(() => {
-    const ranked = [...historico].sort((a, b) => {
-      if (a.ano !== b.ano) return b.ano - a.ano;
-      const ordem: Record<string, number> = { saida: 3, formativa: 2, entrada: 1 };
-      return (ordem[b.edicao] ?? 0) - (ordem[a.edicao] ?? 0);
-    });
-    return ranked.find((r) => r.avaliado && r.nivel) ?? ranked[0] ?? null;
-  }, [historico]);
-
-  const perfilAtual = ultima?.nivel ?? seed?.perfilCode ?? null;
+  const perfilAtual = perfil?.perfilAtual ?? seed?.perfilCode ?? null;
   const faixa = perfilAtual ? getPerfilLeitorStyle(perfilAtual) : null;
 
   const rows: { label: string; value: string }[] = [];
@@ -145,10 +132,18 @@ export function StudentInfoDialog({
     rows.push({ label: "Nome", value: student.name });
     if (student.registration || student.registrationNumber) {
       rows.push({ label: "Matrícula", value: student.registration || student.registrationNumber || "" });
+    } else if (perfil?.matricula) {
+      rows.push({ label: "Matrícula", value: perfil.matricula });
     }
-    if (student.gradeName) rows.push({ label: "Série", value: student.gradeName });
-    if (student.className) rows.push({ label: "Turma", value: student.className });
-    if (student.schoolName) rows.push({ label: "Escola", value: student.schoolName });
+    if (student.gradeName || perfil?.serieNome) {
+      rows.push({ label: "Série", value: student.gradeName || perfil?.serieNome || "" });
+    }
+    if (student.className || perfil?.turmaNome) {
+      rows.push({ label: "Turma", value: student.className || perfil?.turmaNome || "" });
+    }
+    if (student.schoolName || perfil?.escolaNome) {
+      rows.push({ label: "Escola", value: student.schoolName || perfil?.escolaNome || "" });
+    }
     if (student.email) rows.push({ label: "E-mail", value: student.email });
     const birth = formatDate(student.birthDate);
     if (birth) rows.push({ label: "Nascimento", value: birth });
@@ -161,18 +156,22 @@ export function StudentInfoDialog({
   }
 
   const cadastroExport = {
-    nome: student?.name ?? seed?.name ?? "Estudante",
-    matricula: student?.registration || student?.registrationNumber || ultima?.matricula || null,
-    escola: student?.schoolName || seed?.schoolName || ultima?.escolaNome || null,
-    serie: student?.gradeName || ultima?.serieNome || null,
-    turma: student?.className || seed?.className || ultima?.turmaNome || null,
+    nome: student?.name ?? seed?.name ?? perfil?.nome ?? "Estudante",
+    matricula: student?.registration || student?.registrationNumber || perfil?.matricula || null,
+    escola: student?.schoolName || seed?.schoolName || perfil?.escolaNome || null,
+    serie: student?.gradeName || perfil?.serieNome || null,
+    turma: student?.className || seed?.className || perfil?.turmaNome || null,
     email: student?.email ?? null,
   };
 
   const handleExcel = async () => {
+    if (!perfil) {
+      toast.error("Histórico do estudante ainda não carregou.");
+      return;
+    }
     setExporting("xlsx");
     try {
-      await exportarAlunoExcel(cadastroExport, historico);
+      await exportarAlunoExcel(perfil, cadastroExport);
       toast.success("Planilha gerada.");
     } catch {
       toast.error("Não foi possível gerar o Excel.");
@@ -182,9 +181,13 @@ export function StudentInfoDialog({
   };
 
   const handlePptx = async () => {
+    if (!perfil) {
+      toast.error("Histórico do estudante ainda não carregou.");
+      return;
+    }
     setExporting("pptx");
     try {
-      await exportarAlunoPptx(cadastroExport, historico);
+      await exportarAlunoPptx(perfil, cadastroExport);
       toast.success("Apresentação gerada.");
     } catch {
       toast.error("Não foi possível gerar o PowerPoint.");
@@ -206,7 +209,7 @@ export function StudentInfoDialog({
             <PerfilLeitorBadge code={perfilAtual} />
           </DialogTitle>
           <DialogDescription>
-            {loading ? "Carregando dados do aluno…" : "Cadastro e histórico de avaliações (mock por edição)."}
+            {loading ? "Carregando dados do aluno…" : "Cadastro e histórico de avaliações."}
           </DialogDescription>
         </DialogHeader>
         <dl className="grid gap-3 text-sm sm:grid-cols-2">
@@ -220,9 +223,9 @@ export function StudentInfoDialog({
 
         <div className="space-y-2">
           <p className="text-sm font-medium">Histórico por edição</p>
-          {historico.length === 0 ? (
+          {!perfil ? (
             <p className="text-sm text-muted-foreground">
-              Ainda não há histórico mock para este aluno. A estrutura está pronta para a API de sessões.
+              {loading ? "Carregando histórico…" : "Ainda não há histórico para este aluno."}
             </p>
           ) : (
             <div className="overflow-x-auto rounded-md border">
@@ -237,20 +240,20 @@ export function StudentInfoDialog({
                   </tr>
                 </thead>
                 <tbody>
-                  {historico.map((r) => (
-                    <tr key={r.id} className="border-b last:border-0">
+                  {perfil.linhaDoTempo.map((l) => (
+                    <tr key={l.edicao} className="border-b last:border-0">
                       <td className="px-3 py-2">
-                        <span className="font-medium">{EDICAO_LABEL[r.edicao]}</span>
-                        <span className="mt-0.5 block text-xs text-muted-foreground">{r.ano}</span>
+                        <span className="font-medium">{l.edicaoLabel}</span>
+                        <span className="mt-0.5 block text-xs text-muted-foreground">{perfil.ano}</span>
                       </td>
                       <td className="px-3 py-2">
-                        <PerfilLeitorBadge code={r.nivel} />
+                        <PerfilLeitorBadge code={l.nivel} />
                       </td>
-                      <td className="px-3 py-2 text-right">{r.ppm ?? "—"}</td>
+                      <td className="px-3 py-2 text-right">{formatDecimal(l.resultado?.ppm)}</td>
+                      <td className="px-3 py-2 text-right">{formatPct(l.resultado?.precisao)}</td>
                       <td className="px-3 py-2 text-right">
-                        {r.precisao != null ? `${r.precisao}%` : "—"}
+                        {formatDecimal(l.resultado?.pesoIfl ?? (l.nivel === perfil.perfilAtual ? perfil.exportacao.iflDoNivel : null))}
                       </td>
-                      <td className="px-3 py-2 text-right">{iflDoNivel(r.nivel) ?? "—"}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -265,7 +268,7 @@ export function StudentInfoDialog({
               type="button"
               variant="outline"
               onClick={() => void handleExcel()}
-              disabled={exporting != null}
+              disabled={exporting != null || !perfil}
             >
               {exporting === "xlsx" ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -278,7 +281,7 @@ export function StudentInfoDialog({
               type="button"
               variant="outline"
               onClick={() => void handlePptx()}
-              disabled={exporting != null}
+              disabled={exporting != null || !perfil}
             >
               {exporting === "pptx" ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

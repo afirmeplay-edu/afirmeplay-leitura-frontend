@@ -2,9 +2,8 @@
 
 import { PerfilLeitorBadge } from "@/components/shared/perfil-leitor-badge";
 import { Badge } from "@/components/ui/badge";
-import { evolucaoNivel } from "@/lib/relatorios-fluencia/calc";
-import { PARAMETROS_LISTAS, type NivelCode, type ResultadoEstudante } from "@/lib/relatorios-fluencia/types";
-import { studentBaseIdFromResultado } from "@/lib/relatorios-fluencia/relatorios.mock";
+import { formatDecimal, formatPct, labelEvolucao } from "@/lib/relatorios-fluencia/format";
+import type { EvolucaoCode, NivelCode, ResultadoEstudante } from "@/lib/relatorios-fluencia/types";
 import { cn } from "@/lib/utils";
 
 function Th({ children, className }: { children: React.ReactNode; className?: string }) {
@@ -41,30 +40,27 @@ export function BadgeNivel({ nivel }: { nivel: NivelCode | null | undefined }) {
   return <PerfilLeitorBadge code={nivel} className="rounded-md" />;
 }
 
-export function Evolucao({ de, para }: { de: NivelCode | null | undefined; para: NivelCode | null | undefined }) {
-  const ev = evolucaoNivel(de ?? null, para ?? null);
-  if (!ev) return <span className="text-xs text-muted-foreground">—</span>;
-  if (ev === "avanco") return <span className="text-xs font-medium text-emerald-700">▲ avanço</span>;
-  if (ev === "regressao") return <span className="text-xs font-medium text-red-600">▼ regressão</span>;
-  return <span className="text-xs text-muted-foreground">→ manutenção</span>;
+export function Evolucao({ evolucao }: { evolucao: EvolucaoCode | null | undefined }) {
+  const label = labelEvolucao(evolucao);
+  if (!evolucao) return <span className="text-xs text-muted-foreground">—</span>;
+  if (evolucao === "avanco") return <span className="text-xs font-medium text-emerald-700">{label}</span>;
+  if (evolucao === "regressao") return <span className="text-xs font-medium text-red-600">{label}</span>;
+  return <span className="text-xs text-muted-foreground">{label}</span>;
 }
 
 export function TabelaEstudantes({
   lista,
-  anterior,
   onAbrir,
   limite = 200,
 }: {
   lista: ResultadoEstudante[];
-  anterior: ResultadoEstudante[];
   onAbrir: (e: ResultadoEstudante) => void;
   limite?: number;
 }) {
-  const antPorId = new Map(anterior.map((e) => [studentBaseIdFromResultado(e), e]));
   const visiveis = lista.slice(0, limite);
 
   if (!visiveis.length) {
-    return <p className="text-sm text-muted-foreground">Dados insuficientes para cálculo.</p>;
+    return <p className="text-sm text-muted-foreground">Nenhum estudante no recorte.</p>;
   }
 
   return (
@@ -86,12 +82,7 @@ export function TabelaEstudantes({
         </thead>
         <tbody>
           {visiveis.map((e) => {
-            const ant = antPorId.get(studentBaseIdFromResultado(e)) ?? null;
             const presente = e.status === "presente";
-            const compPct =
-              e.compreensaoValidas > 0
-                ? Math.round((e.compreensaoAcertos / e.compreensaoValidas) * 100)
-                : null;
             return (
               <tr
                 key={e.id}
@@ -107,29 +98,27 @@ export function TabelaEstudantes({
                   ) : null}
                 </Td>
                 <Td>
-                  {e.palavrasCorretas}/{PARAMETROS_LISTAS.totalPalavras}
+                  {e.palavrasCorretas}/{e.totalPalavras}
                 </Td>
                 <Td>
-                  {e.desconhecidasCorretas}/{PARAMETROS_LISTAS.totalDesconhecidas}
+                  {e.desconhecidasCorretas}/{e.totalDesconhecidas}
                 </Td>
-                <Td>{presente ? e.ppm ?? "—" : "—"}</Td>
-                <Td>{presente && e.precisao != null ? `${e.precisao}%` : "—"}</Td>
-                <Td>
-                  {presente ? (e.prosodiaAdequada ? "Adequada" : "Inadequada") : "—"}
-                </Td>
+                <Td>{presente ? formatDecimal(e.ppm) : "—"}</Td>
+                <Td>{presente ? formatPct(e.precisao) : "—"}</Td>
+                <Td>{presente ? e.prosodiaLabel || "—" : "—"}</Td>
                 <Td>
                   {presente
-                    ? `${e.compreensaoAcertos}/${e.compreensaoValidas} · ${compPct ?? "—"}%`
+                    ? `${e.compreensaoAcertos}/${e.compreensaoValidas} · ${formatPct(e.compreensaoPct)}`
                     : "—"}
                 </Td>
                 <Td>
-                  <BadgeNivel nivel={ant?.nivel} />
+                  <BadgeNivel nivel={e.nivelAnterior} />
                 </Td>
                 <Td>
                   <BadgeNivel nivel={e.nivel} />
                 </Td>
                 <Td>
-                  <Evolucao de={ant?.nivel} para={e.nivel} />
+                  <Evolucao evolucao={e.evolucao} />
                 </Td>
               </tr>
             );

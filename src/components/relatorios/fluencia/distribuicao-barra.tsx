@@ -1,6 +1,7 @@
 "use client";
 
 import { getPerfilLeitorStyle } from "@/lib/colors/reading-levels";
+import { formatPct } from "@/lib/relatorios-fluencia/format";
 import type { DistribuicaoNivel } from "@/lib/relatorios-fluencia/types";
 
 export function DistribuicaoBarra({ distribuicao }: { distribuicao: DistribuicaoNivel[] }) {
@@ -24,9 +25,11 @@ export function DistribuicaoBarra({ distribuicao }: { distribuicao: Distribuicao
                 minWidth: d.percentual > 0 ? 4 : 0,
                 fontSize: width < 10 ? "10px" : undefined,
               }}
-              title={`${d.label}: ${d.percentual}%`}
+              title={`${d.label}: ${formatPct(d.percentual)}`}
             >
-              <span className={width >= 10 ? "whitespace-nowrap text-xs" : "whitespace-nowrap"}>{d.percentual}%</span>
+              <span className={width >= 10 ? "whitespace-nowrap text-xs" : "whitespace-nowrap"}>
+                {formatPct(d.percentual)}
+              </span>
             </div>
           );
         })}

@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useRelatorioFluencia } from "@/lib/relatorios-fluencia/store";
-import { EDICAO_LABEL, type EdicaoCode } from "@/lib/relatorios-fluencia/types";
+import { avaliacoesDoFiltro, EDICAO_LABEL, type EdicaoCode } from "@/lib/relatorios-fluencia/types";
 import { Eraser } from "lucide-react";
 
 const TODOS = "__todos__";
@@ -18,23 +18,58 @@ function fromVal(v: string) {
   return v === TODOS ? "" : v;
 }
 
-export function RelatorioFiltros() {
-  const { filtros, setFiltros, limparFiltros, catalog } = useRelatorioFluencia();
+function statusLabel(status: string) {
+  const map: Record<string, string> = {
+    rascunho: "Rascunho",
+    agendada: "Agendada",
+    em_andamento: "Em andamento",
+    concluida: "Concluída",
+  };
+  return map[status] ?? status;
+}
 
-  const municipios = catalog.municipios.filter((m) => !filtros.redeId || m.redeId === filtros.redeId);
-  const escolas = catalog.escolas.filter((e) => !filtros.municipioId || e.municipioId === filtros.municipioId);
+export function RelatorioFiltros() {
+  const { filtros, setFiltros, limparFiltros, catalog, catalogLoading } = useRelatorioFluencia();
+
+  const avaliacoes = avaliacoesDoFiltro(catalog, filtros.ano, filtros.edicao);
+  const avaliacaoSel = avaliacoes.find((a) => a.id === filtros.avaliacaoId) ?? null;
+
+  const municipios = catalog.municipios.filter(
+    (m) => m.id && (!filtros.redeId || m.redeId === filtros.redeId)
+  );
+  const escolas = catalog.escolas.filter((e) => {
+    if (!e.id) return false;
+    if (avaliacaoSel?.escolaIds?.length && !avaliacaoSel.escolaIds.includes(e.id)) return false;
+    if (filtros.municipioId && e.municipioId !== filtros.municipioId) return false;
+    return true;
+  });
+  const series = catalog.series.filter((s) => {
+    if (!s.id) return false;
+    if (avaliacaoSel?.serieIds?.length && !avaliacaoSel.serieIds.includes(s.id)) return false;
+    return true;
+  });
   const turmas = catalog.turmas.filter((t) => {
+    if (!t.id) return false;
+    if (avaliacaoSel?.turmaIds?.length && !avaliacaoSel.turmaIds.includes(t.id)) return false;
     if (filtros.escolaId && t.escolaId !== filtros.escolaId) return false;
     if (filtros.serieId && t.serieId !== filtros.serieId) return false;
     return true;
   });
-  const turnos = Array.from(new Set(catalog.turmas.map((t) => t.turno)));
+  const turnos = Array.from(
+    new Set(turmas.map((t) => t.turno).filter((t): t is string => Boolean(t)))
+  );
+  const edicoes = (
+    catalog.edicoes.length
+      ? catalog.edicoes
+      : (Object.keys(EDICAO_LABEL) as EdicaoCode[]).map((id) => ({ id, label: EDICAO_LABEL[id] }))
+  ).filter((e) => e.id);
+  const redes = catalog.redes.filter((r) => r.id);
 
   return (
     <div className="print:hidden space-y-4 rounded-xl border bg-white p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm font-medium text-foreground">Filtros</p>
-        <Button type="button" variant="outline" size="sm" onClick={limparFiltros}>
+        <Button type="button" variant="outline" size="sm" onClick={limparFiltros} disabled={catalogLoading}>
           <Eraser className="mr-2 h-4 w-4" />
           Limpar
         </Button>
@@ -42,9 +77,13 @@ export function RelatorioFiltros() {
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Field label="Ano">
-          <Select value={String(filtros.ano)} onValueChange={(v) => setFiltros({ ano: Number(v) })}>
+          <Select
+            value={filtros.ano ? String(filtros.ano) : undefined}
+            onValueChange={(v) => setFiltros({ ano: Number(v) })}
+            disabled={catalogLoading || catalog.anos.length === 0}
+          >
             <SelectTrigger>
-              <SelectValue />
+              <SelectValue placeholder="Ano" />
             </SelectTrigger>
             <SelectContent>
               {catalog.anos.map((a) => (
@@ -62,9 +101,33 @@ export function RelatorioFiltros() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {(Object.keys(EDICAO_LABEL) as EdicaoCode[]).map((e) => (
-                <SelectItem key={e} value={e}>
-                  {EDICAO_LABEL[e]}
+              {edicoes.map((e) => (
+                <SelectItem key={e.id} value={e.id}>
+                  {e.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+
+        <Field label="Avaliação">
+          <Select
+            value={filtros.avaliacaoId || undefined}
+            onValueChange={(v) => setFiltros({ avaliacaoId: v })}
+            disabled={catalogLoading || avaliacoes.length === 0}
+          >
+            <SelectTrigger>
+              <SelectValue
+                placeholder={
+                  avaliacoes.length === 0 ? "Nenhuma avaliação neste recorte" : "Selecione a avaliação"
+                }
+              />
+            </SelectTrigger>
+            <SelectContent>
+              {avaliacoes.map((a) => (
+                <SelectItem key={a.id} value={a.id}>
+                  {a.titulo}
+                  {a.status ? ` · ${statusLabel(a.status)}` : ""}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -78,7 +141,7 @@ export function RelatorioFiltros() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value={TODOS}>Todos</SelectItem>
-              {catalog.redes.map((r) => (
+              {redes.map((r) => (
                 <SelectItem key={r.id} value={r.id}>
                   {r.nome}
                 </SelectItem>
@@ -104,7 +167,11 @@ export function RelatorioFiltros() {
         </Field>
 
         <Field label="Escola">
-          <Select value={val(filtros.escolaId)} onValueChange={(v) => setFiltros({ escolaId: fromVal(v) })}>
+          <Select
+            value={val(filtros.escolaId)}
+            onValueChange={(v) => setFiltros({ escolaId: fromVal(v) })}
+            disabled={!filtros.avaliacaoId}
+          >
             <SelectTrigger>
               <SelectValue placeholder="Todos" />
             </SelectTrigger>
@@ -120,13 +187,17 @@ export function RelatorioFiltros() {
         </Field>
 
         <Field label="Série">
-          <Select value={val(filtros.serieId)} onValueChange={(v) => setFiltros({ serieId: fromVal(v) })}>
+          <Select
+            value={val(filtros.serieId)}
+            onValueChange={(v) => setFiltros({ serieId: fromVal(v) })}
+            disabled={!filtros.avaliacaoId}
+          >
             <SelectTrigger>
               <SelectValue placeholder="Todos" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value={TODOS}>Todos</SelectItem>
-              {catalog.series.map((s) => (
+              {series.map((s) => (
                 <SelectItem key={s.id} value={s.id}>
                   {s.nome}
                 </SelectItem>
@@ -136,7 +207,11 @@ export function RelatorioFiltros() {
         </Field>
 
         <Field label="Turma">
-          <Select value={val(filtros.turmaId)} onValueChange={(v) => setFiltros({ turmaId: fromVal(v) })}>
+          <Select
+            value={val(filtros.turmaId)}
+            onValueChange={(v) => setFiltros({ turmaId: fromVal(v) })}
+            disabled={!filtros.avaliacaoId}
+          >
             <SelectTrigger>
               <SelectValue placeholder="Todos" />
             </SelectTrigger>

@@ -3,14 +3,13 @@ import {
   ICA_LEVELS,
   ICA_TO_PERFIL_LEITOR,
   PERFIL_LEITOR_LABEL,
-  type PerfilLeitorCode,
 } from "@/lib/colors/reading-levels";
-import { EDICAO_LABEL, EDICOES_ORDEM, NIVEIS, PARAMETROS_LISTAS, type ResultadoEstudante } from "@/lib/relatorios-fluencia/types";
-import { compreensaoPct, evolucaoNivel } from "@/lib/relatorios-fluencia/calc";
-import {
-  fraseAnaliticaEdicao,
-  participacaoTurmaNaEdicao,
-} from "@/lib/relatorios-fluencia/relatorios.mock";
+import { labelEvolucao } from "@/lib/relatorios-fluencia/format";
+import type {
+  EdicaoCode,
+  PerfilEstudanteRelatorio,
+  ResultadoEstudante,
+} from "@/lib/relatorios-fluencia/types";
 
 export type AlunoExportCadastro = {
   nome: string;
@@ -21,27 +20,61 @@ export type AlunoExportCadastro = {
   email?: string | null;
 };
 
-function iflDoNivel(code: PerfilLeitorCode | null | undefined) {
-  if (!code) return null;
-  return NIVEIS.find((n) => n.code === code)?.pesoIfl ?? null;
-}
-
 function hexNoHash(hex: string) {
   return hex.replace("#", "");
 }
 
-function pickUltimaEdicao(historico: ResultadoEstudante[]) {
-  const ranked = [...historico].sort((a, b) => {
-    if (a.ano !== b.ano) return b.ano - a.ano;
-    const ordem: Record<string, number> = { saida: 3, formativa: 2, entrada: 1 };
-    return (ordem[b.edicao] ?? 0) - (ordem[a.edicao] ?? 0);
-  });
-  return ranked.find((r) => r.avaliado && r.nivel) ?? ranked[0];
+function cadastroFromPerfil(perfil: PerfilEstudanteRelatorio, extra?: AlunoExportCadastro): AlunoExportCadastro {
+  return {
+    nome: extra?.nome || perfil.nome,
+    matricula: extra?.matricula || perfil.matricula,
+    escola: extra?.escola || perfil.escolaNome,
+    serie: extra?.serie || perfil.serieNome,
+    turma: extra?.turma || perfil.turmaNome,
+    email: extra?.email ?? null,
+  };
 }
 
-export async function exportarAlunoExcel(cadastro: AlunoExportCadastro, historico: ResultadoEstudante[]) {
+function resultadoAtivo(perfil: PerfilEstudanteRelatorio, edicao?: EdicaoCode): ResultadoEstudante | null {
+  if (edicao) {
+    const found = perfil.linhaDoTempo.find((l) => l.edicao === edicao)?.resultado;
+    if (found) return found;
+  }
+  return (
+    perfil.linhaDoTempo.find((l) => l.nivel === perfil.perfilAtual && l.resultado)?.resultado ??
+    perfil.linhaDoTempo.find((l) => l.resultado)?.resultado ??
+    null
+  );
+}
+
+function nomeArquivo(...partes: string[]) {
+  return partes
+    .filter(Boolean)
+    .map((s) =>
+      s
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-zA-Z0-9]+/g, "-")
+        .replace(/^-|-$/g, "")
+        .toLowerCase()
+    )
+    .join("-");
+}
+
+function exportacaoDaLinha(perfil: PerfilEstudanteRelatorio, resultado: ResultadoEstudante | null) {
+  if (!resultado) return { ifl: "", participacao: "", frase: "" };
+  const atual = resultado.nivel === perfil.perfilAtual;
+  return {
+    ifl: resultado.pesoIfl ?? (atual ? perfil.exportacao.iflDoNivel : null) ?? "",
+    participacao: atual ? (perfil.exportacao.participacaoTurmaPct ?? "") : "",
+    frase: atual ? perfil.exportacao.fraseAnalitica : "",
+  };
+}
+
+export async function exportarAlunoExcel(perfil: PerfilEstudanteRelatorio, extra?: AlunoExportCadastro) {
   const XLSX = await import("xlsx");
   const wb = XLSX.utils.book_new();
+  const cadastro = cadastroFromPerfil(perfil, extra);
   const cadastroRows = [
     ["Campo", "Valor"],
     ["Nome", cadastro.nome],
@@ -53,33 +86,41 @@ export async function exportarAlunoExcel(cadastro: AlunoExportCadastro, historic
   ];
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(cadastroRows), "Cadastro");
 
-  const histRows = historico.map((r) => ({
-    Ano: r.ano,
-    Edição: EDICAO_LABEL[r.edicao],
-    Avaliado: r.avaliado ? "Sim" : "Não",
-    Nível: r.nivel ? PERFIL_LEITOR_LABEL[r.nivel] : "",
-    PPM: r.ppm ?? "",
-    Precisão: r.precisao ?? "",
-    IFL: iflDoNivel(r.nivel) ?? "",
-    "Participação da turma %": participacaoTurmaNaEdicao(r),
-    Observação: fraseAnaliticaEdicao(r),
-  }));
+  const histRows = perfil.linhaDoTempo.map((l) => {
+    const r = l.resultado;
+    const extraCols = exportacaoDaLinha(perfil, r);
+    return {
+      Ano: perfil.ano,
+      Edição: l.edicaoLabel,
+      Avaliado: r?.avaliado ? "Sim" : "Não",
+      Nível: l.nivelLabel || "",
+      PPM: r?.ppm ?? "",
+      Precisão: r?.precisao ?? "",
+      IFL: extraCols.ifl,
+      "Participação da turma %": extraCols.participacao,
+      Observação: extraCols.frase,
+    };
+  });
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(histRows), "Avaliações");
 
   const safe = cadastro.nome.replace(/[^\wÀ-ÿ]+/g, "-").slice(0, 40);
   XLSX.writeFile(wb, `aluno-${safe}.xlsx`);
 }
 
-export async function exportarAlunoPptx(cadastro: AlunoExportCadastro, historico: ResultadoEstudante[]) {
+export async function exportarAlunoPptx(perfil: PerfilEstudanteRelatorio, extra?: AlunoExportCadastro) {
   const mod = await import("pptxgenjs");
   const PptxGenJS = mod.default;
   const pptx = new PptxGenJS();
+  const cadastro = cadastroFromPerfil(perfil, extra);
   pptx.author = "Afirme Ler";
   pptx.title = `Relatório de fluência — ${cadastro.nome}`;
 
-  const ultima = pickUltimaEdicao(historico);
-  const nivelCapa = ultima?.nivel ?? "PL1";
+  const ultima = resultadoAtivo(perfil);
+  const nivelCapa = perfil.perfilAtual ?? ultima?.nivel ?? "PL1";
   const corCapa = getPerfilLeitorStyle(nivelCapa);
+  const ultimaLinha =
+    (ultima ? perfil.linhaDoTempo.find((l) => l.edicao === ultima.edicao) : null) ??
+    perfil.linhaDoTempo.at(-1);
 
   const capa = pptx.addSlide();
   capa.addShape(pptx.ShapeType.rect, {
@@ -111,7 +152,7 @@ export async function exportarAlunoPptx(cadastro: AlunoExportCadastro, historico
     { x: 0.4, y: 1.7, w: 9.2, h: 0.35, fontSize: 14, color: "334155" }
   );
 
-  const ultimaLabel = ultima ? `${EDICAO_LABEL[ultima.edicao]} ${ultima.ano}` : "—";
+  const ultimaLabel = ultimaLinha ? `${ultimaLinha.edicaoLabel} ${perfil.ano}` : "—";
   capa.addShape(pptx.ShapeType.roundRect, {
     x: 0.4,
     y: 2.25,
@@ -119,7 +160,7 @@ export async function exportarAlunoPptx(cadastro: AlunoExportCadastro, historico
     h: 0.45,
     fill: { color: hexNoHash(corCapa.hex) },
   });
-  capa.addText(ultima?.nivel ? PERFIL_LEITOR_LABEL[ultima.nivel] : "Sem nível", {
+  capa.addText(ultimaLinha?.nivelLabel || "Sem nível", {
     x: 0.4,
     y: 2.28,
     w: 3.2,
@@ -133,7 +174,7 @@ export async function exportarAlunoPptx(cadastro: AlunoExportCadastro, historico
   capa.addText(
     [
       `Última edição: ${ultimaLabel}`,
-      `IFL: ${iflDoNivel(ultima?.nivel) ?? "—"}`,
+      `IFL: ${perfil.exportacao.iflDoNivel ?? ultima?.pesoIfl ?? "—"}`,
       `PPM: ${ultima?.ppm ?? "—"}`,
       `Precisão: ${ultima?.precisao != null ? `${ultima.precisao}%` : "—"}`,
     ].join("\n"),
@@ -170,7 +211,10 @@ export async function exportarAlunoPptx(cadastro: AlunoExportCadastro, historico
     });
   });
 
-  for (const r of historico) {
+  for (const linha of perfil.linhaDoTempo) {
+    const r = linha.resultado;
+    if (!r) continue;
+    const extraCols = exportacaoDaLinha(perfil, r);
     const style = getPerfilLeitorStyle(r.nivel ?? "PL1");
     const slide = pptx.addSlide();
     slide.addShape(pptx.ShapeType.rect, {
@@ -180,7 +224,7 @@ export async function exportarAlunoPptx(cadastro: AlunoExportCadastro, historico
       h: 0.55,
       fill: { color: hexNoHash(style.hex) },
     });
-    slide.addText(`${EDICAO_LABEL[r.edicao]} · ${r.ano}`, {
+    slide.addText(`${linha.edicaoLabel} · ${perfil.ano}`, {
       x: 0.4,
       y: 0.08,
       w: 9.2,
@@ -205,7 +249,7 @@ export async function exportarAlunoPptx(cadastro: AlunoExportCadastro, historico
       h: 0.45,
       fill: { color: hexNoHash(style.hex) },
     });
-    slide.addText(r.nivel ? PERFIL_LEITOR_LABEL[r.nivel] : "Não avaliado", {
+    slide.addText(linha.nivelLabel || "Não avaliado", {
       x: 0.4,
       y: 1.38,
       w: 3.4,
@@ -219,120 +263,87 @@ export async function exportarAlunoPptx(cadastro: AlunoExportCadastro, historico
       [
         `PPM: ${r.ppm ?? "—"}`,
         `Precisão: ${r.precisao != null ? `${r.precisao}%` : "—"}`,
-        `IFL: ${iflDoNivel(r.nivel) ?? "—"}`,
-        `Participação da turma: ${participacaoTurmaNaEdicao(r)}%`,
-      ].join("\n"),
+        `IFL: ${extraCols.ifl || "—"}`,
+        extraCols.participacao !== "" ? `Participação da turma: ${extraCols.participacao}%` : null,
+      ]
+        .filter(Boolean)
+        .join("\n"),
       { x: 0.4, y: 2.05, w: 9.2, h: 1.8, fontSize: 18, color: "0F172A" }
     );
-    slide.addText(fraseAnaliticaEdicao(r), {
-      x: 0.4,
-      y: 4.1,
-      w: 9.2,
-      h: 1.2,
-      fontSize: 16,
-      color: "334155",
-    });
+    if (extraCols.frase) {
+      slide.addText(extraCols.frase, {
+        x: 0.4,
+        y: 4.1,
+        w: 9.2,
+        h: 1.2,
+        fontSize: 16,
+        color: "334155",
+      });
+    }
   }
 
   const safe = cadastro.nome.replace(/[^\wÀ-ÿ]+/g, "-").slice(0, 40);
   await pptx.writeFile({ fileName: `aluno-${safe}.pptx` });
 }
 
-function r1(n: number | null | undefined) {
-  if (n == null || Number.isNaN(n)) return "";
-  return Math.round(n * 10) / 10;
-}
-
-function nomeArquivo(...partes: string[]) {
-  return partes
-    .filter(Boolean)
-    .map((s) =>
-      s
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .replace(/[^a-zA-Z0-9]+/g, "-")
-        .replace(/^-|-$/g, "")
-        .toLowerCase()
-    )
-    .join("-");
-}
-
-function situacao(r: ResultadoEstudante) {
-  return r.status ?? (r.avaliado ? "presente" : "não avaliado");
-}
-
-function labelEvolucao(de: ResultadoEstudante["nivel"], para: ResultadoEstudante["nivel"]) {
-  const ev = evolucaoNivel(de, para);
-  if (ev === "avanco") return "▲ avanço";
-  if (ev === "regressao") return "▼ regressão";
-  if (ev === "manutencao") return "→ manutenção";
-  return "—";
-}
-
-function historicoDoAno(estudante: ResultadoEstudante, historico: ResultadoEstudante[]) {
-  return EDICOES_ORDEM.map((ed) => {
-    const reg = historico.find(
-      (h) => h.edicao === ed && h.ano === estudante.ano && (h.matricula === estudante.matricula || h.nome === estudante.nome)
-    );
-    return { edicao: ed, reg: reg ?? null };
-  });
-}
-
-/** Relatório individual no formato do MVP: ficha + linha do tempo. */
-export async function exportarEstudanteExcel(estudante: ResultadoEstudante, historico: ResultadoEstudante[]) {
+export async function exportarEstudanteExcel(perfil: PerfilEstudanteRelatorio, edicao?: EdicaoCode) {
   const XLSX = await import("xlsx");
   const wb = XLSX.utils.book_new();
-  const presente = situacao(estudante) === "presente";
+  const estudante = resultadoAtivo(perfil, edicao);
+  const linhaAtiva = perfil.linhaDoTempo.find((l) => l.edicao === (edicao ?? estudante?.edicao));
+  const presente = estudante?.status === "presente";
   const ficha: Record<string, string | number>[] = [
-    { Indicador: "Matrícula", Valor: estudante.matricula },
-    { Indicador: "Estudante", Valor: estudante.nome },
-    { Indicador: "Escola", Valor: estudante.escolaNome },
-    { Indicador: "Município / Rede", Valor: `${estudante.municipioNome} (${estudante.redeNome})` },
+    { Indicador: "Matrícula", Valor: perfil.matricula },
+    { Indicador: "Estudante", Valor: perfil.nome },
+    { Indicador: "Escola", Valor: perfil.escolaNome },
+    { Indicador: "Município / Rede", Valor: `${perfil.municipioNome} (${perfil.redeNome})` },
     {
       Indicador: "Série / Turma / Turno",
-      Valor: `${estudante.serieNome} · ${estudante.turmaNome} · ${estudante.turno}`,
+      Valor: `${perfil.serieNome} · ${perfil.turmaNome} · ${perfil.turno}`,
     },
-    { Indicador: "Edição", Valor: `${EDICAO_LABEL[estudante.edicao]} ${estudante.ano}` },
-    { Indicador: "Situação", Valor: situacao(estudante) },
-    { Indicador: "Palavras corretas", Valor: presente ? `${estudante.palavrasCorretas}/${PARAMETROS_LISTAS.totalPalavras}` : "" },
+    { Indicador: "Edição", Valor: `${linhaAtiva?.edicaoLabel ?? ""} ${perfil.ano}`.trim() },
+    { Indicador: "Situação", Valor: estudante?.status ?? "sem registro" },
+    {
+      Indicador: "Palavras corretas",
+      Valor: presente && estudante ? `${estudante.palavrasCorretas}/${estudante.totalPalavras}` : "",
+    },
     {
       Indicador: "Pseudopalavras corretas",
-      Valor: presente ? `${estudante.desconhecidasCorretas}/${PARAMETROS_LISTAS.totalDesconhecidas}` : "",
+      Valor: presente && estudante ? `${estudante.desconhecidasCorretas}/${estudante.totalDesconhecidas}` : "",
     },
-    { Indicador: "Palavras do texto lidas", Valor: presente ? estudante.textoPalavrasLidas : "" },
-    { Indicador: "Erros no texto", Valor: presente ? estudante.textoErros : "" },
-    { Indicador: "PPM", Valor: presente ? r1(estudante.ppm) : "" },
-    { Indicador: "Precisão (%)", Valor: presente ? r1(estudante.precisao) : "" },
-    {
-      Indicador: "Prosódia",
-      Valor: presente ? (estudante.prosodiaAdequada ? "Adequada" : "Inadequada") : "",
-    },
+    { Indicador: "Palavras do texto lidas", Valor: presente && estudante ? estudante.textoPalavrasLidas : "" },
+    { Indicador: "Erros no texto", Valor: presente && estudante ? estudante.textoErros : "" },
+    { Indicador: "PPM", Valor: presente && estudante ? (estudante.ppm ?? "") : "" },
+    { Indicador: "Precisão (%)", Valor: presente && estudante ? (estudante.precisao ?? "") : "" },
+    { Indicador: "Prosódia", Valor: presente && estudante ? estudante.prosodiaLabel : "" },
     {
       Indicador: "Compreensão",
-      Valor: presente
-        ? `${estudante.compreensaoAcertos}/${estudante.compreensaoValidas} (${r1(compreensaoPct(estudante))}%)`
-        : "",
+      Valor:
+        presente && estudante
+          ? `${estudante.compreensaoAcertos}/${estudante.compreensaoValidas} (${estudante.compreensaoPct ?? "—"}%)`
+          : "",
     },
     {
       Indicador: "Silabações / Soletrações",
-      Valor: presente ? `${estudante.silabacoes} / ${estudante.soletracoes}` : "",
+      Valor: presente && estudante ? `${estudante.silabacoes} / ${estudante.soletracoes}` : "",
     },
-    {
-      Indicador: "Perfil leitor",
-      Valor: estudante.nivel ? `${PERFIL_LEITOR_LABEL[estudante.nivel]} (${estudante.nivel})` : "Sem perfil",
-    },
+    { Indicador: "Perfil leitor", Valor: linhaAtiva?.nivelLabel || estudante?.nivelLabel || "Sem perfil" },
+    { Indicador: "IFL do nível", Valor: perfil.exportacao.iflDoNivel ?? estudante?.pesoIfl ?? "" },
+    { Indicador: "Participação da turma %", Valor: perfil.exportacao.participacaoTurmaPct ?? "" },
+    { Indicador: "Observação", Valor: perfil.exportacao.fraseAnalitica ?? "" },
   ];
 
-  const linha = historicoDoAno(estudante, historico).map(({ edicao, reg }) => {
-    const ok = reg && situacao(reg) === "presente";
+  const linha = perfil.linhaDoTempo.map((l) => {
+    const reg = l.resultado;
+    const ok = reg?.status === "presente";
     return {
-      Edição: EDICAO_LABEL[edicao],
-      Situação: reg ? situacao(reg) : "sem registro",
-      Perfil: reg?.nivel ? `${PERFIL_LEITOR_LABEL[reg.nivel]} (${reg.nivel})` : "Sem perfil",
-      PPM: ok ? r1(reg.ppm) : "",
-      "Precisão (%)": ok ? r1(reg.precisao) : "",
-      "Compreensão (%)": ok ? r1(compreensaoPct(reg)) : "",
-      Prosódia: ok ? (reg.prosodiaAdequada ? "Adequada" : "Inadequada") : "",
+      Edição: l.edicaoLabel,
+      Situação: reg?.status ?? "sem registro",
+      Perfil: l.nivelLabel || "Sem perfil",
+      PPM: ok ? (reg.ppm ?? "") : "",
+      "Precisão (%)": ok ? (reg.precisao ?? "") : "",
+      "Compreensão (%)": ok ? (reg.compreensaoPct ?? "") : "",
+      Prosódia: ok ? reg.prosodiaLabel : "",
       "Palavras corretas": ok ? reg.palavrasCorretas : "",
       "P. desconhecidas": ok ? reg.desconhecidasCorretas : "",
     };
@@ -340,18 +351,20 @@ export async function exportarEstudanteExcel(estudante: ResultadoEstudante, hist
 
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(ficha), "Ficha");
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(linha), "Linha do tempo");
-  XLSX.writeFile(wb, `${nomeArquivo("ficha", estudante.nome, estudante.matricula)}.xlsx`);
+  XLSX.writeFile(wb, `${nomeArquivo("ficha", perfil.nome, perfil.matricula)}.xlsx`);
 }
 
-export async function exportarEstudantePptx(estudante: ResultadoEstudante, historico: ResultadoEstudante[]) {
+export async function exportarEstudantePptx(perfil: PerfilEstudanteRelatorio, edicao?: EdicaoCode) {
   const mod = await import("pptxgenjs");
   const PptxGenJS = mod.default;
   const pptx = new PptxGenJS();
   pptx.author = "Afirme Ler";
-  pptx.title = `Relatório de fluência — ${estudante.nome}`;
+  pptx.title = `Relatório de fluência — ${perfil.nome}`;
 
-  const presente = situacao(estudante) === "presente";
-  const corCapa = getPerfilLeitorStyle(estudante.nivel ?? "PL1");
+  const estudante = resultadoAtivo(perfil, edicao);
+  const linhaAtiva = perfil.linhaDoTempo.find((l) => l.edicao === (edicao ?? estudante?.edicao));
+  const presente = estudante?.status === "presente";
+  const corCapa = getPerfilLeitorStyle(estudante?.nivel ?? perfil.perfilAtual ?? "PL1");
 
   const capa = pptx.addSlide();
   capa.addShape(pptx.ShapeType.rect, {
@@ -369,7 +382,7 @@ export async function exportarEstudantePptx(estudante: ResultadoEstudante, histo
     fontSize: 12,
     color: "64748B",
   });
-  capa.addText(estudante.nome, {
+  capa.addText(perfil.nome, {
     x: 0.4,
     y: 1.05,
     w: 9.2,
@@ -378,7 +391,7 @@ export async function exportarEstudantePptx(estudante: ResultadoEstudante, histo
     bold: true,
     color: "0F172A",
   });
-  capa.addText(`Matrícula ${estudante.matricula}`, {
+  capa.addText(`Matrícula ${perfil.matricula}`, {
     x: 0.4,
     y: 1.55,
     w: 9.2,
@@ -388,10 +401,10 @@ export async function exportarEstudantePptx(estudante: ResultadoEstudante, histo
   });
   capa.addText(
     [
-      estudante.escolaNome,
-      `${estudante.serieNome} · ${estudante.turmaNome} · ${estudante.turno}`,
-      `${estudante.municipioNome} (${estudante.redeNome})`,
-      `${EDICAO_LABEL[estudante.edicao]} ${estudante.ano}`,
+      perfil.escolaNome,
+      `${perfil.serieNome} · ${perfil.turmaNome} · ${perfil.turno}`,
+      `${perfil.municipioNome} (${perfil.redeNome})`,
+      `${linhaAtiva?.edicaoLabel ?? ""} ${perfil.ano}`.trim(),
     ].join("\n"),
     { x: 0.4, y: 1.95, w: 9.2, h: 1.2, fontSize: 14, color: "334155" }
   );
@@ -403,7 +416,7 @@ export async function exportarEstudantePptx(estudante: ResultadoEstudante, histo
     h: 0.45,
     fill: { color: hexNoHash(corCapa.hex) },
   });
-  capa.addText(estudante.nivel ? PERFIL_LEITOR_LABEL[estudante.nivel] : "Sem perfil", {
+  capa.addText(linhaAtiva?.nivelLabel || estudante?.nivelLabel || "Sem perfil", {
     x: 0.4,
     y: 3.33,
     w: 3.4,
@@ -415,20 +428,20 @@ export async function exportarEstudantePptx(estudante: ResultadoEstudante, histo
   });
 
   capa.addText(
-    presente
+    presente && estudante
       ? [
           `PPM: ${estudante.ppm ?? "—"}`,
           `Precisão: ${estudante.precisao != null ? `${estudante.precisao}%` : "—"}`,
-          `Prosódia: ${estudante.prosodiaAdequada ? "Adequada" : "Inadequada"}`,
-          `Compreensão: ${estudante.compreensaoAcertos}/${estudante.compreensaoValidas} (${compreensaoPct(estudante) ?? "—"}%)`,
+          `Prosódia: ${estudante.prosodiaLabel || "—"}`,
+          `Compreensão: ${estudante.compreensaoAcertos}/${estudante.compreensaoValidas} (${estudante.compreensaoPct ?? "—"}%)`,
         ].join("\n")
-      : `Situação: ${situacao(estudante)}. Dados insuficientes nesta edição.`,
+      : `Situação: ${estudante?.status ?? "sem registro"}. Sem indicadores nesta edição.`,
     { x: 0.4, y: 3.95, w: 9.2, h: 1.5, fontSize: 16, color: "0F172A" }
   );
 
-  const linha = historicoDoAno(estudante, historico);
-  for (const { edicao, reg } of linha) {
-    if (!reg || situacao(reg) !== "presente") continue;
+  for (const linha of perfil.linhaDoTempo) {
+    const reg = linha.resultado;
+    if (!reg || reg.status !== "presente") continue;
     const style = getPerfilLeitorStyle(reg.nivel ?? "PL1");
     const slide = pptx.addSlide();
     slide.addShape(pptx.ShapeType.rect, {
@@ -438,7 +451,7 @@ export async function exportarEstudantePptx(estudante: ResultadoEstudante, histo
       h: 0.55,
       fill: { color: hexNoHash(style.hex) },
     });
-    slide.addText(`${EDICAO_LABEL[edicao]} · ${reg.ano}`, {
+    slide.addText(`${linha.edicaoLabel} · ${perfil.ano}`, {
       x: 0.4,
       y: 0.08,
       w: 9.2,
@@ -447,7 +460,7 @@ export async function exportarEstudantePptx(estudante: ResultadoEstudante, histo
       bold: true,
       color: hexNoHash(style.fgHex),
     });
-    slide.addText(estudante.nome, {
+    slide.addText(perfil.nome, {
       x: 0.4,
       y: 0.8,
       w: 9.2,
@@ -463,7 +476,7 @@ export async function exportarEstudantePptx(estudante: ResultadoEstudante, histo
       h: 0.45,
       fill: { color: hexNoHash(style.hex) },
     });
-    slide.addText(reg.nivel ? PERFIL_LEITOR_LABEL[reg.nivel] : "Sem perfil", {
+    slide.addText(linha.nivelLabel || "Sem perfil", {
       x: 0.4,
       y: 1.33,
       w: 3.4,
@@ -477,10 +490,10 @@ export async function exportarEstudantePptx(estudante: ResultadoEstudante, histo
       [
         `PPM: ${reg.ppm ?? "—"}`,
         `Precisão: ${reg.precisao != null ? `${reg.precisao}%` : "—"}`,
-        `Prosódia: ${reg.prosodiaAdequada ? "Adequada" : "Inadequada"}`,
-        `Compreensão: ${reg.compreensaoAcertos}/${reg.compreensaoValidas} (${compreensaoPct(reg) ?? "—"}%)`,
-        `Palavras corretas: ${reg.palavrasCorretas}/${PARAMETROS_LISTAS.totalPalavras}`,
-        `P. desconhecidas: ${reg.desconhecidasCorretas}/${PARAMETROS_LISTAS.totalDesconhecidas}`,
+        `Prosódia: ${reg.prosodiaLabel || "—"}`,
+        `Compreensão: ${reg.compreensaoAcertos}/${reg.compreensaoValidas} (${reg.compreensaoPct ?? "—"}%)`,
+        `Palavras corretas: ${reg.palavrasCorretas}/${reg.totalPalavras}`,
+        `P. desconhecidas: ${reg.desconhecidasCorretas}/${reg.totalDesconhecidas}`,
       ].join("\n"),
       { x: 0.4, y: 2.0, w: 9.2, h: 2.6, fontSize: 18, color: "0F172A" }
     );
@@ -503,7 +516,7 @@ export async function exportarEstudantePptx(estudante: ResultadoEstudante, histo
     bold: true,
     color: "FFFFFF",
   });
-  evo.addText(estudante.nome, {
+  evo.addText(perfil.nome, {
     x: 0.4,
     y: 0.8,
     w: 9.2,
@@ -513,14 +526,10 @@ export async function exportarEstudantePptx(estudante: ResultadoEstudante, histo
     color: "0F172A",
   });
 
-  const trechos: string[] = [];
-  for (let i = 1; i < linha.length; i++) {
-    const de = linha[i - 1]?.reg?.nivel ?? null;
-    const para = linha[i]?.reg?.nivel ?? null;
-    trechos.push(
-      `${EDICAO_LABEL[linha[i - 1].edicao]} → ${EDICAO_LABEL[linha[i].edicao]}: ${labelEvolucao(de, para)}`
-    );
-  }
+  const trechos = perfil.linhaDoTempo.map((l) => {
+    const ev = l.resultado?.evolucao ?? (l.edicao === (edicao ?? estudante?.edicao) ? perfil.evolucao : null);
+    return `${l.edicaoLabel}: ${l.nivelLabel || "Sem perfil"} · ${labelEvolucao(ev)}`;
+  });
   evo.addText(trechos.join("\n") || "Sem edições suficientes para comparar.", {
     x: 0.4,
     y: 1.4,
@@ -530,5 +539,5 @@ export async function exportarEstudantePptx(estudante: ResultadoEstudante, histo
     color: "0F172A",
   });
 
-  await pptx.writeFile({ fileName: `${nomeArquivo("estudante", estudante.nome, estudante.matricula)}.pptx` });
+  await pptx.writeFile({ fileName: `${nomeArquivo("estudante", perfil.nome, perfil.matricula)}.pptx` });
 }

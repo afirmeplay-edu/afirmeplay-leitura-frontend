@@ -2,15 +2,18 @@
 
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { getPerfilLeitorStyle } from "@/lib/colors/reading-levels";
-import { getHistoricoEstudanteMock, studentBaseIdFromId } from "@/lib/relatorios-fluencia/relatorios.mock";
 import type { DistribuicaoNivel } from "@/lib/relatorios-fluencia/types";
 import type { StudentInfoSeed } from "@/components/shared/student-info-dialog";
 
 export function EstudantesHoverCount({
   bucket,
+  ano,
+  avaliacaoId,
   onSelectStudent,
 }: {
   bucket: DistribuicaoNivel;
+  ano?: number;
+  avaliacaoId?: string;
   onSelectStudent?: (seed: StudentInfoSeed) => void;
 }) {
   if (bucket.estudantes === 0) {
@@ -20,14 +23,13 @@ export function EstudantesHoverCount({
   const style = getPerfilLeitorStyle(bucket.code);
 
   const openStudent = (item: DistribuicaoNivel["lista"][number]) => {
-    const studentId = studentBaseIdFromId(item.id);
-    const hist = getHistoricoEstudanteMock({ studentId, nome: item.nome });
     onSelectStudent?.({
-      studentId,
+      studentId: item.id,
       name: item.nome,
       className: item.turmaNome,
-      schoolName: hist[0]?.escolaNome,
       perfilCode: bucket.code,
+      ano,
+      avaliacaoId,
     });
   };
 
