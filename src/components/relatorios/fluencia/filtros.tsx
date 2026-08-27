@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useRelatorioFluencia } from "@/lib/relatorios-fluencia/store";
-import { avaliacoesDoFiltro, EDICAO_LABEL, type EdicaoCode } from "@/lib/relatorios-fluencia/types";
+import { avaliacoesDoFiltro, EDICAO_LABEL, type EdicaoCode, type TurnoCode } from "@/lib/relatorios-fluencia/types";
 import { Eraser } from "lucide-react";
 
 const TODOS = "__todos__";
@@ -56,7 +56,7 @@ export function RelatorioFiltros() {
     return true;
   });
   const turnos = Array.from(
-    new Set(turmas.map((t) => t.turno).filter((t): t is string => Boolean(t)))
+    new Set(turmas.map((t) => t.turno).filter((t): t is TurnoCode => Boolean(t)))
   );
   const edicoes = (
     catalog.edicoes.length
