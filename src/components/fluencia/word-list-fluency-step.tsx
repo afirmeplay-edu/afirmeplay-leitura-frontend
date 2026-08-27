@@ -452,7 +452,7 @@ export function WordListFluencyStep({
       <div className="space-y-4">
         <h2 className="text-xl font-semibold">{title}</h2>
         <p className="text-sm text-muted-foreground">
-          Nenhuma lista disponível. Cadastre em Configurar Avaliação.
+          Nenhuma lista disponível. Cadastre em Cadastros.
         </p>
       </div>
     );

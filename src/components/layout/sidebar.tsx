@@ -6,7 +6,7 @@ import { ChevronDown, ChevronLeft, LogOut } from "lucide-react";
 import { useEffect, useState, type CSSProperties } from "react";
 import { cn } from "@/lib/utils";
 import { getSidebarThemeStyles } from "@/constants/sidebarThemes";
-import { isNavLinkActive, NAV_CATEGORIES, type NavCategory, type NavLink } from "@/config/navigation";
+import { isNavLinkActive, filterNavCategoriesByRole, NAV_CATEGORIES, type NavCategory, type NavLink } from "@/config/navigation";
 import { useAuthStore } from "@/stores/auth-store";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -161,7 +161,9 @@ function RenderMenuItem({
       {hasChildren && isOpen && !isCollapsed && (
         <ul className="ml-1.5 mt-1 space-y-1 border-l pl-2 md:ml-2 md:pl-3" style={{ borderColor: "var(--sidebar-border)" }}>
           {item.children?.map((child) => {
-            const childActive = isNavLinkActive(pathname, search, child.href, { exactPath: true });
+            const childActive = isNavLinkActive(pathname, search, child.href, {
+              exactPath: child.href.includes("?"),
+            });
             return (
               <li key={`${item.href}-${child.href}`}>
                 <Link
@@ -191,6 +193,7 @@ export function Sidebar({ onNavigate, isMobile, onCollapsedChange }: SidebarProp
   const router = useRouter();
   const logout = useAuthStore((state) => state.logout);
   const user = useAuthStore((state) => state.user);
+  const navCategories = filterNavCategoriesByRole(NAV_CATEGORIES, user?.role);
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   const themeStyles = getSidebarThemeStyles();
@@ -298,7 +301,7 @@ export function Sidebar({ onNavigate, isMobile, onCollapsedChange }: SidebarProp
         </div>
 
         <nav className="custom-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain py-2">
-          {NAV_CATEGORIES.map((category: NavCategory) => (
+          {navCategories.map((category: NavCategory) => (
             <div key={category.label}>
               <CategorySeparator name={category.label} isCollapsed={collapsed} />
               <ul className="space-y-0.5 px-2 md:px-3">

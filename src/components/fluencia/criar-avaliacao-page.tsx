@@ -801,7 +801,7 @@ export function CriarAvaliacaoPage() {
 
       <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end sm:gap-3">
         <Button variant="outline" asChild className="w-full sm:w-auto">
-          <Link href="/app/configuracao-avaliacao">Configurar listas, textos e perguntas</Link>
+          <Link href="/app/cadastros">Cadastrar listas, textos e perguntas</Link>
         </Button>
         <Button variant="ghost" asChild className="w-full sm:w-auto">
           <Link href="/app/avaliacao-fluencia/listar">← Listar Avaliação</Link>
