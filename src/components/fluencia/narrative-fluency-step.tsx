@@ -191,9 +191,25 @@ export function NarrativeFluencyStep({
       wrongWordsCount: wrong[lineIndex] ?? 0,
     }));
     const pauses = options?.pauses ?? pausesRef.current;
+    const lastWordPosition = isSkipped ? 0 : lastPos;
+    const markings = isSkipped
+      ? []
+      : tokensRef.current.flatMap((token, index) => {
+          const mark = nextMarks[index];
+          if (!mark || mark === "unmarked") return [];
+          return [
+            {
+              index,
+              word: token.display,
+              status: mark,
+              source: "manual" as const,
+            },
+          ];
+        });
 
     return {
-      wordsRead: isSkipped ? 0 : lastPos,
+      wordsRead: lastWordPosition,
+      lastWordPosition,
       totalWords: tokensRef.current.length,
       errorsCount: isSkipped ? 0 : errorsCount,
       unreadAfterEnd: isSkipped
@@ -208,6 +224,7 @@ export function NarrativeFluencyStep({
         isSkipped ? null : pauses === "sim" ? true : pauses === "nao" ? false : null,
       transcript: null,
       lines: linePayload,
+      markings,
       audioBlob: options?.blob ?? audioBlobRef.current,
     };
   }

@@ -372,6 +372,11 @@ export function CaedAplicador({ mode = "oficial" }: CaedAplicadorProps) {
     q3?: FluencyTextPartPayload;
   }) {
     if (!hasSession) throw new Error("Sessão não informada.");
+    let q3 = payload.q3;
+    if (isPractice && q3) {
+      const { markings: _markings, ...rest } = q3;
+      q3 = rest;
+    }
     const body = {
       kind: "FLUENCY" as const,
       caderno: "A",
@@ -379,6 +384,7 @@ export function CaedAplicador({ mode = "oficial" }: CaedAplicadorProps) {
         browser: typeof navigator !== "undefined" ? navigator.userAgent : undefined,
       },
       ...payload,
+      ...(q3 ? { q3 } : {}),
     };
     await saveFluencySessionPart(sessionId, body);
   }

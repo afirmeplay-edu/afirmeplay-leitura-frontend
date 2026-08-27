@@ -1,4 +1,5 @@
 import { afirmeReadingApi } from "@/lib/api/afirme-reading/client";
+import type { StudentApplicationResult } from "@/lib/api/afirme-reading/types";
 import type {
   CatalogoFiltrosRelatorio,
   EdicaoCode,
@@ -62,6 +63,22 @@ export async function getPerfilEstudanteResultados(
   const { data } = await afirmeReadingApi.get<PerfilEstudanteRelatorio>(
     `/resultados/estudantes/${studentId}`,
     { params, signal: opts?.signal }
+  );
+  return data;
+}
+
+/** GET /afirme-reading/resultados/estudantes/:studentId/aplicacao?avaliacaoId= */
+export async function getStudentApplication(
+  studentId: string,
+  evaluationId: string,
+  config?: { signal?: AbortSignal }
+) {
+  const { data } = await afirmeReadingApi.get<StudentApplicationResult>(
+    `/resultados/estudantes/${studentId}/aplicacao`,
+    {
+      params: { avaliacaoId: evaluationId },
+      signal: config?.signal,
+    }
   );
   return data;
 }

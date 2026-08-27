@@ -201,6 +201,7 @@ export type FluencyWordStatus =
   | "nao_leu"
   | "acertou"
   | "inventou"
+  | "silabou"
   | "soletrou"
   | "errou";
 
@@ -250,6 +251,8 @@ export interface FluencyTextPartPayload {
   obeyedSensePauses: boolean | null;
   transcript: string | null;
   lines: FluencyTextLinePayload[];
+  lastWordPosition?: number;
+  markings?: FluencyWordMarking[];
   sttProvider?: "web_speech_api";
 }
 
@@ -544,4 +547,71 @@ export interface FluencySessionReport {
   evaluationId?: string;
   evaluationTitle?: string;
   assessmentType?: string;
+}
+
+/** GET /resultados/estudantes/:studentId/aplicacao */
+export interface StudentApplicationWord {
+  index: number;
+  word: string;
+  status: FluencyWordStatus | null;
+  source?: FluencyMarkingSource;
+}
+
+export interface StudentApplicationListPart {
+  wordListId?: string | null;
+  lastWordPosition?: number | null;
+  words?: StudentApplicationWord[] | null;
+}
+
+export interface StudentApplicationTextPart {
+  readingTextId?: string | null;
+  title?: string | null;
+  content: string;
+  lines?: FluencyTextLinePayload[] | null;
+  hasWordMarkings?: boolean;
+  markings?: StudentApplicationWord[] | null;
+  words?: StudentApplicationWord[] | null;
+  lastWordPosition?: number | null;
+  lastLineIndex?: number | null;
+  wordsRead?: number | null;
+  totalWords?: number | null;
+}
+
+export interface StudentApplicationComprehensionAnswer {
+  readingTextQuestionId?: string;
+  questionId?: string;
+  statement?: string;
+  question?: string;
+  selectedOption?: number;
+  selectedOptionText?: string;
+  isCorrect?: boolean | null;
+  correctOption?: number;
+  options?: string[];
+}
+
+export interface StudentApplicationComprehension {
+  correctCount: number | null;
+  total: number | null;
+  score: number | null;
+  answers?: StudentApplicationComprehensionAnswer[] | null;
+}
+
+export interface StudentApplicationAudioUrls {
+  q1?: string | null;
+  q2?: string | null;
+  q3?: string | null;
+}
+
+export interface StudentApplicationResult {
+  studentId: string;
+  studentName: string;
+  sessionId: string;
+  evaluationId: string;
+  evaluationKind?: EvaluationKind | null;
+  status: ReadingSessionStatus;
+  lista1?: StudentApplicationListPart | null;
+  lista2?: StudentApplicationListPart | null;
+  texto?: StudentApplicationTextPart | null;
+  compreensao?: StudentApplicationComprehension | null;
+  audioUrls?: StudentApplicationAudioUrls | null;
 }

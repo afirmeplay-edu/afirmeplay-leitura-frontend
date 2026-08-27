@@ -1,5 +1,5 @@
-import { AvaliacoesListPage } from "@/components/avaliacoes/avaliacoes-pages";
+import { AvaliacoesAplicadasPage } from "@/components/avaliacoes/avaliacoes-aplicadas-page";
 
 export default function AvaliacoesPage() {
-  return <AvaliacoesListPage />;
+  return <AvaliacoesAplicadasPage />;
 }

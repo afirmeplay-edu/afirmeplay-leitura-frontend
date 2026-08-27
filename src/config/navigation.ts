@@ -64,9 +64,8 @@ export const NAV_CATEGORIES: NavCategory[] = [
       {
         href: "/app/avaliacoes",
         label: "Avaliacoes aplicadas",
-        description: "Historico de avaliacoes",
+        description: "Provas aplicadas e erros por fase",
         icon: Layers,
-        children: [{ href: "/app/avaliacoes/nova", label: "Registrar avaliacao" }],
       },
       {
         href: "/app/configuracao-avaliacao",

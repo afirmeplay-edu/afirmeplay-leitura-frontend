@@ -286,6 +286,7 @@ export function WordListFluencyStep({
       nao_leu: countByStatus(statuses, "nao_leu"),
       acertou: countByStatus(statuses, "acertou"),
       inventou: countByStatus(statuses, "inventou"),
+      silabou: countByStatus(statuses, "silabou"),
       soletrou: countByStatus(statuses, "soletrou"),
       errou: countByStatus(statuses, "errou"),
     }),

@@ -48,14 +48,17 @@ export function toProxiedAudioUrl(audioUrl: string) {
 
     // URL absoluta com esquema.
     if (/^https?:\/\//i.test(value)) {
-      return `/api${new URL(value).pathname}`;
+      const parsed = new URL(value);
+      return `/api${parsed.pathname}${parsed.search}`;
     }
 
     // host:porta/path sem esquema (ex.: localhost:5000/afirme-reading/...).
     // new URL("localhost:5000/...") trata "localhost" como protocolo — forçamos http://.
     try {
-      const pathname = new URL(`http://${value}`).pathname;
-      if (pathname && pathname !== "/") return `/api${pathname}`;
+      const parsed = new URL(`http://${value}`);
+      if (parsed.pathname && parsed.pathname !== "/") {
+        return `/api${parsed.pathname}${parsed.search}`;
+      }
     } catch {
       // fall through
     }

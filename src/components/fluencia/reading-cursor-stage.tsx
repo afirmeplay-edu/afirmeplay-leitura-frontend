@@ -32,6 +32,8 @@ interface ReadingCursorStageProps {
   sentenceStatuses?: SentenceStatus[];
   /** Esconde o card da palavra atual (modo correção do professor). */
   hideHero?: boolean;
+  /** Esconde o indicador de escuta (visualização read-only). */
+  showListening?: boolean;
   className?: string;
 }
 
@@ -43,6 +45,7 @@ function statusClass(status: FluencyWordStatus | null, active: boolean) {
     case "acertou":
       return "border-emerald-300 bg-emerald-50 text-emerald-900";
     case "soletrou":
+    case "silabou":
       return "border-violet-300 bg-violet-50 text-violet-900";
     case "inventou":
     case "errou":
@@ -62,6 +65,7 @@ function spanStatusClass(status: FluencyWordStatus | null, active: boolean) {
     case "acertou":
       return "rounded px-0.5 text-emerald-700";
     case "soletrou":
+    case "silabou":
       return "rounded px-0.5 text-violet-800 underline decoration-dotted decoration-violet-500";
     case "inventou":
     case "errou":
@@ -117,6 +121,7 @@ export function ReadingCursorStage({
   onNextWord,
   sentenceStatuses,
   hideHero = false,
+  showListening = true,
   className,
 }: ReadingCursorStageProps) {
   const activeRef = useRef<HTMLButtonElement | null>(null);
@@ -159,7 +164,7 @@ export function ReadingCursorStage({
       {!hideHero && mode !== "narrative" ? (
         <div className="rounded-xl border-2 border-bluebrand-base bg-white p-5">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-            <ListeningStatus listening={listening} />
+            {showListening ? <ListeningStatus listening={listening} /> : <span />}
             <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               {progressLabel}
             </span>
@@ -191,7 +196,7 @@ export function ReadingCursorStage({
             <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
               Texto narrativo
             </p>
-            <ListeningStatus listening={listening} />
+            {showListening ? <ListeningStatus listening={listening} /> : null}
           </div>
           {onMarkWord ? (
             <p className="mb-3 text-xs text-muted-foreground">

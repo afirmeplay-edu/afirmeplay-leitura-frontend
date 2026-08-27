@@ -1,5 +1,5 @@
-import { AvaliacaoFormPage } from "@/components/avaliacoes/avaliacoes-pages";
+import { redirect } from "next/navigation";
 
 export default function NovaAvaliacaoPage() {
-  return <AvaliacaoFormPage />;
+  redirect("/app/avaliacoes");
 }

@@ -1,6 +1,10 @@
-import { AvaliacaoDetailPage } from "@/components/avaliacoes/avaliacoes-pages";
+import { AvaliacaoAplicadaAlunosPage } from "@/components/avaliacoes/avaliacao-aplicada-alunos-page";
 
-export default async function AvaliacaoDetailRoute({ params }: { params: Promise<{ id: string }> }) {
+export default async function AvaliacaoAplicadaAlunosRoute({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const { id } = await params;
-  return <AvaliacaoDetailPage id={id} />;
+  return <AvaliacaoAplicadaAlunosPage evaluationId={id} />;
 }

@@ -59,6 +59,7 @@ export {
   getResultadosFiltros,
   getRelatorioResultados,
   getPerfilEstudanteResultados,
+  getStudentApplication,
 } from "@/lib/api/afirme-reading/resultados";
 export type {
   WordList,
@@ -116,4 +117,11 @@ export type {
   EvaluationApplicantStudent,
   EvaluationApplicantClass,
   EvaluationApplicants,
+  StudentApplicationWord,
+  StudentApplicationListPart,
+  StudentApplicationTextPart,
+  StudentApplicationComprehensionAnswer,
+  StudentApplicationComprehension,
+  StudentApplicationAudioUrls,
+  StudentApplicationResult,
 } from "@/lib/api/afirme-reading/types";
