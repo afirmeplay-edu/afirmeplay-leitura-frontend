@@ -53,16 +53,22 @@ function defaultTimezone() {
   }
 }
 
-const SELECT_EMPTY = "__empty__";
-
 function listOptionLabel(list: WordList) {
   const grade = list.grade?.name ? ` — ${list.grade.name}` : "";
   const fallback = list.isDefault ? " (padrão)" : "";
   return `${list.name}${grade}${fallback}`;
 }
 
-function selectValue(value: string) {
-  return value || SELECT_EMPTY;
+function mergeById<T extends { id: string }>(current: T[], incoming: T[] | T | null | undefined): T[] {
+  const extras = incoming == null ? [] : Array.isArray(incoming) ? incoming : [incoming];
+  const byId = new Map<string, T>();
+  for (const item of extras) {
+    if (item?.id) byId.set(item.id, item);
+  }
+  for (const item of current) {
+    if (item?.id && !byId.has(item.id)) byId.set(item.id, item);
+  }
+  return [...byId.values()];
 }
 
 export function CriarAvaliacaoPage() {
@@ -182,16 +188,18 @@ export function CriarAvaliacaoPage() {
 
   useEffect(() => {
     if (!cityReady || cityKey === "none") return;
-    setSchoolId("");
-    setGradeIds([]);
-    setClassIds([]);
-    setKnownWordListId("");
-    setUncommonWordListId("");
-    setTextId("");
-    setClasses([]);
-    setQuestions([]);
+    if (!editingId) {
+      setSchoolId("");
+      setGradeIds([]);
+      setClassIds([]);
+      setKnownWordListId("");
+      setUncommonWordListId("");
+      setTextId("");
+      setClasses([]);
+      setQuestions([]);
+    }
     void loadCatalog();
-  }, [cityReady, cityKey, loadCatalog]);
+  }, [cityReady, cityKey, loadCatalog, editingId]);
 
   useEffect(() => {
     if (!editingId || !cityReady || loadingCatalog) return;
@@ -227,6 +235,17 @@ export function CriarAvaliacaoPage() {
         if (nextGrades.length) setGradeIds(nextGrades);
         if (nextSchool) setSchoolId(nextSchool);
         if (nextClasses.length) setClassIds(nextClasses);
+        if (evaluation.readingText) {
+          setTexts((current) => mergeById(current, evaluation.readingText as ReadingText));
+        }
+        if (evaluation.knownWordList) {
+          setKnownLists((current) => mergeById(current, evaluation.knownWordList as WordList));
+        }
+        if (evaluation.uncommonWordList) {
+          setUncommonLists((current) =>
+            mergeById(current, evaluation.uncommonWordList as WordList)
+          );
+        }
       } catch (error) {
         toast.error(getApiErrorMessage(error, "Não foi possível carregar a avaliação para edição."));
       }
@@ -274,13 +293,15 @@ export function CriarAvaliacaoPage() {
     if (!cityReady) return;
     if (!gradeIds.length) {
       setTexts([]);
-      setTextId("");
       setQuestions([]);
       setKnownLists([]);
       setUncommonLists([]);
-      setKnownWordListId("");
-      setUncommonWordListId("");
       setLoadingMaterials(false);
+      if (!editingId) {
+        setTextId("");
+        setKnownWordListId("");
+        setUncommonWordListId("");
+      }
       return;
     }
 
@@ -306,25 +327,20 @@ export function CriarAvaliacaoPage() {
           toast.error("Não foi possível carregar as listas de palavras da série.");
         }
 
-        setTexts(textData);
-        setTextId((current) => (current && textData.some((item) => item.id === current) ? current : ""));
-        setKnownLists(palavras);
-        setUncommonLists(poucoComuns);
-        setKnownWordListId((current) =>
-          current && palavras.some((item) => item.id === current) ? current : ""
-        );
-        setUncommonWordListId((current) =>
-          current && poucoComuns.some((item) => item.id === current) ? current : ""
-        );
+        setTexts((current) => mergeById(current, textData));
+        setKnownLists((current) => mergeById(current, palavras));
+        setUncommonLists((current) => mergeById(current, poucoComuns));
       } catch (error) {
         if (!cancelled) {
           toast.error(getApiErrorMessage(error, "Não foi possível carregar textos e listas da série."));
-          setTexts([]);
-          setTextId("");
-          setKnownLists([]);
-          setUncommonLists([]);
-          setKnownWordListId("");
-          setUncommonWordListId("");
+          if (!editingId) {
+            setTexts([]);
+            setTextId("");
+            setKnownLists([]);
+            setUncommonLists([]);
+            setKnownWordListId("");
+            setUncommonWordListId("");
+          }
         }
       } finally {
         if (!cancelled) setLoadingMaterials(false);
@@ -334,7 +350,7 @@ export function CriarAvaliacaoPage() {
     return () => {
       cancelled = true;
     };
-  }, [cityReady, cityKey, gradeIdsKey, gradeIds]);
+  }, [cityReady, cityKey, gradeIdsKey, gradeIds, editingId]);
 
   useEffect(() => {
     if (!textId || !cityReady) {
@@ -487,20 +503,14 @@ export function CriarAvaliacaoPage() {
           <div className="space-y-2">
             <Label>Tipo</Label>
             <Select
-              value={selectValue(evaluationKind)}
-              onValueChange={(value) => {
-                if (value === SELECT_EMPTY) return;
-                setEvaluationKind(value as EvaluationKind);
-              }}
+              value={evaluationKind || undefined}
+              onValueChange={(value) => setEvaluationKind(value as EvaluationKind)}
               disabled={!cityReady}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Selecione o tipo" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={SELECT_EMPTY} disabled className="hidden">
-                  Selecione o tipo
-                </SelectItem>
                 {EDICOES_ORDEM.map((code) => (
                   <SelectItem key={code} value={code}>
                     {EDICAO_LABEL[code]}
@@ -513,9 +523,8 @@ export function CriarAvaliacaoPage() {
           <div className="space-y-2">
             <Label>Escola</Label>
             <Select
-              value={selectValue(schoolId)}
+              value={schoolId || undefined}
               onValueChange={(value) => {
-                if (value === SELECT_EMPTY) return;
                 setSchoolId(value);
                 setGradeIds([]);
                 setClassIds([]);
@@ -534,9 +543,6 @@ export function CriarAvaliacaoPage() {
                 />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={SELECT_EMPTY} disabled className="hidden">
-                  Selecione a escola
-                </SelectItem>
                 {schools.map((school) => (
                   <SelectItem key={school.id} value={school.id}>
                     {school.name}
@@ -655,11 +661,8 @@ export function CriarAvaliacaoPage() {
           <div className="space-y-2">
             <Label>Lista de palavras conhecidas</Label>
             <Select
-              value={selectValue(knownWordListId)}
-              onValueChange={(value) => {
-                if (value === SELECT_EMPTY) return;
-                setKnownWordListId(value);
-              }}
+              value={knownWordListId || undefined}
+              onValueChange={setKnownWordListId}
               disabled={!cityReady || loadingMaterials || gradeIds.length === 0}
             >
               <SelectTrigger>
@@ -669,14 +672,13 @@ export function CriarAvaliacaoPage() {
                       ? "Selecione a série primeiro"
                       : loadingMaterials
                         ? "Carregando..."
-                        : "Selecione a lista de conhecidas"
+                        : knownLists.length === 0
+                          ? "Nenhuma lista desta série"
+                          : "Selecione a lista de conhecidas"
                   }
                 />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={SELECT_EMPTY} disabled className="hidden">
-                  Selecione a lista de conhecidas
-                </SelectItem>
                 {knownLists.map((list) => (
                   <SelectItem key={list.id} value={list.id}>
                     {listOptionLabel(list)}
@@ -684,16 +686,21 @@ export function CriarAvaliacaoPage() {
                 ))}
               </SelectContent>
             </Select>
+            {gradeIds.length > 0 && !loadingMaterials && knownLists.length === 0 ? (
+              <p className="text-xs text-muted-foreground">
+                Não há lista de conhecidas para a série selecionada.{" "}
+                <Link href="/app/cadastros/palavras-conhecidas" className="underline underline-offset-2">
+                  Cadastrar lista
+                </Link>
+              </p>
+            ) : null}
           </div>
 
           <div className="space-y-2">
             <Label>Lista de palavras pouco comuns</Label>
             <Select
-              value={selectValue(uncommonWordListId)}
-              onValueChange={(value) => {
-                if (value === SELECT_EMPTY) return;
-                setUncommonWordListId(value);
-              }}
+              value={uncommonWordListId || undefined}
+              onValueChange={setUncommonWordListId}
               disabled={!cityReady || loadingMaterials || gradeIds.length === 0}
             >
               <SelectTrigger>
@@ -703,14 +710,13 @@ export function CriarAvaliacaoPage() {
                       ? "Selecione a série primeiro"
                       : loadingMaterials
                         ? "Carregando..."
-                        : "Selecione a lista de pouco comuns"
+                        : uncommonLists.length === 0
+                          ? "Nenhuma lista desta série"
+                          : "Selecione a lista de pouco comuns"
                   }
                 />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={SELECT_EMPTY} disabled className="hidden">
-                  Selecione a lista de pouco comuns
-                </SelectItem>
                 {uncommonLists.map((list) => (
                   <SelectItem key={list.id} value={list.id}>
                     {listOptionLabel(list)}
@@ -718,16 +724,21 @@ export function CriarAvaliacaoPage() {
                 ))}
               </SelectContent>
             </Select>
+            {gradeIds.length > 0 && !loadingMaterials && uncommonLists.length === 0 ? (
+              <p className="text-xs text-muted-foreground">
+                Não há lista de pouco comuns para a série selecionada.{" "}
+                <Link href="/app/cadastros/palavras-pouco-comuns" className="underline underline-offset-2">
+                  Cadastrar lista
+                </Link>
+              </p>
+            ) : null}
           </div>
 
           <div className="space-y-2 md:col-span-2">
             <Label>Textos e perguntas</Label>
             <Select
-              value={selectValue(textId)}
-              onValueChange={(value) => {
-                if (value === SELECT_EMPTY) return;
-                setTextId(value);
-              }}
+              value={textId || undefined}
+              onValueChange={setTextId}
               disabled={!cityReady || loadingMaterials || gradeIds.length === 0}
             >
               <SelectTrigger>
@@ -737,14 +748,13 @@ export function CriarAvaliacaoPage() {
                       ? "Selecione a série primeiro"
                       : loadingMaterials
                         ? "Carregando textos da série..."
-                        : "Selecione o texto"
+                        : texts.length === 0
+                          ? "Nenhum texto desta série"
+                          : "Selecione o texto"
                   }
                 />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={SELECT_EMPTY} disabled className="hidden">
-                  Selecione o texto
-                </SelectItem>
                 {texts.map((text) => (
                   <SelectItem key={text.id} value={text.id}>
                     {text.title}
@@ -777,7 +787,18 @@ export function CriarAvaliacaoPage() {
               <p className="text-xs text-muted-foreground">
                 {gradeIds.length === 0
                   ? "Selecione a série para listar os textos daquela série."
-                  : "A avaliação inclui texto narrativo, compreensão e as duas listas de palavras."}
+                  : loadingMaterials
+                    ? "Carregando textos da série..."
+                    : texts.length === 0
+                      ? (
+                        <>
+                          Nenhum texto cadastrado para a série selecionada.{" "}
+                          <Link href="/app/cadastros/textos" className="underline underline-offset-2">
+                            Cadastrar texto
+                          </Link>
+                        </>
+                      )
+                      : "A avaliação inclui texto narrativo, compreensão e as duas listas de palavras."}
               </p>
             )}
           </div>

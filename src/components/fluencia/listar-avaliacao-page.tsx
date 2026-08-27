@@ -152,6 +152,12 @@ export function ListarAvaliacaoPage() {
   const [loadingView, setLoadingView] = useState(false);
   const [deleting, setDeleting] = useState<ReadingEvaluation | null>(null);
 
+  useEffect(() => {
+    if (isPrivilegedStaffRole(user?.role)) {
+      setTab("all");
+    }
+  }, [user?.role]);
+
   const handleCityReadyChange = useCallback((ready: boolean, cityId: string | null) => {
     setCityReady(ready);
     setCityKey(cityId || "none");
@@ -256,7 +262,7 @@ export function ListarAvaliacaoPage() {
       <PageHeader
         icon={List}
         title="Listar Avaliação"
-        description="Acompanhe as avaliações de fluência criadas, com o mesmo desenho da central de avaliações."
+        description="Acompanhe as avaliações de fluência criadas. Clique em Aplicar para testar com um aluno."
       />
 
       <AdminCityPicker onCityReadyChange={handleCityReadyChange} />

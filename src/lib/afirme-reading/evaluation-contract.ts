@@ -49,7 +49,8 @@ export function canDeleteEvaluation(
   return canEditEvaluation(evaluation, userId) || isPrivilegedStaffRole(role);
 }
 
-export function canApplyEvaluation(evaluation: ReadingEvaluation, userId: string | null | undefined) {
+export function canApplyEvaluation(evaluation: ReadingEvaluation, userId: string | null | undefined, role?: string | null) {
+  if (isPrivilegedStaffRole(role)) return true;
   const creatorId = getCreatorId(evaluation);
   if (!creatorId) return true;
   return Boolean(userId && creatorId === userId);

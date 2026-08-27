@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, type KeyboardEvent, type MouseEvent } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { FluencyWordStatus } from "@/lib/api/afirme-reading";
 import type { SentenceStatus } from "@/components/fluencia/manual-marking";
 import { Button } from "@/components/ui/button";
@@ -27,8 +28,15 @@ interface ReadingCursorStageProps {
   onSelectIndex?: (index: number) => void;
   /** Clique para ciclar marcação (depois da gravação). */
   onMarkWord?: (index: number) => void;
-  /** Avança manualmente para a próxima palavra durante a leitura. */
+  /** Clique na frase: marca as palavras ainda não avaliadas como corretas. */
+  onMarkSentence?: (sentenceIndex: number) => void;
+  /** Avança manualmente para a próxima palavra. */
   onNextWord?: () => void;
+  /** Volta para a palavra anterior. */
+  onPrevWord?: () => void;
+  /** Desabilita “Próximo” (ex.: tempo esgotado sem avaliação). */
+  nextDisabled?: boolean;
+  nextHint?: string;
   sentenceStatuses?: SentenceStatus[];
   /** Esconde o card da palavra atual (modo correção do professor). */
   hideHero?: boolean;
@@ -114,7 +122,11 @@ export function ReadingCursorStage({
   instruction = "LEIA EM VOZ ALTA A PALAVRA",
   onSelectIndex,
   onMarkWord,
+  onMarkSentence,
   onNextWord,
+  onPrevWord,
+  nextDisabled = false,
+  nextHint,
   sentenceStatuses,
   hideHero = false,
   className,
@@ -144,7 +156,8 @@ export function ReadingCursorStage({
     activeRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
   }, [cursor]);
 
-  function handleWordClick(index: number) {
+  function handleWordClick(event: MouseEvent<HTMLButtonElement>, index: number) {
+    event.stopPropagation();
     if (onMarkWord) {
       onMarkWord(index);
       return;
@@ -152,7 +165,19 @@ export function ReadingCursorStage({
     onSelectIndex?.(index);
   }
 
+  function handleSentenceClick(sentenceIndex: number) {
+    onMarkSentence?.(sentenceIndex);
+  }
+
+  function handleSentenceKeyDown(event: KeyboardEvent<HTMLDivElement>, sentenceIndex: number) {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    onMarkSentence?.(sentenceIndex);
+  }
+
   const wordInteractive = Boolean(onMarkWord || onSelectIndex);
+  const sentenceInteractive = Boolean(onMarkSentence);
+  const showWordNav = Boolean(onNextWord || onPrevWord);
 
   return (
     <div className={cn("space-y-4", className)}>
@@ -171,14 +196,27 @@ export function ReadingCursorStage({
           <p className="mt-3 break-words text-center text-4xl font-bold tracking-wide text-bluebrand-deep sm:text-5xl">
             {current?.label ?? "—"}
           </p>
-          {listening && onNextWord ? (
-            <div className="mt-5 flex justify-end">
+          {nextHint ? (
+            <p className="mt-3 text-center text-sm font-medium text-amber-800">{nextHint}</p>
+          ) : null}
+          {showWordNav ? (
+            <div className="mt-5 flex flex-wrap items-center justify-between gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onPrevWord}
+                disabled={!onPrevWord || cursor <= 0}
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Voltar
+              </Button>
               <Button
                 type="button"
                 onClick={onNextWord}
-                disabled={total === 0 || cursor >= total - 1}
+                disabled={!onNextWord || nextDisabled || total === 0 || cursor >= total - 1}
               >
-                Próxima Palavra
+                Próximo
+                <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
           ) : null}
@@ -193,18 +231,36 @@ export function ReadingCursorStage({
             </p>
             <ListeningStatus listening={listening} />
           </div>
-          {onMarkWord ? (
+          {onMarkWord || onMarkSentence ? (
             <p className="mb-3 text-xs text-muted-foreground">
-              Clique na palavra: 1× correta · 2× errada · 3× soletrada · 4× limpar
+              {listening
+                ? "Enquanto o estudante lê, clique na palavra ou na frase para marcar."
+                : "Clique na frase para marcar as palavras ainda não avaliadas como corretas. Clique na palavra: 1× correta · 2× errada · 3× soletrada · 4× limpar."}
             </p>
           ) : null}
           <div className="space-y-2 text-base sm:text-lg">
             {sentenceGroups.map((group) => {
               const status = sentenceStatuses?.[group.sentenceIndex];
               return (
-                <span
+                <div
                   key={`s-${group.sentenceIndex}-${group.start}`}
-                  className={cn("inline", sentenceClass(status))}
+                  role={sentenceInteractive ? "button" : undefined}
+                  tabIndex={sentenceInteractive ? 0 : undefined}
+                  onClick={
+                    sentenceInteractive
+                      ? () => handleSentenceClick(group.sentenceIndex)
+                      : undefined
+                  }
+                  onKeyDown={
+                    sentenceInteractive
+                      ? (event) => handleSentenceKeyDown(event, group.sentenceIndex)
+                      : undefined
+                  }
+                  className={cn(
+                    "block rounded-md px-1 py-1",
+                    sentenceClass(status),
+                    sentenceInteractive && "cursor-pointer hover:ring-1 hover:ring-bluebrand-base/40"
+                  )}
                 >
                   {group.items.map((item, offset) => {
                     const index = group.start + offset;
@@ -215,9 +271,9 @@ export function ReadingCursorStage({
                         type="button"
                         ref={active ? activeRef : undefined}
                         disabled={!wordInteractive}
-                        onClick={() => handleWordClick(index)}
+                        onClick={(event) => handleWordClick(event, index)}
                         className={cn(
-                          "mr-1 inline border-0 bg-transparent p-0 text-left font-medium uppercase tracking-wide transition",
+                          "mr-1 inline rounded-sm border-0 bg-transparent px-0.5 py-0.5 text-left font-medium uppercase tracking-wide transition",
                           spanStatusClass(item.status, active),
                           wordInteractive && "cursor-pointer"
                         )}
@@ -226,7 +282,7 @@ export function ReadingCursorStage({
                       </button>
                     );
                   })}
-                </span>
+                </div>
               );
             })}
           </div>

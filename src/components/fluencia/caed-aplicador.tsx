@@ -349,6 +349,22 @@ export function CaedAplicador({ mode = "oficial" }: CaedAplicadorProps) {
     syncTabToUrl(tab);
   }
 
+  function goToNextWizardTab(from: PracticeTab) {
+    const order: PracticeTab[] = isPractice
+      ? ["palavras", "pouco-comuns", "texto"]
+      : ["palavras", "pouco-comuns", "texto", "compreensao", "leiturometro"];
+    const index = order.indexOf(from);
+    const next = index >= 0 ? order[index + 1] : undefined;
+    if (!next) return;
+    handleTabChange(next);
+    requestAnimationFrame(() => {
+      document.getElementById("fluency-wizard-scroll")?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
+  }
+
   useEffect(() => {
     if (isPractice && phase === "apresentacao") {
       setPhase("microfone");
@@ -436,6 +452,7 @@ export function CaedAplicador({ mode = "oficial" }: CaedAplicadorProps) {
       await uploadPartAudio("q1", audioBlob);
       setQ1Saved(true);
       toast.success("Palavras salvas.");
+      goToNextWizardTab("palavras");
     } catch (error) {
       toast.error(
         getApiErrorMessage(
@@ -461,6 +478,7 @@ export function CaedAplicador({ mode = "oficial" }: CaedAplicadorProps) {
       await uploadPartAudio("q2", audioBlob);
       setQ2Saved(true);
       toast.success("Pouco comuns salvo.");
+      goToNextWizardTab("pouco-comuns");
     } catch (error) {
       toast.error(
         getApiErrorMessage(
@@ -486,6 +504,7 @@ export function CaedAplicador({ mode = "oficial" }: CaedAplicadorProps) {
       await uploadPartAudio("q3", audioBlob);
       setQ3Saved(true);
       toast.success("Texto salvo.");
+      goToNextWizardTab("texto");
     } catch (error) {
       toast.error(
         getApiErrorMessage(
@@ -704,6 +723,7 @@ export function CaedAplicador({ mode = "oficial" }: CaedAplicadorProps) {
                 ) : null}
 
                 {phase === "abas" ? (
+                  <div id="fluency-wizard-scroll">
                   <Tabs value={activeTab} onValueChange={handleTabChange}>
                     {isPractice ? null : (
                       <TabsList>
@@ -985,6 +1005,7 @@ export function CaedAplicador({ mode = "oficial" }: CaedAplicadorProps) {
                       </>
                     ) : null}
                   </Tabs>
+                  </div>
                 ) : null}
               </>
             )}

@@ -18,6 +18,7 @@ import {
   countTextErrors,
   cycleTextWordMark,
   lastMarkedPosition,
+  markUnmarkedInSentenceAsCorrect,
   sentenceStatusByIndex,
   type TextWordMark,
 } from "@/components/fluencia/manual-marking";
@@ -318,12 +319,24 @@ export function NarrativeFluencyStep({
   }
 
   function handleWordClick(index: number) {
-    if (!isFinished || skipped) return;
+    if (readOnly || skipped) return;
+    if (!isRunning && !isFinished) return;
     setMarks((prev) => {
       const next = [...prev];
       next[index] = cycleTextWordMark(prev[index] ?? "unmarked");
       marksRef.current = next;
-      emitResult(next);
+      if (finishedRef.current) emitResult(next);
+      return next;
+    });
+  }
+
+  function handleSentenceClick(targetSentence: number) {
+    if (readOnly || skipped) return;
+    if (!isRunning && !isFinished) return;
+    setMarks((prev) => {
+      const next = markUnmarkedInSentenceAsCorrect(prev, sentenceIndex, targetSentence);
+      marksRef.current = next;
+      if (finishedRef.current) emitResult(next);
       return next;
     });
   }
@@ -375,6 +388,8 @@ export function NarrativeFluencyStep({
     [tokens, marks, sentenceIndex]
   );
 
+  const canMark = !readOnly && !skipped && (isRunning || isFinished);
+
   const canContinue =
     isFinished &&
     (skipped || obeyedSensePauses === "sim" || obeyedSensePauses === "nao") &&
@@ -403,7 +418,7 @@ export function NarrativeFluencyStep({
         <ul className="mt-2 list-disc space-y-1 pl-5">
           <li>Peça ao estudante para ler o texto em voz alta, com atenção.</li>
           <li>Informe que depois haverá perguntas de compreensão.</li>
-          <li>Depois da gravação, ouça o áudio e clique nas palavras para marcar.</li>
+          <li>Enquanto o estudante lê, clique nas palavras ou na frase para marcar.</li>
         </ul>
       </div>
 
@@ -463,7 +478,8 @@ export function NarrativeFluencyStep({
         listening={isRunning && !isFinished}
         instruction="LEIA EM VOZ ALTA O TEXTO"
         sentenceStatuses={sentenceStatuses}
-        onMarkWord={isFinished && !skipped ? handleWordClick : undefined}
+        onMarkWord={canMark ? handleWordClick : undefined}
+        onMarkSentence={canMark ? handleSentenceClick : undefined}
       />
 
       <div className="overflow-auto rounded-lg border">
