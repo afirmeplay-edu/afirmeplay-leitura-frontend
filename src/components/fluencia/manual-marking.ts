@@ -59,6 +59,18 @@ export function countTextErrors(marks: readonly TextWordMark[]): number {
   return marks.filter((mark) => mark === "errou" || mark === "soletrou").length;
 }
 
+/** Marca como correta cada palavra ainda sem avaliação na frase. */
+export function markUnmarkedInSentenceAsCorrect(
+  marks: readonly TextWordMark[],
+  sentenceIndex: readonly number[],
+  targetSentence: number
+): TextWordMark[] {
+  return marks.map((mark, index) => {
+    if (sentenceIndex[index] !== targetSentence) return mark;
+    return mark === "unmarked" ? "acertou" : mark;
+  });
+}
+
 export function sentenceStatusByIndex(
   marks: readonly TextWordMark[],
   sentenceIndex: readonly number[]

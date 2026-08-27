@@ -152,9 +152,14 @@ export function WordListFluencyStep({
   const [result, setResult] = useState<FluencyListPartResult | null>(null);
   const [motivo, setMotivo] = useState<NotReadReasonValue>("nao_se_aplica");
   const [cursor, setCursor] = useState(0);
+  const [wordMsLeft, setWordMsLeft] = useState(WORD_CURSOR_INTERVAL_MS);
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const cursorTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const wordDeadlineRef = useRef(0);
+  const cursorRef = useRef(0);
+  const timedOutWordsRef = useRef<boolean[]>([]);
+  const currentRowRef = useRef<HTMLTableRowElement | null>(null);
   const startedAtRef = useRef(0);
   const statusesRef = useRef(statuses);
   const sourcesRef = useRef(sources);
@@ -182,6 +187,9 @@ export function WordListFluencyStep({
   useEffect(() => {
     sourcesRef.current = sources;
   }, [sources]);
+  useEffect(() => {
+    cursorRef.current = cursor;
+  }, [cursor]);
 
   function stopRecorder() {
     return new Promise<Blob | null>((resolve) => {
@@ -219,6 +227,8 @@ export function WordListFluencyStep({
     setResult(null);
     setMotivo("nao_se_aplica");
     setCursor(0);
+    setWordMsLeft(WORD_CURSOR_INTERVAL_MS);
+    timedOutWordsRef.current = words.map(() => false);
     finishedRef.current = false;
     lockedTimeRef.current = null;
     audioBlobRef.current = null;
@@ -236,31 +246,69 @@ export function WordListFluencyStep({
     void stopRecorder();
   }
 
-  function startCursorAdvance() {
+  function clearWordTimer() {
     if (cursorTimerRef.current) {
       clearInterval(cursorTimerRef.current);
       cursorTimerRef.current = null;
     }
+  }
+
+  function startWordTimer() {
+    clearWordTimer();
+    const index = cursorRef.current;
+    if (timedOutWordsRef.current[index]) {
+      setWordMsLeft(0);
+      return;
+    }
+    wordDeadlineRef.current = Date.now() + WORD_CURSOR_INTERVAL_MS;
+    setWordMsLeft(WORD_CURSOR_INTERVAL_MS);
     cursorTimerRef.current = setInterval(() => {
-      setCursor((prev) => {
-        if (prev + 1 >= wordsRef.current.length) return prev;
-        return prev + 1;
-      });
-    }, WORD_CURSOR_INTERVAL_MS);
+      const left = Math.max(0, wordDeadlineRef.current - Date.now());
+      setWordMsLeft(left);
+      if (left <= 0) {
+        timedOutWordsRef.current[cursorRef.current] = true;
+        clearWordTimer();
+      }
+    }, 100);
   }
 
   function goToNextWord() {
+    const timedOut =
+      isRunning && (wordMsLeft <= 0 || timedOutWordsRef.current[cursor]);
+    const unevaluated = statusesRef.current[cursor] == null;
+    if (timedOut && unevaluated) {
+      toast.message("Avalie esta palavra para avançar.");
+      return;
+    }
     setCursor((prev) => {
       if (prev + 1 >= wordsRef.current.length) return prev;
       return prev + 1;
     });
-    startCursorAdvance();
+  }
+
+  function goToPrevWord() {
+    setCursor((prev) => Math.max(0, prev - 1));
   }
 
   useEffect(() => {
     resetLocalState();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wordsKey, durationSeconds]);
+
+  useEffect(() => {
+    if (!isRunning) {
+      clearWordTimer();
+      setWordMsLeft(WORD_CURSOR_INTERVAL_MS);
+      return;
+    }
+    startWordTimer();
+    return () => clearWordTimer();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cursor, isRunning]);
+
+  useEffect(() => {
+    currentRowRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [cursor]);
 
   useEffect(() => {
     return () => {
@@ -349,6 +397,7 @@ export function WordListFluencyStep({
     onRunningChangeRef.current?.(false);
     setIsFinished(true);
     setRemainingSeconds(Math.max(0, durationSeconds - timeSeconds));
+    setCursor(0);
 
     const blob = await stopRecorder();
     publishResult(nextStatuses, nextSources, { ...options, blob });
@@ -381,6 +430,7 @@ export function WordListFluencyStep({
     setSources(words.map(() => null));
     statusesRef.current = words.map(() => null);
     sourcesRef.current = words.map(() => null);
+    timedOutWordsRef.current = words.map(() => false);
     startedAtRef.current = Date.now();
     lockedTimeRef.current = null;
     finishedRef.current = false;
@@ -391,7 +441,6 @@ export function WordListFluencyStep({
     setResult(null);
     onResultChangeRef.current(null);
     setCursor(0);
-    startCursorAdvance();
 
     timerRef.current = setInterval(() => {
       const elapsed = Math.floor((Date.now() - startedAtRef.current) / 1000);
@@ -404,10 +453,12 @@ export function WordListFluencyStep({
   }
 
   function toggleWordStatus(index: number, status: WordStatus) {
-    if (!result || result.skipped) return;
+    if (readOnly || result?.skipped) return;
+    if (!isRunning && !isFinished) return;
 
     setStatuses((prev) => {
       const nextStatuses = [...prev];
+      const wasUnmarked = prev[index] == null;
       const clearing = prev[index] === status;
       nextStatuses[index] = clearing ? null : status;
       const nextSources = [...sourcesRef.current];
@@ -417,7 +468,12 @@ export function WordListFluencyStep({
       statusesRef.current = nextStatuses;
 
       queueMicrotask(() => {
-        publishResult(nextStatuses, nextSources);
+        if (finishedRef.current) {
+          publishResult(nextStatuses, nextSources);
+        }
+        if (!clearing && wasUnmarked && index + 1 < wordsRef.current.length) {
+          setCursor(index + 1);
+        }
       });
 
       return nextStatuses;
@@ -453,7 +509,7 @@ export function WordListFluencyStep({
       <div className="space-y-4">
         <h2 className="text-xl font-semibold">{title}</h2>
         <p className="text-sm text-muted-foreground">
-          Nenhuma lista disponível. Cadastre em Configurar Avaliação.
+          Nenhuma lista disponível. Cadastre em Cadastros.
         </p>
       </div>
     );
@@ -462,6 +518,10 @@ export function WordListFluencyStep({
   const canContinue = Boolean(result) && !continuePending;
   const lastWordInput = result?.lastWordPosition ?? statuses.filter((s) => s != null).length;
   const skipped = Boolean(result?.skipped);
+  const canMark = !readOnly && !skipped && (isRunning || isFinished);
+  const showWordNav = canMark;
+  const wordAdvanceLocked =
+    isRunning && wordMsLeft <= 0 && statuses[cursor] == null;
 
   return (
     <div className="space-y-5">
@@ -477,7 +537,7 @@ export function WordListFluencyStep({
         <ul className="mt-2 list-disc space-y-1 pl-5">
           <li>Peça ao estudante para ler as palavras em voz alta, com calma.</li>
           <li>Informe que há 60 segundos para a lista.</li>
-          <li>Depois da gravação, ouça o áudio e marque cada palavra na tabela.</li>
+          <li>Marque cada palavra na tabela. O clique na opção avança para a próxima.</li>
         </ul>
       </div>
 
@@ -546,16 +606,48 @@ export function WordListFluencyStep({
       <ReadingCursorStage
         mode="list"
         items={cursorItems}
-        cursor={isRunning ? cursor : Math.max(0, lastWordInput - 1)}
+        cursor={cursor}
         listening={isRunning}
         showSequence={false}
-        onNextWord={isRunning ? goToNextWord : undefined}
+        onNextWord={showWordNav ? goToNextWord : undefined}
+        onPrevWord={showWordNav ? goToPrevWord : undefined}
+        nextDisabled={wordAdvanceLocked || cursor >= words.length - 1}
+        nextHint={
+          wordAdvanceLocked ? "Avalie esta palavra para avançar." : undefined
+        }
       />
 
+      {canMark ? (
+        <div className="flex flex-wrap justify-center gap-2">
+          {WORD_STATUS_OPTIONS.map((option) => {
+            const selected = statuses[cursor] === option.id;
+            return (
+              <Button
+                key={option.id}
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => toggleWordStatus(cursor, option.id)}
+                className={cn(
+                  selected &&
+                    (option.id === "acertou"
+                      ? "border-emerald-600 bg-emerald-100"
+                      : option.id === "soletrou"
+                        ? "border-violet-500 bg-violet-100"
+                        : "border-red-500 bg-red-100")
+                )}
+              >
+                {option.shortLabel}
+              </Button>
+            );
+          })}
+        </div>
+      ) : null}
+
       <div className="max-h-[50vh] overflow-auto rounded-lg border">
-        <Table>
-          <TableHeader>
-            <TableRow>
+        <Table containerClassName="overflow-visible">
+          <TableHeader className="sticky top-0 z-10 bg-white shadow-[0_1px_0_0_hsl(var(--border))]">
+            <TableRow className="hover:bg-transparent">
               <TableHead className="sticky top-0 z-10 w-12 bg-white">Nº</TableHead>
               <TableHead className="sticky top-0 z-10 w-[28%] bg-white">Palavra</TableHead>
               {WORD_STATUS_OPTIONS.map((option) => (
@@ -571,10 +663,11 @@ export function WordListFluencyStep({
           <TableBody>
             {words.map((word, index) => {
               const current = statuses[index];
-              const isCurrent = isRunning && index === cursor;
+              const isCurrent = index === cursor && (isRunning || isFinished);
               return (
                 <TableRow
                   key={`${word}-${index}`}
+                  ref={isCurrent ? currentRowRef : undefined}
                   className={cn(isCurrent && "bg-bluebrand-base/5")}
                 >
                   <TableCell className="text-muted-foreground">
@@ -587,7 +680,7 @@ export function WordListFluencyStep({
                       <TableCell key={option.id} className="p-1 text-center">
                         <button
                           type="button"
-                          disabled={!result || skipped}
+                          disabled={!canMark}
                           onClick={() => toggleWordStatus(index, option.id)}
                           className={cn(
                             "flex h-8 w-full items-center justify-center rounded border text-xs transition",
@@ -598,14 +691,14 @@ export function WordListFluencyStep({
                                   ? "border-violet-500 bg-violet-100"
                                   : "border-red-500 bg-red-100"
                               : "border-transparent hover:bg-muted",
-                            (!result || skipped) && "cursor-not-allowed opacity-50"
+                            !canMark && "cursor-not-allowed opacity-50"
                           )}
                           aria-label={`${option.label}: ${word}`}
                           aria-pressed={selected}
                         >
                           <Checkbox
                             checked={selected}
-                            disabled={!result || skipped}
+                            disabled={!canMark}
                             tabIndex={-1}
                             className="pointer-events-none"
                             aria-hidden

@@ -1,16 +1,17 @@
 import {
   BarChart3,
   BookOpen,
+  ClipboardList,
   Gauge,
   Home,
   Layers,
-  Settings2,
   type LucideIcon,
 } from "lucide-react";
 
 export interface NavChildLink {
   href: string;
   label: string;
+  roles?: string[];
 }
 
 export interface NavLink {
@@ -18,6 +19,7 @@ export interface NavLink {
   label: string;
   description?: string;
   icon: LucideIcon;
+  roles?: string[];
   children?: NavChildLink[];
 }
 
@@ -68,10 +70,25 @@ export const NAV_CATEGORIES: NavCategory[] = [
         icon: Layers,
       },
       {
-        href: "/app/configuracao-avaliacao",
-        label: "Configurar avaliacao",
-        description: "Listas e textos ICA",
-        icon: Settings2,
+        href: "/app/cadastros",
+        label: "Cadastros",
+        description: "Listas de palavras, textos e perguntas",
+        icon: ClipboardList,
+        children: [
+          {
+            href: "/app/cadastros/palavras-conhecidas",
+            label: "Lista de palavras conhecidas",
+            roles: ["admin"],
+          },
+          {
+            href: "/app/cadastros/palavras-pouco-comuns",
+            label: "Lista de palavras pouco comuns",
+          },
+          {
+            href: "/app/cadastros/textos",
+            label: "Criar textos e perguntas",
+          },
+        ],
       },
     ],
   },
@@ -109,8 +126,8 @@ export const DASHBOARD_FEATURE_CARDS = [
     accent: "emerald",
   },
   {
-    href: "/app/configuracao-avaliacao",
-    label: "Configurar Avaliacao",
+    href: "/app/cadastros",
+    label: "Cadastros",
     description:
       "Cadastre listas de palavras, textos narrativos e perguntas de compreensao personalizadas.",
     accent: "amber",
@@ -139,6 +156,29 @@ export const DASHBOARD_FEATURE_CARDS = [
 
 export function getAllNavLinks(): NavLink[] {
   return NAV_CATEGORIES.flatMap((c) => c.items);
+}
+
+export function canAccessByRoles(role: string | null | undefined, roles?: string[]) {
+  if (!roles?.length) return true;
+  const normalized = (role ?? "").trim().toLowerCase();
+  return roles.some((allowed) => allowed.toLowerCase() === normalized);
+}
+
+export function filterNavCategoriesByRole(
+  categories: NavCategory[],
+  role: string | null | undefined
+): NavCategory[] {
+  return categories
+    .map((category) => ({
+      ...category,
+      items: category.items
+        .map((item) => ({
+          ...item,
+          children: item.children?.filter((child) => canAccessByRoles(role, child.roles)),
+        }))
+        .filter((item) => canAccessByRoles(role, item.roles)),
+    }))
+    .filter((category) => category.items.length > 0);
 }
 
 export function isNavLinkActive(

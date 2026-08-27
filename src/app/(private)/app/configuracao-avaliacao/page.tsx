@@ -1,5 +1,6 @@
-import { ConfiguracaoAvaliacaoPage } from "@/components/afirme-reading/configuracao-avaliacao-page";
+import { redirect } from "next/navigation";
+import { CADASTROS_PATHS } from "@/lib/cadastros/config";
 
-export default function ConfiguracaoAvaliacaoRoutePage() {
-  return <ConfiguracaoAvaliacaoPage />;
+export default function ConfiguracaoAvaliacaoRedirectPage() {
+  redirect(CADASTROS_PATHS.root);
 }

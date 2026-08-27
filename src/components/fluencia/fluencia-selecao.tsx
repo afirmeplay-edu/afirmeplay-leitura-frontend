@@ -187,7 +187,9 @@ export function FluenciaSelecao({ variant = "oficial" }: FluenciaSelecaoProps) {
       }
 
       setSchools(schoolData);
-      const listed = evaluationData.filter((item) => canApplyEvaluation(item, user?.id));
+      const listed = evaluationData.filter((item) =>
+        canApplyEvaluation(item, user?.id, user?.role)
+      );
       const visibleEvaluations = listed.length ? listed : evaluationData;
       setEvaluations(visibleEvaluations);
       if (presetSchoolId && schoolData.some((school) => school.id === presetSchoolId)) {
@@ -221,7 +223,7 @@ export function FluenciaSelecao({ variant = "oficial" }: FluenciaSelecaoProps) {
     } finally {
       setLoadingSchools(false);
     }
-  }, [isPractice, presetEvaluationId, presetSchoolId, user?.id]);
+  }, [isPractice, presetEvaluationId, presetSchoolId, user?.id, user?.role]);
 
   useEffect(() => {
     if (!cityReady || cityKey === "none") return;
@@ -251,7 +253,7 @@ export function FluenciaSelecao({ variant = "oficial" }: FluenciaSelecaoProps) {
           getEvaluationApplicants(evaluationId),
         ]);
         if (cancelled) return;
-        if (!canApplyEvaluation(detail, user?.id)) {
+        if (!canApplyEvaluation(detail, user?.id, user?.role)) {
           toast.error("Você só pode aplicar avaliações que você mesmo criou.");
           setEvaluationDetail(null);
           setApplicants(null);
@@ -910,7 +912,7 @@ export function FluenciaSelecao({ variant = "oficial" }: FluenciaSelecaoProps) {
 
       <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end sm:gap-3">
         <Button variant="outline" asChild className="w-full sm:w-auto">
-          <Link href="/app/configuracao-avaliacao">Configurar listas, textos e perguntas</Link>
+          <Link href="/app/cadastros">Cadastrar listas, textos e perguntas</Link>
         </Button>
         {isPractice ? (
           <Button variant="outline" asChild className="w-full sm:w-auto">

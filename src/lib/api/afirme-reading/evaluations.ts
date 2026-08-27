@@ -16,13 +16,21 @@ export async function createEvaluation(payload: CreateReadingEvaluationPayload) 
 
 /** GET /evaluations */
 export async function listEvaluations(params?: ListReadingEvaluationsParams) {
-  const { data } = await afirmeReadingApi.get<ReadingEvaluation[]>("/evaluations", {
-    params: {
-      status: params?.status,
-      evaluationKind: params?.evaluationKind,
-    },
-  });
-  return data;
+  const { data } = await afirmeReadingApi.get<ReadingEvaluation[] | { data?: ReadingEvaluation[]; items?: ReadingEvaluation[] }>(
+    "/evaluations",
+    {
+      params: {
+        status: params?.status,
+        evaluationKind: params?.evaluationKind,
+      },
+    }
+  );
+  if (Array.isArray(data)) return data;
+  if (data && typeof data === "object") {
+    if (Array.isArray(data.items)) return data.items;
+    if (Array.isArray(data.data)) return data.data;
+  }
+  return [];
 }
 
 /** GET /evaluations/:evaluationId — ficha com texto, listas e scope */
