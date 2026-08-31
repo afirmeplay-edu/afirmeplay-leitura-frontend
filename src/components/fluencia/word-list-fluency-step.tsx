@@ -273,13 +273,6 @@ export function WordListFluencyStep({
   }
 
   function goToNextWord() {
-    const timedOut =
-      isRunning && (wordMsLeft <= 0 || timedOutWordsRef.current[cursor]);
-    const unevaluated = statusesRef.current[cursor] == null;
-    if (timedOut && unevaluated) {
-      toast.message("Avalie esta palavra para avançar.");
-      return;
-    }
     setCursor((prev) => {
       if (prev + 1 >= wordsRef.current.length) return prev;
       return prev + 1;
@@ -520,8 +513,6 @@ export function WordListFluencyStep({
   const skipped = Boolean(result?.skipped);
   const canMark = !readOnly && !skipped && (isRunning || isFinished);
   const showWordNav = canMark;
-  const wordAdvanceLocked =
-    isRunning && wordMsLeft <= 0 && statuses[cursor] == null;
 
   return (
     <div className="space-y-5">
@@ -611,10 +602,7 @@ export function WordListFluencyStep({
         showSequence={false}
         onNextWord={showWordNav ? goToNextWord : undefined}
         onPrevWord={showWordNav ? goToPrevWord : undefined}
-        nextDisabled={wordAdvanceLocked || cursor >= words.length - 1}
-        nextHint={
-          wordAdvanceLocked ? "Avalie esta palavra para avançar." : undefined
-        }
+        nextDisabled={cursor >= words.length - 1}
       />
 
       {canMark ? (
