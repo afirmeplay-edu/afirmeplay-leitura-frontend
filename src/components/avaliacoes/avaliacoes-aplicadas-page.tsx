@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Eye, Layers, RefreshCw, Search, Users } from "lucide-react";
+import { Eye, Layers, Plus, RefreshCw, Search, Users } from "lucide-react";
 import { toast } from "sonner";
 import {
   listEvaluations,
@@ -15,6 +16,8 @@ import {
 } from "@/lib/afirme-reading/evaluation-contract";
 import { AdminCityPicker } from "@/components/auth/admin-city-picker";
 import { PageHeader } from "@/components/layout/page-header";
+import { PageShell } from "@/components/shared/page-shell";
+import { StatCard } from "@/components/shared/stat-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -88,15 +91,59 @@ export function AvaliacoesAplicadasPage() {
     });
   }, [evaluations, search, kindFilter]);
 
+  const kindCounts = useMemo(() => {
+    const counts = { entrada: 0, formativa: 0, saida: 0 };
+    for (const item of evaluations) {
+      const kind = getEvaluationKind(item);
+      if (kind === "entrada" || kind === "formativa" || kind === "saida") counts[kind] += 1;
+    }
+    return counts;
+  }, [evaluations]);
+
   return (
-    <div className="space-y-6 pb-8">
+    <PageShell>
       <PageHeader
+        eyebrow="Avaliação de fluência"
         icon={Layers}
         title="Avaliações aplicadas"
-        description="Consulte as provas de fluência já aplicadas no município e veja o que cada aluno errou em cada fase."
-      />
+        description="Consulte as provas já aplicadas no município e veja o histórico por avaliação."
+      >
+        <Button asChild>
+          <Link href="/app/avaliacao-fluencia">
+            <Plus className="h-4 w-4" />
+            Aplicar nova avaliação
+          </Link>
+        </Button>
+      </PageHeader>
 
       <AdminCityPicker onCityReadyChange={handleCityReadyChange} />
+
+      <section className="grid gap-3 sm:grid-cols-3">
+        <StatCard
+          variant="featured"
+          label="Registros"
+          value={filtered.length}
+          icon={Layers}
+          loading={loading}
+          trend="No filtro atual"
+        />
+        <StatCard
+          variant="metric"
+          label="Entrada / Formativa"
+          value={`${kindCounts.entrada} / ${kindCounts.formativa}`}
+          icon={Users}
+          loading={loading}
+          trend="Tipos de avaliação no município"
+        />
+        <StatCard
+          variant="metric"
+          label="Avaliação de saída"
+          value={kindCounts.saida}
+          icon={Eye}
+          loading={loading}
+          trend="Ciclos de saída cadastrados"
+        />
+      </section>
 
       <div className="flex flex-col gap-4 lg:flex-row">
         <div className="relative flex-1">
@@ -105,13 +152,13 @@ export function AvaliacoesAplicadasPage() {
             placeholder="Buscar avaliações..."
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            className="pl-9"
+            className="rounded-xl pl-9"
             disabled={!cityReady}
           />
         </div>
         <div className="flex flex-wrap gap-2">
           <Select value={kindFilter} onValueChange={setKindFilter}>
-            <SelectTrigger className="w-48">
+            <SelectTrigger className="w-48 rounded-xl">
               <SelectValue placeholder="Tipo" />
             </SelectTrigger>
             <SelectContent>
@@ -135,7 +182,7 @@ export function AvaliacoesAplicadasPage() {
       </div>
 
       <div className="flex items-center justify-between gap-3">
-        <h2 className="text-lg font-semibold">Avaliações</h2>
+        <h2 className="text-lg font-semibold">Histórico</h2>
         <p className="text-sm text-muted-foreground">
           {filtered.length} {filtered.length === 1 ? "avaliação encontrada" : "avaliações encontradas"}
         </p>
@@ -229,6 +276,6 @@ export function AvaliacoesAplicadasPage() {
           })}
         </ul>
       )}
-    </div>
+    </PageShell>
   );
 }

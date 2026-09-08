@@ -52,6 +52,12 @@ const config: Config = {
           base: "#2563EB",
           light: "#60A5FA",
         },
+        "app-canvas": "hsl(var(--app-canvas))",
+        "brand-highlight": "#7030A0",
+        "brand-hero": {
+          from: "hsl(var(--brand-hero-from))",
+          to: "hsl(var(--brand-hero-to))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",

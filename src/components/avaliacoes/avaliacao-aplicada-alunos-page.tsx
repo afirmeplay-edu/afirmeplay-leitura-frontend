@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PageShell } from "@/components/shared/page-shell";
 
 function formatDateTime(value: string | null | undefined) {
   if (!value) return "—";
@@ -112,7 +113,7 @@ export function AvaliacaoAplicadaAlunosPage({ evaluationId }: { evaluationId: st
   }
 
   return (
-    <div className="space-y-6 pb-8">
+    <PageShell>
       <PageHeader
         icon={Users}
         title={evaluation?.title ?? "Alunos aplicados"}
@@ -207,6 +208,6 @@ export function AvaliacaoAplicadaAlunosPage({ evaluationId }: { evaluationId: st
           ))}
         </div>
       )}
-    </div>
+    </PageShell>
   );
 }

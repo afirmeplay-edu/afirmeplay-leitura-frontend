@@ -33,7 +33,7 @@ export function PrivateShell({ children }: { children: ReactNode }) {
   }, [isMobileMenuOpen]);
 
   return (
-    <div className="flex h-[100dvh] min-h-[100dvh] bg-background">
+    <div className="flex h-[100dvh] min-h-[100dvh] bg-app-canvas">
       <header className="fixed inset-x-0 top-0 z-[60] flex h-14 items-center justify-between border-b bg-background/95 px-3 pt-[env(safe-area-inset-top,0px)] shadow-sm backdrop-blur-md md:hidden">
         <Button
           variant="ghost"
@@ -71,7 +71,7 @@ export function PrivateShell({ children }: { children: ReactNode }) {
           !isMobile && (isSidebarCollapsed ? "md:w-16" : "md:w-64 lg:w-72")
         )}
       >
-        <Suspense fallback={<div className="h-[100dvh] w-full" style={{ background: "var(--sidebar-bg, #eff6ff)" }} />}>
+        <Suspense fallback={<div className="h-[100dvh] w-full bg-white" />}>
           <Sidebar
             onNavigate={() => setIsMobileMenuOpen(false)}
             isMobile={isMobile}

@@ -141,7 +141,7 @@ function WordListsIndexContent({ kind }: WordListsIndexPageProps) {
               <div className="space-y-3 md:hidden">
                 {lists.map((list) => (
                   <div key={list.id} className="rounded-lg border p-4">
-                    <p className="font-semibold text-bluebrand-deep">{list.name}</p>
+                    <p className="font-semibold text-foreground">{list.name}</p>
                     <div className="mt-2 flex flex-wrap gap-2 text-xs">
                       <Badge variant="outline">{list.grade?.name ?? "Série"}</Badge>
                       <Badge variant="secondary">{list.items.length} palavras</Badge>
@@ -188,7 +188,7 @@ function WordListsIndexContent({ kind }: WordListsIndexPageProps) {
                     {lists.map((list) => (
                       <TableRow key={list.id}>
                         <TableCell className="font-medium">
-                          <Link href={config.editHref(list.id)} className="text-bluebrand-base hover:underline">
+                          <Link href={config.editHref(list.id)} className="text-brand-highlight hover:underline">
                             {list.name}
                           </Link>
                         </TableCell>

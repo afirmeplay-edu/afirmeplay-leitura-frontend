@@ -16,6 +16,8 @@ import {
 } from "@/lib/api/afirme-reading";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import { AdminCityPicker } from "@/components/auth/admin-city-picker";
+import { PageHeader } from "@/components/layout/page-header";
+import { PageShell } from "@/components/shared/page-shell";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
@@ -166,14 +168,12 @@ export function RevisaoLeituraGuiadaPage() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
-      <section className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-bluebrand-deep">Revisao — Leitura Guiada</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Veja alunos que ja realizaram a avaliacao, o que erraram na compreensao e ouça o audio.
-          </p>
-        </div>
+    <PageShell>
+      <PageHeader
+        icon={Headphones}
+        title="Revisão — Leitura Guiada"
+        description="Veja alunos que já realizaram a avaliação, o que erraram na compreensão e ouça o áudio."
+      >
         <Button
           variant="outline"
           onClick={() => void loadSessions()}
@@ -182,11 +182,11 @@ export function RevisaoLeituraGuiadaPage() {
           <RefreshCw className={cn("h-4 w-4", loadingList && "animate-spin")} />
           Atualizar
         </Button>
-      </section>
+      </PageHeader>
 
       <AdminCityPicker onCityReadyChange={handleCityReadyChange} />
 
-      <section className="grid gap-4 rounded-xl border bg-white p-4 shadow-sm sm:grid-cols-2">
+      <section className="surface-panel grid gap-4 p-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label>Status</Label>
           <Select
@@ -226,39 +226,39 @@ export function RevisaoLeituraGuiadaPage() {
         </div>
       </section>
 
-      <section className="overflow-hidden rounded-xl border bg-white shadow-sm">
+      <section className="surface-panel overflow-hidden">
         {!cityReady ? (
           <p className="p-6 text-sm text-muted-foreground">
-            Selecione o municipio para listar as sessoes.
+            Selecione o município para listar as sessões.
           </p>
         ) : loadingList ? (
           <div className="flex items-center gap-2 p-8 text-muted-foreground">
             <Loader2 className="h-5 w-5 animate-spin" />
-            Carregando sessoes...
+            Carregando sessões...
           </div>
         ) : sessions.length === 0 ? (
           <p className="p-6 text-sm italic text-muted-foreground">
-            Nenhuma sessao encontrada para os filtros atuais.
+            Nenhuma sessão encontrada para os filtros atuais.
           </p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-slate-100 text-left">
+                <tr className="bg-muted/50 text-left">
                   <th className="border-b p-3 font-medium">Aluno</th>
                   <th className="border-b p-3 font-medium">Texto</th>
                   <th className="border-b p-3 text-center font-medium">PLCM</th>
-                  <th className="border-b p-3 text-center font-medium">Precisao</th>
-                  <th className="border-b p-3 text-center font-medium">Prosodia</th>
-                  <th className="border-b p-3 text-center font-medium">Audio</th>
+                  <th className="border-b p-3 text-center font-medium">Precisão</th>
+                  <th className="border-b p-3 text-center font-medium">Prosódia</th>
+                  <th className="border-b p-3 text-center font-medium">Áudio</th>
                   <th className="border-b p-3 font-medium">Data</th>
-                  <th className="border-b p-3 text-center font-medium">Acoes</th>
+                  <th className="border-b p-3 text-center font-medium">Ações</th>
                 </tr>
               </thead>
               <tbody>
                 {sessions.map((session) => (
-                  <tr key={session.id} className="hover:bg-slate-50">
-                    <td className="border-b p-3 font-medium text-bluebrand-deep">
+                  <tr key={session.id} className="hover:bg-muted/40">
+                    <td className="border-b p-3 font-medium text-foreground">
                       {session.studentName || "Aluno"}
                     </td>
                     <td className="border-b p-3">
@@ -273,12 +273,12 @@ export function RevisaoLeituraGuiadaPage() {
                     <td className="border-b p-3 text-center">{session.prosodyLevel}</td>
                     <td className="border-b p-3 text-center">
                       {session.hasAudio ? (
-                        <span className="inline-flex items-center gap-1 text-blue-700">
+                        <span className="inline-flex items-center gap-1 text-brand-highlight">
                           <Headphones className="h-3.5 w-3.5" />
                           Sim
                         </span>
                       ) : (
-                        "Nao"
+                        "Não"
                       )}
                     </td>
                     <td className="border-b p-3 text-xs text-muted-foreground">
@@ -304,9 +304,9 @@ export function RevisaoLeituraGuiadaPage() {
 
       {selectedId ? (
         <div className="fixed inset-0 z-50 flex justify-end bg-black/40">
-          <div className="flex h-full w-full max-w-xl flex-col bg-white shadow-2xl">
+          <div className="flex h-full w-full max-w-xl flex-col bg-card shadow-2xl">
             <div className="flex items-center justify-between border-b p-4">
-              <h2 className="text-lg font-bold text-bluebrand-deep">Detalhe da sessao</h2>
+              <h2 className="text-lg font-bold text-foreground">Detalhe da sessão</h2>
               <Button type="button" variant="ghost" size="icon" onClick={closeDetail}>
                 <X className="h-4 w-4" />
               </Button>
@@ -322,7 +322,7 @@ export function RevisaoLeituraGuiadaPage() {
                 <>
                   <div>
                     <p className="text-sm text-muted-foreground">Aluno</p>
-                    <p className="font-semibold text-bluebrand-deep">
+                    <p className="font-semibold text-foreground">
                       {detail.studentName || "Aluno"}
                     </p>
                     <p className="mt-1 text-sm text-muted-foreground">
@@ -333,13 +333,13 @@ export function RevisaoLeituraGuiadaPage() {
                   <div className="grid grid-cols-2 gap-3">
                     <MetricCard label="PLCM" value={formatMetric(detail.calculatedPlcm)} />
                     <MetricCard
-                      label="Precisao"
+                      label="Precisão"
                       value={formatMetric(detail.calculatedAccuracy, "%")}
                     />
                     <MetricCard label="Erros (oral)" value={String(detail.errorsCount)} />
-                    <MetricCard label="Prosodia" value={String(detail.prosodyLevel)} />
+                    <MetricCard label="Prosódia" value={String(detail.prosodyLevel)} />
                     <MetricCard
-                      label="Compreensao"
+                      label="Compreensão"
                       value={formatMetric(detail.comprehensionScore, "%")}
                     />
                     <MetricCard
@@ -354,7 +354,7 @@ export function RevisaoLeituraGuiadaPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <h3 className="font-semibold text-bluebrand-deep">Audio da leitura</h3>
+                    <h3 className="font-semibold text-foreground">Áudio da leitura</h3>
                     {loadingAudio ? (
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Loader2 className="h-4 w-4 animate-spin" />
@@ -368,10 +368,10 @@ export function RevisaoLeituraGuiadaPage() {
                   </div>
 
                   <div className="space-y-3">
-                    <h3 className="font-semibold text-bluebrand-deep">Compreensao</h3>
+                    <h3 className="font-semibold text-foreground">Compreensão</h3>
                     {!detail.answers?.length ? (
                       <p className="text-sm text-muted-foreground">
-                        Nenhuma resposta de compreensao registrada.
+                        Nenhuma resposta de compreensão registrada.
                       </p>
                     ) : (
                       detail.answers.map((answer, index) => {
@@ -397,7 +397,7 @@ export function RevisaoLeituraGuiadaPage() {
                                 : "border-red-200 bg-red-50/60"
                             )}
                           >
-                            <p className="font-medium text-bluebrand-deep">
+                            <p className="font-medium text-foreground">
                               {index + 1}. {question?.statement || "Pergunta"}
                             </p>
                             <p className="mt-2">
@@ -425,15 +425,15 @@ export function RevisaoLeituraGuiadaPage() {
           </div>
         </div>
       ) : null}
-    </div>
+    </PageShell>
   );
 }
 
 function MetricCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border p-3">
+    <div className="rounded-xl border bg-card p-3">
       <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="mt-1 text-lg font-bold text-bluebrand-deep">{value}</p>
+      <p className="mt-1 text-lg font-bold text-foreground">{value}</p>
     </div>
   );
 }

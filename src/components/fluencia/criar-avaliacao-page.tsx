@@ -31,6 +31,7 @@ import { EDICAO_LABEL, EDICOES_ORDEM } from "@/lib/relatorios-fluencia/types";
 import { cn } from "@/lib/utils";
 import { AdminCityPicker } from "@/components/auth/admin-city-picker";
 import { PageHeader } from "@/components/layout/page-header";
+import { PageShell } from "@/components/shared/page-shell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -478,7 +479,7 @@ export function CriarAvaliacaoPage() {
   }
 
   return (
-    <div className="space-y-6 pb-8">
+    <PageShell>
       <PageHeader
         icon={PlusCircle}
         title={editingId ? "Editar Avaliação" : "Criar Avaliação"}
@@ -844,6 +845,6 @@ export function CriarAvaliacaoPage() {
           )}
         </Button>
       </div>
-    </div>
+    </PageShell>
   );
 }

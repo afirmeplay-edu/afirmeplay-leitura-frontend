@@ -147,7 +147,7 @@ export function TextsIndexPage() {
                   <div className="min-w-0 flex-1">
                     <Link
                       href={`${CADASTROS_PATHS.textos}/${text.id}`}
-                      className="font-semibold text-bluebrand-deep hover:underline"
+                      className="font-semibold text-foreground hover:text-brand-highlight hover:underline"
                     >
                       {text.title}
                     </Link>

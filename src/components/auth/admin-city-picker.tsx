@@ -180,7 +180,7 @@ export function AdminCityPicker({ onCityReadyChange }: AdminCityPickerProps) {
   }
 
   return (
-    <div className="space-y-2 rounded-lg border border-blue-100 bg-blue-50/60 p-4">
+    <div className="surface-panel space-y-2 p-4">
       <Label>Municipio</Label>
       <Select
         value={cityIdInCatalog(selectedCityId, cities) ? selectedCityId ?? undefined : undefined}

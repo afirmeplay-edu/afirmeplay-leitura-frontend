@@ -119,38 +119,27 @@ export const NAV_CATEGORIES: NavCategory[] = [
 export const DASHBOARD_FEATURE_CARDS = [
   {
     href: "/app/avaliacao-fluencia",
-    label: "Avaliacao de Fluencia Leitora",
-    badge: "Leiturometro · ICA",
-    description:
-      "Aplicacao individual com correcao automatica por IA: listas de palavras, pseudopalavras e leitura de texto narrativo.",
+    label: "Aplicar avaliacao",
+    description: "Modo leitura sem distração",
     accent: "emerald",
   },
   {
-    href: "/app/cadastros",
-    label: "Cadastros",
-    description:
-      "Cadastre listas de palavras, textos narrativos e perguntas de compreensao personalizadas.",
-    accent: "amber",
-  },
-  {
     href: "/app/avaliacao-leitura-guiada",
-    label: "Praticar Avaliação de Fluência",
-    description:
-      "Pratique listas de palavras conhecidas, palavras pouco conhecidas e texto narrativo, com marcação manual após o áudio.",
+    label: "Leitura guiada",
+    description: "Roteiro de mediação",
     accent: "blue",
   },
   {
-    href: "/app/revisao-leitura-guiada",
-    label: "Revisao Leitura Guiada",
-    description: "Alunos que ja realizaram a avaliacao, erros de compreensao e audio.",
-    accent: "purple",
+    href: "/app/avaliacoes",
+    label: "Avaliacoes aplicadas",
+    description: "Cards e histórico",
+    accent: "amber",
   },
   {
-    href: "/app/relatorios?aba=ica",
-    label: "Relatorios ICA",
-    description:
-      "Graficos, tabelas e parecer tecnico-pedagogico com base no Indice Crianca Alfabetizada.",
-    accent: "green",
+    href: "/app/relatorios-fluencia",
+    label: "Relatorios",
+    description: "Alfabetômetro e exportações",
+    accent: "purple",
   },
 ] as const;
 

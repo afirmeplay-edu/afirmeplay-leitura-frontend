@@ -39,7 +39,7 @@ export function DistribuicaoBarra({ distribuicao }: { distribuicao: Distribuicao
           const style = getPerfilLeitorStyle(d.code);
           return (
             <div key={d.code} className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: style.hex }} />
+              <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: style.hex }} />
               {d.label}
             </div>
           );

@@ -52,7 +52,7 @@ function CategorySeparator({ name, isCollapsed }: { name: string; isCollapsed: b
   return (
     <div className="px-2 pt-1.5 pb-0.5 md:px-3">
       <h3
-        className="text-[10px] font-medium uppercase tracking-[0.18em]"
+        className="text-left text-[10px] font-medium uppercase tracking-[0.18em]"
         style={{ color: "var(--sidebar-category-text)" }}
       >
         {name}
@@ -87,50 +87,73 @@ function RenderMenuItem({
     if (isActive) setIsOpen(true);
   }, [isActive]);
 
+  const description = item.description?.trim() ?? "";
+  /** Descrições longas ficam ocultas e expandem abaixo no hover (sem reticências). */
+  const isLongDescription = description.length > 28;
+
   const itemClasses = cn(
-    "sidebar-link group relative flex w-full items-center gap-2 transition-all duration-300 ease-out",
+    "sidebar-link group relative flex w-full items-center gap-2 text-left transition-all duration-300 ease-out",
     "hover:translate-x-2 active:translate-x-1 active:scale-[0.98]",
-    isCollapsed ? "justify-center px-0 py-1" : "rounded-full px-2 py-2 md:px-3 md:py-2.5",
-    "hover:!bg-[var(--sidebar-link-hover-bg)]",
-    isActive && !isCollapsed && "!bg-[var(--sidebar-link-active-bg)] font-semibold shadow-sm",
-    isActive && isCollapsed && "bg-[var(--sidebar-link-hover-bg)]",
+    isCollapsed ? "justify-center px-0 py-1" : "rounded-2xl px-2 py-2 md:px-3 md:py-2.5",
+    !isActive && "hover:!bg-[var(--sidebar-link-hover-bg)]",
+    isActive && "font-semibold shadow-sm",
     level > 0 && !isCollapsed && "ml-3 text-xs md:ml-4 md:text-sm",
     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sidebar-focus-ring)]"
   );
+  const itemStyle = isActive ? { background: "var(--sidebar-link-active-bg)" } : undefined;
+
+  const descriptionClass = cn(
+    "text-left text-[11px] leading-snug",
+    isActive ? "text-white/80" : "text-[var(--sidebar-text-muted)]"
+  );
 
   const content = (
-    <div className="flex w-full items-center justify-between">
+    <div className="flex w-full items-center justify-between gap-1">
       <div className="flex min-w-0 flex-1 items-center gap-2 md:gap-3">
         <div
           className={cn(
-            "flex items-center justify-center rounded-full bg-[var(--sidebar-icon-bg)] transition-all duration-300 group-hover:scale-125 group-hover:bg-[var(--sidebar-icon-bg-hover)]",
-            isCollapsed ? "h-10 w-10" : "h-8 w-8 md:h-9 md:w-9"
+            "flex shrink-0 items-center justify-center rounded-full bg-[var(--sidebar-icon-bg)] transition-all duration-300 group-hover:scale-125 group-hover:bg-[var(--sidebar-icon-bg-hover)]",
+            isCollapsed ? "h-10 w-10" : "h-8 w-8 md:h-9 md:w-9",
+            isActive && "bg-white/20 group-hover:bg-white/25"
           )}
         >
           <Icon
             className={cn(
               "shrink-0 transition-all duration-300",
               isCollapsed ? "h-[18px] w-[18px]" : "h-4 w-4 md:h-[18px] md:w-[18px]",
-              isActive ? "text-[var(--sidebar-icon-color-active)]" : "text-[var(--sidebar-icon-color)] group-hover:text-[var(--sidebar-icon-color-active)]"
+              isActive ? "text-white" : "text-[var(--sidebar-icon-color)]"
             )}
           />
         </div>
         {!isCollapsed && (
-          <span
-            className={cn(
-              "line-clamp-2 whitespace-normal break-words text-xs font-medium md:text-sm",
-              isActive ? "text-[var(--sidebar-link-active-text)]" : "text-[var(--sidebar-text)] group-hover:text-[var(--sidebar-link-active-text)]"
-            )}
-          >
-            {item.label}
-          </span>
+          <div className="min-w-0 flex-1 text-left">
+            <span
+              className={cn(
+                "block text-left text-xs font-semibold leading-snug md:text-sm",
+                isActive ? "text-white" : "text-[var(--sidebar-text)]"
+              )}
+            >
+              {item.label}
+            </span>
+            {description ? (
+              isLongDescription ? (
+                <div className="sidebar-desc-hover">
+                  <span>
+                    <span className={cn("block", descriptionClass)}>{description}</span>
+                  </span>
+                </div>
+              ) : (
+                <span className={cn("mt-0.5 block", descriptionClass)}>{description}</span>
+              )
+            ) : null}
+          </div>
         )}
       </div>
       {!isCollapsed && hasChildren && (
         <ChevronDown
           className={cn(
             "h-3.5 w-3.5 shrink-0 transition-transform duration-300",
-            "text-[var(--sidebar-icon-color)] group-hover:text-[var(--sidebar-icon-color-active)]",
+            isActive ? "text-white" : "text-[var(--sidebar-icon-color)]",
             isOpen && "rotate-180"
           )}
         />
@@ -142,16 +165,32 @@ function RenderMenuItem({
     <Tooltip>
       <TooltipTrigger asChild>
         {hasChildren ? (
-          <button type="button" className={itemClasses} onClick={() => setIsOpen((v) => !v)}>
+          <button
+            type="button"
+            className={itemClasses}
+            style={itemStyle}
+            title={isLongDescription ? description : undefined}
+            onClick={() => setIsOpen((v) => !v)}
+          >
             {content}
           </button>
         ) : (
-          <Link href={item.href} onClick={onNavigate} className={itemClasses}>
+          <Link
+            href={item.href}
+            onClick={onNavigate}
+            className={itemClasses}
+            style={itemStyle}
+            title={isLongDescription ? description : undefined}
+          >
             {content}
           </Link>
         )}
       </TooltipTrigger>
-      {isCollapsed && <TooltipContent side="right">{item.label}</TooltipContent>}
+      {isCollapsed ? (
+        <TooltipContent side="right">
+          {description ? `${item.label} — ${description}` : item.label}
+        </TooltipContent>
+      ) : null}
     </Tooltip>
   );
 
@@ -170,10 +209,11 @@ function RenderMenuItem({
                   href={resolveChildHref(child.href, pathname, search)}
                   onClick={onNavigate}
                   className={cn(
-                    "sidebar-link block rounded-full px-3 py-2 text-xs transition-all duration-300 md:text-sm",
-                    "hover:translate-x-1 hover:bg-[var(--sidebar-link-hover-bg)]",
-                    childActive && "bg-[var(--sidebar-link-active-bg)] font-semibold text-[var(--sidebar-link-active-text)]"
+                    "sidebar-link block rounded-xl px-3 py-2 text-xs transition-all duration-300 md:text-sm",
+                    !childActive && "hover:translate-x-1 hover:bg-[var(--sidebar-link-hover-bg)]",
+                    childActive && "font-semibold text-white"
                   )}
+                  style={childActive ? { background: "var(--sidebar-link-active-bg)" } : undefined}
                 >
                   {child.label}
                 </Link>
@@ -226,7 +266,7 @@ export function Sidebar({ onNavigate, isMobile, onCollapsedChange }: SidebarProp
   }
 
   const logoutClasses = cn(
-    "sidebar-link group flex w-full items-center gap-2 rounded-full px-2 py-2 transition-all duration-300 md:px-3 md:py-2.5",
+    "sidebar-link group flex w-full items-center gap-2 rounded-2xl px-2 py-2 transition-all duration-300 md:px-3 md:py-2.5",
     "hover:translate-x-2 hover:!bg-[var(--sidebar-link-hover-bg)]",
     collapsed && "justify-center px-0"
   );
@@ -344,6 +384,14 @@ export function Sidebar({ onNavigate, isMobile, onCollapsedChange }: SidebarProp
             </TooltipTrigger>
             {collapsed && <TooltipContent side="right">Sair</TooltipContent>}
           </Tooltip>
+          <p
+            className={cn(
+              "mt-2 px-2 text-[10px] leading-tight text-muted-foreground md:px-3",
+              collapsed ? "px-0 text-center" : "text-left"
+            )}
+          >
+            {collapsed ? "© 2026" : "© 2026 Afirme Ler"}
+          </p>
         </footer>
       </aside>
     </TooltipProvider>

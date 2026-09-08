@@ -4,8 +4,10 @@ import { useCallback, useMemo, useState } from "react";
 import {
   AlertTriangle,
   BarChart3,
+  BookOpen,
   Download,
   FileSpreadsheet,
+  Gauge,
   Info,
   Loader2,
   Printer,
@@ -30,10 +32,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { RelatorioFiltros } from "@/components/relatorios/fluencia/filtros";
 import { DistribuicaoBarra } from "@/components/relatorios/fluencia/distribuicao-barra";
 import { EstudantesHoverCount } from "@/components/relatorios/fluencia/estudantes-hover";
+import { countPrioridadeIntervencao, escolasNoRecorte, mediaCompreensao } from "@/lib/relatorios-fluencia/derived";
 import { exportarRelatorioExcel } from "@/lib/relatorios-fluencia/exportar";
 import { formatDateTimeIso, formatDecimal, formatDeltaPp, formatPct, percentualFaixa } from "@/lib/relatorios-fluencia/format";
 import { RelatorioFluenciaProvider, useRelatorioFluencia } from "@/lib/relatorios-fluencia/store";
-import { getPerfilLeitorStyle } from "@/lib/colors/reading-levels";
+import { PERFIL_ALFABETOMETRO_LABEL, getPerfilLeitorStyle, type PerfilLeitorCode } from "@/lib/colors/reading-levels";
 import {
   NIVEIS,
   avaliacoesDoFiltro,
@@ -59,8 +62,9 @@ export function RelatorioFluenciaPage() {
     <PageShell className="print:bg-white">
       <div className="print:hidden space-y-4">
         <PageHeader
-          title="Relatório de resultados — Fluência"
-          description="Indicadores de participação, IFL, distribuição por perfil leitor e alertas pedagógicos."
+          eyebrow="Relatórios de leitura"
+          title="Alfabetômetro e relatórios da rede"
+          description="Panorama de fluência leitora da rede para feedback pedagógico."
           icon={BarChart3}
         />
         <AdminCityPicker onCityReadyChange={handleCityReadyChange} />
@@ -159,15 +163,19 @@ function RelatorioFluenciaContent() {
 
   return (
     <div className="space-y-6">
-      <div className="print:hidden flex flex-wrap items-center gap-2">
+      <div className="print:hidden flex flex-wrap items-center justify-end gap-2">
         {reportLoading ? <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /> : null}
+        <Button type="button" onClick={() => window.print()} disabled={!relatorio}>
+          <Printer className="mr-2 h-4 w-4" />
+          Exportar PDF
+        </Button>
+        <Button type="button" variant="outline" onClick={handleExportarAtual} disabled={!relatorio}>
+          <FileSpreadsheet className="mr-2 h-4 w-4" />
+          Exportar Excel
+        </Button>
         <Button type="button" variant="outline" onClick={() => window.print()} disabled={!relatorio}>
           <Printer className="mr-2 h-4 w-4" />
-          Imprimir / PDF
-        </Button>
-        <Button type="button" onClick={handleExportarAtual} disabled={!relatorio}>
-          <FileSpreadsheet className="mr-2 h-4 w-4" />
-          Baixar Excel
+          Imprimir
         </Button>
       </div>
 
@@ -187,7 +195,7 @@ function RelatorioFluenciaContent() {
 
         <RelatorioFiltros />
 
-        <div className="rounded-xl border bg-white p-4">
+        <div className="surface-panel p-4">
           <p className="mb-3 text-sm font-medium">Relatório por</p>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
             <div className="w-full space-y-1.5 sm:max-w-[200px]">
@@ -287,24 +295,43 @@ function RelatorioFluenciaContent() {
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <StatCard label="Previstos" value={ind.previstos} icon={Users} />
-            <StatCard label="Avaliados" value={ind.avaliados} icon={Users} />
-            <StatCard label="Participação" value={formatPct(ind.participacao)} icon={BarChart3} />
-            <StatCard label="IFL" value={formatDecimal(ind.ifl)} icon={BarChart3} />
             <StatCard
+              variant="featured"
+              label="Estudantes avaliados"
+              value={ind.avaliados}
+              icon={Users}
+              trend={`${escolasNoRecorte(relatorio)} ${escolasNoRecorte(relatorio) === 1 ? "escola" : "escolas"} da rede`}
+            />
+            <StatCard
+              variant="metric"
               label="Leitores fluentes"
               value={formatPct(ind.leitoresFluentesPct)}
-              icon={BarChart3}
+              icon={BookOpen}
               accentColor={corFluentes}
+              trend="Perfil LF"
             />
             <StatCard
-              label="Pré-leitores"
-              value={formatPct(ind.preLeitoresPct)}
-              icon={BarChart3}
+              variant="metric"
+              label="Prioridade de intervenção"
+              value={countPrioridadeIntervencao(ind.distribuicao)}
+              icon={AlertTriangle}
               accentColor={corPreLeitores}
+              trend="Perfis PL1 e PL2"
             />
-            <StatCard label="PPM médio" value={formatDecimal(ind.ppmMedio)} icon={BarChart3} />
-            <StatCard label="Precisão média" value={formatPct(ind.precisaoMedia)} icon={BarChart3} />
+            <StatCard
+              variant="metric"
+              label="Compreensão média"
+              value={formatPct(mediaCompreensao(relatorio.estudantes))}
+              icon={Gauge}
+              trend="Perguntas após a leitura"
+            />
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <StatCard variant="metric" label="Previstos" value={ind.previstos} icon={Users} />
+            <StatCard variant="metric" label="Participação" value={formatPct(ind.participacao)} icon={BarChart3} />
+            <StatCard variant="metric" label="IFL" value={formatDecimal(ind.ifl)} icon={BarChart3} />
+            <StatCard variant="metric" label="PPM médio" value={formatDecimal(ind.ppmMedio)} icon={Gauge} />
           </div>
 
           {modoEstudante ? (
@@ -324,7 +351,7 @@ function RelatorioFluenciaContent() {
             </SectionCard>
           ) : null}
 
-          <SectionCard title="Distribuição por perfil leitor">
+          <SectionCard icon={BarChart3} variant="banner" title="Alfabetômetro" description="Distribuição por perfil leitor">
             <div className="space-y-6">
               <DistribuicaoBarra distribuicao={ind.distribuicao ?? []} />
 
@@ -345,13 +372,16 @@ function RelatorioFluenciaContent() {
                       <TableCell>
                         <span className="inline-flex items-center gap-2">
                           <span
-                            className="h-2.5 w-2.5 rounded-sm"
+                            className="h-2.5 w-2.5 rounded-full"
                             style={{ backgroundColor: getPerfilLeitorStyle(d.code).hex }}
                           />
-                          {d.label}
+                          {PERFIL_ALFABETOMETRO_LABEL[d.code as PerfilLeitorCode] ?? d.label}
                         </span>
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell
+                        className="text-right font-semibold"
+                        style={{ color: getPerfilLeitorStyle(d.code).hex }}
+                      >
                         <EstudantesHoverCount
                           bucket={d}
                           ano={filtros.ano}
@@ -474,27 +504,27 @@ function ResumoTabela({
           <table className="w-full min-w-[1100px] caption-bottom text-sm">
             <TableHeader>
               <TableRow>
-                <TableHead className="sticky left-0 top-0 z-30 bg-white shadow-[1px_0_0_0_hsl(var(--border))]">
+                <TableHead className="sticky left-0 top-0 z-30 bg-card shadow-[1px_0_0_0_hsl(var(--border))]">
                   Nome
                 </TableHead>
-                <TableHead className="sticky top-0 z-20 bg-white text-right">Previstos</TableHead>
-                <TableHead className="sticky top-0 z-20 bg-white text-right">Avaliados</TableHead>
-                <TableHead className="sticky top-0 z-20 bg-white text-right">Participação</TableHead>
+                <TableHead className="sticky top-0 z-20 bg-card text-right">Previstos</TableHead>
+                <TableHead className="sticky top-0 z-20 bg-card text-right">Avaliados</TableHead>
+                <TableHead className="sticky top-0 z-20 bg-card text-right">Participação</TableHead>
                 {NIVEIS.map((n) => {
                   const cor = getPerfilLeitorStyle(n.code).hex;
                   return (
                     <TableHead
                       key={n.code}
-                      className="sticky top-0 z-20 bg-white text-right font-semibold"
+                      className="sticky top-0 z-20 bg-card text-right font-semibold"
                       style={{ color: cor }}
                     >
                       % {n.short}
                     </TableHead>
                   );
                 })}
-                <TableHead className="sticky top-0 z-20 bg-white text-right">IFL</TableHead>
-                <TableHead className="sticky top-0 z-20 bg-white text-right">PPM</TableHead>
-                <TableHead className="sticky top-0 z-20 bg-white text-right">Precisão</TableHead>
+                <TableHead className="sticky top-0 z-20 bg-card text-right">IFL</TableHead>
+                <TableHead className="sticky top-0 z-20 bg-card text-right">PPM</TableHead>
+                <TableHead className="sticky top-0 z-20 bg-card text-right">Precisão</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -507,7 +537,7 @@ function ResumoTabela({
               ) : (
                 rows.map((r) => (
                   <TableRow key={r.id} className="group">
-                    <TableCell className="sticky left-0 z-10 bg-white font-medium shadow-[1px_0_0_0_hsl(var(--border))] group-hover:bg-muted/50">
+                    <TableCell className="sticky left-0 z-10 bg-card font-medium shadow-[1px_0_0_0_hsl(var(--border))] group-hover:bg-muted/50">
                       {r.nome}
                     </TableCell>
                     <TableCell className="text-right">{r.previstos}</TableCell>
@@ -533,7 +563,7 @@ function ResumoTabela({
         </div>
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-y-0 right-0 w-10 rounded-r-md bg-gradient-to-l from-white to-transparent"
+          className="pointer-events-none absolute inset-y-0 right-0 w-10 rounded-r-md bg-gradient-to-l from-card to-transparent"
         />
       </div>
     </div>

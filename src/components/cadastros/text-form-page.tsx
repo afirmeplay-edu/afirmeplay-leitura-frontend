@@ -290,7 +290,7 @@ export function TextFormPage({ id }: TextFormPageProps) {
                   <input
                     type="radio"
                     name="create-mode"
-                    className="mt-1 accent-bluebrand-deep"
+                    className="mt-1 accent-brand-highlight"
                     checked={createMode === "with-questions"}
                     onChange={() => {
                       setCreateMode("with-questions");
@@ -309,7 +309,7 @@ export function TextFormPage({ id }: TextFormPageProps) {
                   <input
                     type="radio"
                     name="create-mode"
-                    className="mt-1 accent-bluebrand-deep"
+                    className="mt-1 accent-brand-highlight"
                     checked={createMode === "text-only"}
                     onChange={() => setCreateMode("text-only")}
                     disabled={formBusy}
