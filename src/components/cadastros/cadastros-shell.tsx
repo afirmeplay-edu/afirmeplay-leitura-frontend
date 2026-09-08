@@ -32,7 +32,7 @@ export function CadastrosShell({ title, description, icon, actions, children }: 
       <AdminCityPicker onCityReadyChange={handleCityReadyChange} />
 
       {!cityReady || cityKey === "none" ? (
-        <p className="rounded-lg border border-dashed bg-muted/30 px-4 py-8 text-center text-sm text-muted-foreground">
+        <p className="surface-panel border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
           Selecione o município para carregar o catálogo.
         </p>
       ) : (

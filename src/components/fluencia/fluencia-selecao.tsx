@@ -39,6 +39,7 @@ import { fluencyAplicarHref } from "@/lib/fluencia/aplicar-href";
 import { useAuthStore } from "@/stores/auth-store";
 import { AdminCityPicker } from "@/components/auth/admin-city-picker";
 import { PageHeader } from "@/components/layout/page-header";
+import { PageShell } from "@/components/shared/page-shell";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -585,7 +586,7 @@ export function FluenciaSelecao({ variant = "oficial" }: FluenciaSelecaoProps) {
   }
 
   return (
-    <div className="space-y-6 pb-8">
+    <PageShell>
       <PageHeader
         eyebrow="Compromisso Criança Alfabetizada · ICA"
         title={isPractice ? "Praticar Avaliação de Fluência" : "Avaliação de Fluência Leitora"}
@@ -599,8 +600,8 @@ export function FluenciaSelecao({ variant = "oficial" }: FluenciaSelecaoProps) {
         icon={Gauge}
       />
 
-      <Alert className="border-l-4 border-l-bluebrand-base">
-        <Info className="h-4 w-4 text-bluebrand-base" />
+      <Alert className="border-l-4 border-l-brand-highlight">
+        <Info className="h-4 w-4 text-brand-highlight" />
         <AlertDescription className="space-y-2 text-sm">
           <p className="font-medium">{isPractice ? "Sobre esta prática" : "Sobre esta avaliação"}</p>
           <p>
@@ -943,6 +944,6 @@ export function FluenciaSelecao({ variant = "oficial" }: FluenciaSelecaoProps) {
           </Button>
         ) : null}
       </div>
-    </div>
+    </PageShell>
   );
 }

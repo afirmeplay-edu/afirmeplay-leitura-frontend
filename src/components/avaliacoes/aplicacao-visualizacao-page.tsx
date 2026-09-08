@@ -29,6 +29,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { PageShell } from "@/components/shared/page-shell";
 import { cn } from "@/lib/utils";
 
 const STATUS_LABEL: Record<FluencyWordStatus, string> = {
@@ -240,7 +241,7 @@ export function AplicacaoVisualizacaoPage({
   const errorLines = aplicacao?.texto?.lines?.filter((line) => (line.wrongWordsCount ?? 0) > 0) ?? [];
 
   return (
-    <div className="space-y-6 pb-8">
+    <PageShell>
       <PageHeader
         icon={BookOpen}
         title={aplicacao?.studentName ?? "Visualização da prova"}
@@ -382,7 +383,7 @@ export function AplicacaoVisualizacaoPage({
           </Tabs>
         </>
       )}
-    </div>
+    </PageShell>
   );
 }
 
@@ -445,7 +446,7 @@ function WordListReview({
                 className={cn(
                   "rounded-lg border px-3 py-2 text-sm font-semibold tracking-wide",
                   item.status ? STATUS_CLASS[item.status] : "border-slate-200 bg-white text-slate-800",
-                  cursor === item.index && "ring-2 ring-bluebrand-base"
+                  cursor === item.index && "ring-2 ring-brand-highlight"
                 )}
                 title={statusLabel(item.status)}
               >

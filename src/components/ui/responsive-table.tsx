@@ -23,9 +23,9 @@ export function ResponsiveTable<T extends { id: string }>({ columns, data, class
     <div className={cn("min-w-0", className)}>
       <div className="space-y-3 md:hidden">
         {data.map((item) => (
-          <div key={item.id} className="rounded-lg border p-3 text-sm">
+          <div key={item.id} className="rounded-2xl border p-3 text-sm">
             {primary && (
-              <p className="mb-2 font-semibold text-bluebrand-deep">{primary.render(item)}</p>
+              <p className="mb-2 font-semibold text-foreground">{primary.render(item)}</p>
             )}
             {columns.slice(1).map((col) => (
               <div key={col.key} className="flex justify-between gap-2 py-0.5">

@@ -79,7 +79,7 @@ export function TextQuestionEditor({
       {questions.map((question, questionIndex) => (
         <div key={question.id ?? `new-${questionIndex}`} className="space-y-3 rounded-lg border border-slate-200 p-4">
           <div className="flex items-center justify-between gap-2">
-            <p className="text-sm font-semibold text-bluebrand-deep">Pergunta {questionIndex + 1}</p>
+            <p className="text-sm font-semibold text-foreground">Pergunta {questionIndex + 1}</p>
             <Button
               type="button"
               variant="ghost"

@@ -39,6 +39,8 @@ import {
 } from "@/lib/afirme-reading/evaluation-contract";
 import { useAuthStore } from "@/stores/auth-store";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { PageShell } from "@/components/shared/page-shell";
+import { StatCard } from "@/components/shared/stat-card";
 import { AdminCityPicker } from "@/components/auth/admin-city-picker";
 import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -258,7 +260,7 @@ export function ListarAvaliacaoPage() {
   }
 
   return (
-    <div className="space-y-6 pb-8">
+    <PageShell>
       <PageHeader
         icon={List}
         title="Listar Avaliação"
@@ -269,34 +271,46 @@ export function ListarAvaliacaoPage() {
 
       <section>
         <ul className="m-0 grid list-none grid-cols-1 gap-4 p-0 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard
-            title="Total de Avaliações"
-            value={stats.total}
-            description={`${stats.withKnown} palavras conhecidas • ${stats.withUncommon} pouco comuns`}
-            icon={FileText}
-            loading={loading}
-          />
-          <StatCard
-            title="Este mês"
-            value={stats.thisMonth}
-            description="Avaliações criadas no período"
-            icon={TrendingUp}
-            loading={loading}
-          />
-          <StatCard
-            title="Resultados"
-            value={stats.completed}
-            description={`${stats.pending} pendentes de aplicação`}
-            icon={BarChart3}
-            loading={loading}
-          />
-          <StatCard
-            title="Em andamento"
-            value={evaluations.filter((item) => item.status === "em_andamento").length}
-            description="Avaliações em andamento no momento"
-            icon={Users}
-            loading={loading}
-          />
+          <li>
+            <StatCard
+              variant="metric"
+              label="Total de Avaliações"
+              value={stats.total}
+              icon={FileText}
+              loading={loading}
+              trend={`${stats.withKnown} palavras conhecidas • ${stats.withUncommon} pouco comuns`}
+            />
+          </li>
+          <li>
+            <StatCard
+              variant="metric"
+              label="Este mês"
+              value={stats.thisMonth}
+              icon={TrendingUp}
+              loading={loading}
+              trend="Avaliações criadas no período"
+            />
+          </li>
+          <li>
+            <StatCard
+              variant="metric"
+              label="Resultados"
+              value={stats.completed}
+              icon={BarChart3}
+              loading={loading}
+              trend={`${stats.pending} pendentes de aplicação`}
+            />
+          </li>
+          <li>
+            <StatCard
+              variant="metric"
+              label="Em andamento"
+              value={evaluations.filter((item) => item.status === "em_andamento").length}
+              icon={Users}
+              loading={loading}
+              trend="Avaliações em andamento no momento"
+            />
+          </li>
         </ul>
       </section>
 
@@ -711,37 +725,6 @@ export function ListarAvaliacaoPage() {
         variant="destructive"
         onConfirm={() => void handleDelete()}
       />
-    </div>
-  );
-}
-
-function StatCard({
-  title,
-  value,
-  description,
-  icon: Icon,
-  loading,
-}: {
-  title: string;
-  value: number;
-  description: string;
-  icon: typeof FileText;
-  loading: boolean;
-}) {
-  return (
-    <li>
-      <Card className="h-full border-border/80 transition-shadow hover:shadow-md">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">{title}</CardTitle>
-          <Icon className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent className="space-y-1">
-          <div className="text-2xl font-bold tabular-nums tracking-tight">
-            {loading ? <Skeleton className="h-8 w-16" /> : value}
-          </div>
-          <p className="text-xs text-muted-foreground">{description}</p>
-        </CardContent>
-      </Card>
-    </li>
+    </PageShell>
   );
 }

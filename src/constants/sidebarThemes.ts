@@ -1,4 +1,4 @@
-export type SidebarThemeId = "blue";
+export type SidebarThemeId = "panel";
 
 export interface SidebarThemeVars {
   "--sidebar-bg": string;
@@ -21,27 +21,27 @@ export interface SidebarThemeVars {
   "--sidebar-focus-ring": string;
 }
 
-const blueLight: SidebarThemeVars = {
-  "--sidebar-bg": "linear-gradient(to bottom, #93c5fd, #bfdbfe, #dbeafe, #eff6ff)",
-  "--sidebar-border": "#93c5fd",
-  "--sidebar-icon-bg": "#bfdbfe",
-  "--sidebar-icon-bg-hover": "#93c5fd",
-  "--sidebar-icon-color": "#1e40af",
-  "--sidebar-icon-color-active": "#1d4ed8",
-  "--sidebar-text": "#1e3a8a",
-  "--sidebar-text-muted": "#3b82f6",
-  "--sidebar-link-hover-bg": "rgba(147, 197, 253, 0.7)",
-  "--sidebar-link-active-bg": "#93c5fd",
-  "--sidebar-link-active-text": "#1e3a8a",
-  "--sidebar-category-text": "#1d4ed8",
-  "--sidebar-user-card-bg": "rgba(255, 255, 255, 0.95)",
-  "--sidebar-user-card-border": "#93c5fd",
-  "--sidebar-button-border": "#93c5fd",
-  "--sidebar-button-hover-bg": "#bfdbfe",
-  "--sidebar-button-hover-text": "#1d4ed8",
-  "--sidebar-focus-ring": "rgba(29, 78, 216, 0.4)",
+const panelLight: SidebarThemeVars = {
+  "--sidebar-bg": "#ffffff",
+  "--sidebar-border": "#ece8f2",
+  "--sidebar-icon-bg": "rgba(112, 48, 160, 0.1)",
+  "--sidebar-icon-bg-hover": "rgba(112, 48, 160, 0.16)",
+  "--sidebar-icon-color": "#7030A0",
+  "--sidebar-icon-color-active": "#ffffff",
+  "--sidebar-text": "#1e293b",
+  "--sidebar-text-muted": "#64748b",
+  "--sidebar-link-hover-bg": "rgba(112, 48, 160, 0.06)",
+  "--sidebar-link-active-bg": "linear-gradient(90deg, #7030A0, #E53E7F)",
+  "--sidebar-link-active-text": "#ffffff",
+  "--sidebar-category-text": "#94a3b8",
+  "--sidebar-user-card-bg": "#faf8fc",
+  "--sidebar-user-card-border": "#ece8f2",
+  "--sidebar-button-border": "#ece8f2",
+  "--sidebar-button-hover-bg": "rgba(112, 48, 160, 0.06)",
+  "--sidebar-button-hover-text": "#7030A0",
+  "--sidebar-focus-ring": "rgba(112, 48, 160, 0.35)",
 };
 
 export function getSidebarThemeStyles(): SidebarThemeVars {
-  return blueLight;
+  return panelLight;
 }

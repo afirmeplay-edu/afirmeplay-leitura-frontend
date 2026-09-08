@@ -29,6 +29,10 @@
   --warning-foreground: 48 96% 89%;
   --info: 199 89% 48%;
   --info-foreground: 210 40% 98%;
+  /* Canvas e destaque institucional (roxo → magenta das referências) */
+  --app-canvas: 220 14% 96%;
+  --brand-hero-from: 274 54% 41%;
+  --brand-hero-to: 330 72% 55%;
 }
 
 * {
@@ -45,13 +49,17 @@ body {
 }
 
 @layer components {
+  .surface-panel {
+    @apply rounded-2xl border border-border/80 bg-card shadow-sm;
+  }
+
   .btn-primary {
-    @apply bg-gradient-to-r from-bluebrand-base to-blue-600 text-white hover:opacity-90;
+    @apply bg-gradient-to-r from-brand-hero-from to-brand-hero-to text-white hover:opacity-90;
   }
 
   .custom-scrollbar {
     scrollbar-width: thin;
-    scrollbar-color: rgba(30, 64, 175, 0.25) transparent;
+    scrollbar-color: hsl(var(--brand-hero-from) / 0.35) transparent;
   }
 
   .custom-scrollbar::-webkit-scrollbar {
@@ -60,7 +68,7 @@ body {
 
   .custom-scrollbar::-webkit-scrollbar-thumb {
     border-radius: 9999px;
-    background: rgba(30, 64, 175, 0.25);
+    background: hsl(var(--brand-hero-from) / 0.35);
   }
 
   .custom-scrollbar::-webkit-scrollbar-track {
@@ -85,5 +93,28 @@ body {
 
   .sidebar-link {
     @apply transition-all duration-300 ease-out;
+  }
+
+  .sidebar-desc-hover {
+    display: grid;
+    grid-template-rows: 0fr;
+    opacity: 0;
+    margin-top: 0;
+    transition:
+      grid-template-rows 0.28s ease-out,
+      opacity 0.22s ease-out,
+      margin-top 0.28s ease-out;
+  }
+
+  .sidebar-desc-hover > span {
+    overflow: hidden;
+    min-height: 0;
+  }
+
+  .group:hover .sidebar-desc-hover,
+  .group:focus-within .sidebar-desc-hover {
+    grid-template-rows: 1fr;
+    opacity: 1;
+    margin-top: 0.125rem;
   }
 }

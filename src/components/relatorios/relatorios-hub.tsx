@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ResponsiveTable } from "@/components/ui/responsive-table";
 import { getMockIcaReport, getMockEvaluations } from "@/lib/mock";
 
-const PIE_COLORS = ["#ef4444", "#f59e0b", "#22c55e", "#2563EB"];
+const PIE_COLORS = ["#ef4444", "#f59e0b", "#22c55e", "#7030A0"];
 
 export function RelatoriosHub() {
   const router = useRouter();
@@ -28,24 +28,24 @@ export function RelatoriosHub() {
   return (
     <PageShell>
       <PageHeader
-        title="Relatorios"
-        description="Analise de desempenho em fluencia, ICA e visao geral do sistema."
+        title="Relatórios"
+        description="Análise de desempenho em fluência, ICA e visão geral do sistema."
         icon={BarChart3}
       />
 
       <Tabs value={aba} onValueChange={setAba}>
         <TabsList>
           <TabsTrigger value="ica">ICA</TabsTrigger>
-          <TabsTrigger value="fluencia">Fluencia</TabsTrigger>
+          <TabsTrigger value="fluencia">Fluência</TabsTrigger>
           <TabsTrigger value="geral">Geral</TabsTrigger>
         </TabsList>
 
         <TabsContent value="ica" className="space-y-6">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <StatCard label="Elegiveis" value={ica.summary.eligible} icon={BarChart3} />
-            <StatCard label="Avaliados" value={ica.summary.evaluated} icon={BarChart3} />
-            <StatCard label="Participacao" value={`${ica.summary.participationRate}%`} icon={BarChart3} />
-            <StatCard label="Media ICA" value={ica.summary.average} icon={BarChart3} />
+            <StatCard variant="metric" label="Elegíveis" value={ica.summary.eligible} icon={BarChart3} />
+            <StatCard variant="metric" label="Avaliados" value={ica.summary.evaluated} icon={BarChart3} />
+            <StatCard variant="metric" label="Participação" value={`${ica.summary.participationRate}%`} icon={BarChart3} />
+            <StatCard variant="featured" label="Média ICA" value={ica.summary.average} icon={BarChart3} />
           </div>
 
           <div className="grid min-w-0 gap-4 sm:gap-6 lg:grid-cols-2">
@@ -57,7 +57,7 @@ export function RelatoriosHub() {
                     <XAxis dataKey="level" tick={{ fontSize: 10 }} interval={0} angle={-20} textAnchor="end" height={60} />
                     <YAxis width={32} tick={{ fontSize: 11 }} />
                     <Tooltip />
-                    <Bar dataKey="count" fill="hsl(var(--primary))" />
+                    <Bar dataKey="count" fill="#7030A0" />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -110,14 +110,16 @@ export function RelatoriosHub() {
 
         <TabsContent value="geral">
           <div className="grid gap-4 sm:grid-cols-3">
-            <StatCard label="Total avaliacoes" value={evaluations.length} icon={BarChart3} />
+            <StatCard variant="metric" label="Total avaliações" value={evaluations.length} icon={BarChart3} />
             <StatCard
-              label="Media precisao"
+              variant="metric"
+              label="Média precisão"
               value={`${Math.round(evaluations.reduce((a, e) => a + e.accuracy, 0) / evaluations.length)}%`}
               icon={BarChart3}
             />
             <StatCard
-              label="Media PLCM"
+              variant="metric"
+              label="Média PLCM"
               value={Math.round(evaluations.reduce((a, e) => a + e.plcm, 0) / evaluations.length)}
               icon={BarChart3}
             />

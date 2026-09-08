@@ -95,6 +95,15 @@ export const PERFIL_LEITOR_LABEL: Record<PerfilLeitorCode, string> = {
   LF: "Leitor Fluente",
 };
 
+export const PERFIL_ALFABETOMETRO_LABEL: Record<PerfilLeitorCode, string> = {
+  PL1: "Pré-leitor 1",
+  PL2: "Pré-leitor 2",
+  PL3: "Pré-leitor 3",
+  PL4: "Pré-leitor 4",
+  LI: "Leitor iniciante",
+  LF: "Leitor fluente",
+};
+
 export function perfilFromIcaLevel(level?: number | null): PerfilLeitorCode | null {
   if (level == null || level < 1 || level > 6) return null;
   return ICA_TO_PERFIL_LEITOR[level as IcaLevel] ?? null;

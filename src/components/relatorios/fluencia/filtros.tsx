@@ -66,7 +66,7 @@ export function RelatorioFiltros() {
   const redes = catalog.redes.filter((r) => r.id);
 
   return (
-    <div className="print:hidden space-y-4 rounded-xl border bg-white p-4">
+    <div className="surface-panel print:hidden space-y-4 p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm font-medium text-foreground">Filtros</p>
         <Button type="button" variant="outline" size="sm" onClick={limparFiltros} disabled={catalogLoading}>

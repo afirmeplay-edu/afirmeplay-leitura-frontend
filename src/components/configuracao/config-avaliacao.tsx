@@ -22,8 +22,8 @@ export function ConfigAvaliacao() {
   return (
     <PageShell>
       <PageHeader
-        title="Configurar Avaliacao"
-        description="Gerencie listas de palavras, textos narrativos e perguntas de compreensao."
+        title="Configurar Avaliação"
+        description="Gerencie listas de palavras, textos narrativos e perguntas de compreensão."
         icon={Settings2}
       />
 

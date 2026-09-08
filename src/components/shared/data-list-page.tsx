@@ -103,7 +103,7 @@ export function DataListPage<T extends { id: string }>({
                       {rowHref ? (
                         <Link
                           href={rowHref(item)}
-                          className="text-base font-semibold text-bluebrand-base hover:underline"
+                          className="text-base font-semibold text-brand-highlight hover:underline"
                         >
                           {primaryCol.render(item)}
                         </Link>
@@ -154,7 +154,7 @@ export function DataListPage<T extends { id: string }>({
                           title={cellTitle(content)}
                         >
                           {rowHref && col.key === primaryCol?.key ? (
-                            <Link href={rowHref(item)} className="font-medium text-bluebrand-base hover:underline">
+                            <Link href={rowHref(item)} className="font-medium text-brand-highlight hover:underline">
                               {content}
                             </Link>
                           ) : (
