@@ -7,16 +7,23 @@ interface PageHeaderProps {
   description?: string;
   icon?: LucideIcon;
   eyebrow?: string;
+  brand?: string;
   className?: string;
   children?: ReactNode;
 }
 
-export function PageHeader({ title, description, icon: Icon, eyebrow, className, children }: PageHeaderProps) {
+export function PageHeader({
+  title,
+  description,
+  icon: Icon,
+  eyebrow,
+  brand = "Afirme Ler · Painel institucional",
+  className,
+  children,
+}: PageHeaderProps) {
   return (
     <header className={cn("space-y-2", className)}>
-      <p className="text-[12px] font-bold uppercase tracking-[0.16em] text-brand-highlight">
-        Afirme Ler · Painel institucional
-      </p>
+      <p className="text-[12px] font-bold uppercase tracking-[0.16em] text-brand-highlight">{brand}</p>
       {eyebrow ? (
         <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{eyebrow}</p>
       ) : null}

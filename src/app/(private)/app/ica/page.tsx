@@ -1,5 +1,5 @@
-import { InDevelopment } from "@/components/layout/in-development";
+import { IcaHome } from "@/components/ica/ica-home";
 
 export default function IcaHomePage() {
-  return <InDevelopment title="Sistema ICA — Índice Criança Alfabetizada" />;
+  return <IcaHome />;
 }

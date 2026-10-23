@@ -62,7 +62,7 @@ export function StatCard({
           <div className="flex items-start justify-between gap-2">
             <p className="text-sm text-muted-foreground">{label}</p>
             <div
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-violet-500/10 text-brand-highlight"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-highlight/10 text-brand-highlight"
               style={
                 accentColor
                   ? { backgroundColor: `${accentColor}22`, color: accentColor }

@@ -293,6 +293,40 @@ Verificado com `next start` + `curl`: todas as antigas → 308 para a nova com s
 
 ---
 
+## Etapa 4 — Esqueleto do sistema ICA
+
+### Rotas novas (todas com `page.tsx` fino)
+
+| Rota | Conteúdo nesta etapa |
+|---|---|
+| `/app/ica` | `IcaHome`: cabeçalho ICA, 3 atalhos (Questões, Avaliações, Aplicação e correção "Em breve"), "Primeiros passos" com CTA (CTA de criação só para quem escreve) |
+| `/app/ica/questoes` | `InDevelopment` (Etapa 5) |
+| `/app/ica/questoes/nova` | `InDevelopment` (Etapa 5) |
+| `/app/ica/questoes/[id]` | `InDevelopment` (Etapa 5) |
+| `/app/ica/avaliacoes` | `InDevelopment` |
+| `/app/ica/avaliacoes/nova` | `InDevelopment` (Etapa 5: construtor) |
+
+### Menu ICA
+
+Principal: Início · Conteúdo: **Banco de questões** (Criar questão, Listar questões) e **Avaliações** (Criar avaliação, Listar avaliações) · Acompanhamento: **Aplicação e correção** e **Resultados** — `disabled` + `badge: "Em breve"`, sem rota (href com `#` só como chave), não clicáveis, com tooltip e `aria-disabled`.
+
+"Criar questão" e "Criar avaliação" têm `roles: ICA_WRITE_ROLES` → o `aplicador` não os vê.
+
+### Decisões
+
+- **Identidade ICA nos componentes compartilhados sem tocar neles**: `[data-system="ica"]` redefine `--brand-hero-from/to` (HSL) e `--brand-highlight` (RGB). `brand-highlight` no Tailwind passou de hex fixo para `rgb(var(--brand-highlight) / <alpha-value>)` (aceita `/10`). Fora do shell (login, 404) valem os valores de `:root` = roxo atual.
+- `PageHeader` ganhou `brand?` (padrão "Afirme Ler · Painel institucional"); o ICA usa "Sistema ICA · Índice Criança Alfabetizada". O título "Sistema ICA — Índice Criança Alfabetizada" aparece só no módulo novo (`src/lib/ica/brand.ts`).
+- `StatCard` (variante `metric`): fundo do ícone de `bg-violet-500/10` para `bg-brand-highlight/10` — na Leitura a diferença é imperceptível (roxo #7030A0 a 10% em vez de violeta #8B5CF6 a 10%) e no ICA passa a seguir o teal.
+- `ShortcutTile`: props `disabled` e `badge` (o `badge` já existia na interface e não era renderizado).
+- Na troca de sistema, as cores dos componentes que usam `--brand-hero-*` mudam na hora (triplas HSL não interpolam); as do header/sidebar transicionam em 200 ms.
+
+### Relatório da Etapa 4
+
+- **Verificado**: build (38 páginas) e `tsc` limpos; lint sem novos warnings; no navegador: home ICA em teal com "Em breve" desabilitado; Leitura continua roxa com o menu novo.
+- **Observado**: toast "Internal Server Error" ao abrir telas com `AdminCityPicker` no ambiente local — vem do catálogo de municípios sem backend; não é regressão.
+
+---
+
 ### Inconsistências de legado (registrar, não corrigir)
 
 - "Revisão e áudio" lista `/guided-sessions`; a prática atual grava `/fluency-sessions`.

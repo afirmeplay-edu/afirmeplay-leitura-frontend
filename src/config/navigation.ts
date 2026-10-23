@@ -1,13 +1,17 @@
 import {
   BarChart3,
   BookOpen,
+  ClipboardCheck,
   ClipboardList,
   Gauge,
   Home,
   Layers,
+  Library,
+  ScanLine,
   type LucideIcon,
 } from "lucide-react";
 import { ROUTES, SYSTEM_HOME, type AppSystem } from "@/config/routes";
+import { ICA_WRITE_ROLES } from "@/lib/auth/roles";
 
 export { getSystemFromPathname } from "@/config/routes";
 
@@ -44,6 +48,8 @@ export interface DashboardShortcut {
   description: string;
   accent: ShortcutAccent;
   icon: LucideIcon;
+  disabled?: boolean;
+  badge?: string;
 }
 
 const L = ROUTES.leitura;
@@ -113,10 +119,58 @@ export const NAV_LEITURA: NavCategory[] = [
   },
 ];
 
+const WRITE_ROLES = [...ICA_WRITE_ROLES];
+
 export const NAV_ICA: NavCategory[] = [
   {
     label: "Principal",
     items: [{ href: I.home, label: "Início", description: "Painel do Sistema ICA", icon: Home }],
+  },
+  {
+    label: "Conteúdo",
+    items: [
+      {
+        href: I.questoes.root,
+        label: "Banco de questões",
+        description: "Múltipla escolha",
+        icon: Library,
+        children: [
+          { href: I.questoes.nova, label: "Criar questão", roles: WRITE_ROLES },
+          { href: I.questoes.root, label: "Listar questões", exact: true },
+        ],
+      },
+      {
+        href: I.avaliacoes.root,
+        label: "Avaliações",
+        description: "Montagem da prova",
+        icon: ClipboardCheck,
+        children: [
+          { href: I.avaliacoes.nova, label: "Criar avaliação", roles: WRITE_ROLES },
+          { href: I.avaliacoes.root, label: "Listar avaliações", exact: true },
+        ],
+      },
+    ],
+  },
+  {
+    label: "Acompanhamento",
+    items: [
+      {
+        href: `${I.home}#aplicacao-correcao`,
+        label: "Aplicação e correção",
+        description: "Cartão-resposta",
+        icon: ScanLine,
+        disabled: true,
+        badge: "Em breve",
+      },
+      {
+        href: `${I.home}#resultados`,
+        label: "Resultados",
+        description: "Desempenho por turma",
+        icon: BarChart3,
+        disabled: true,
+        badge: "Em breve",
+      },
+    ],
   },
 ];
 
@@ -160,7 +214,31 @@ export const DASHBOARD_SHORTCUTS: Record<AppSystem, DashboardShortcut[]> = {
       icon: BarChart3,
     },
   ],
-  ica: [],
+  ica: [
+    {
+      href: I.questoes.root,
+      label: "Questões",
+      description: "Banco de múltipla escolha (Afirme Ler e Afirme Play)",
+      accent: "teal",
+      icon: Library,
+    },
+    {
+      href: I.avaliacoes.root,
+      label: "Avaliações",
+      description: "Monte a prova com 20 itens",
+      accent: "blue",
+      icon: ClipboardCheck,
+    },
+    {
+      href: `${I.home}#aplicacao-correcao`,
+      label: "Aplicação e correção",
+      description: "Cartão-resposta e correção automática",
+      accent: "teal",
+      icon: ScanLine,
+      disabled: true,
+      badge: "Em breve",
+    },
+  ],
 };
 
 export function canAccessByRoles(role: string | null | undefined, roles?: string[]) {
