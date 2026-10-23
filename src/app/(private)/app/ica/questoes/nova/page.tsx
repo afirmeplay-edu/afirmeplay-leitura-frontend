@@ -1,5 +1,5 @@
-import { InDevelopment } from "@/components/layout/in-development";
+import { QuestionCreatePage } from "@/components/ica/questions/question-create-page";
 
 export default function IcaNovaQuestaoPage() {
-  return <InDevelopment title="Nova questão" />;
+  return <QuestionCreatePage />;
 }

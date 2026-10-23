@@ -28,6 +28,9 @@ export const afirmeReadingApi = {
   patch<T>(path: string, data?: unknown, config?: AxiosRequestConfig) {
     return api.patch<T>(`${BASE_PATH}${path}`, data, withCityHeaders(config));
   },
+  put<T>(path: string, data?: unknown, config?: AxiosRequestConfig) {
+    return api.put<T>(`${BASE_PATH}${path}`, data, withCityHeaders(config));
+  },
   delete<T>(path: string, config?: AxiosRequestConfig) {
     return api.delete<T>(`${BASE_PATH}${path}`, withCityHeaders(config));
   },

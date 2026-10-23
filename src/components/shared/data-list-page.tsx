@@ -7,6 +7,7 @@ import { PageShell } from "@/components/shared/page-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useMemo, useState, type ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
@@ -27,9 +28,19 @@ interface DataListPageProps<T extends { id: string }> {
   createHref?: string;
   createLabel?: string;
   searchPlaceholder?: string;
-  searchFilter: (item: T, query: string) => boolean;
+  /** Filtro local. Ignorado quando a busca é controlada (`searchValue`/`onSearchChange`), ex.: busca no servidor. */
+  searchFilter?: (item: T, query: string) => boolean;
+  searchValue?: string;
+  onSearchChange?: (value: string) => void;
   rowHref?: (item: T) => string;
   actions?: (item: T) => ReactNode;
+  brand?: string;
+  headerActions?: ReactNode;
+  toolbar?: ReactNode;
+  loading?: boolean;
+  loadingRows?: number;
+  emptyState?: ReactNode;
+  footer?: ReactNode;
 }
 
 function cellTitle(node: ReactNode): string | undefined {
@@ -55,22 +66,37 @@ export function DataListPage<T extends { id: string }>({
   createLabel = "Novo",
   searchPlaceholder = "Buscar...",
   searchFilter,
+  searchValue,
+  onSearchChange,
   rowHref,
   actions,
+  brand,
+  headerActions,
+  toolbar,
+  loading = false,
+  loadingRows = 5,
+  emptyState,
+  footer,
 }: DataListPageProps<T>) {
-  const [query, setQuery] = useState("");
+  const [localQuery, setLocalQuery] = useState("");
+  const controlled = onSearchChange !== undefined;
+  const query = controlled ? (searchValue ?? "") : localQuery;
 
-  const filtered = useMemo(
-    () => items.filter((item) => searchFilter(item, query.toLowerCase())),
-    [items, query, searchFilter]
-  );
+  const filtered = useMemo(() => {
+    if (controlled || !searchFilter) return items;
+    return items.filter((item) => searchFilter(item, localQuery.toLowerCase()));
+  }, [controlled, items, localQuery, searchFilter]);
 
   const primaryCol = columns[0];
   const mobileCols = columns.filter((c) => !c.hideOnMobile);
+  const empty = emptyState ?? (
+    <p className="py-8 text-center text-sm text-muted-foreground">Nenhum registro encontrado.</p>
+  );
 
   return (
     <PageShell>
-      <PageHeader title={title} description={description} icon={icon}>
+      <PageHeader title={title} description={description} icon={icon} brand={brand}>
+        {headerActions}
         {createHref && (
           <Button asChild className="w-full sm:w-auto">
             <Link href={createHref}>
@@ -82,103 +108,107 @@ export function DataListPage<T extends { id: string }>({
       </PageHeader>
 
       <Card>
-        <CardContent className="pt-4 sm:pt-6">
-          <div className="relative mb-4 w-full sm:max-w-sm">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <CardContent className="space-y-4 pt-4 sm:pt-6">
+          <div className="relative w-full sm:max-w-sm">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
             <Input
               className="pl-9"
               placeholder={searchPlaceholder}
+              aria-label={searchPlaceholder}
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => (controlled ? onSearchChange?.(e.target.value) : setLocalQuery(e.target.value))}
             />
           </div>
 
-          {/* Mobile: cards */}
-          <div className="space-y-3 md:hidden">
-            {filtered.map((item) => (
-              <div key={item.id} className="rounded-lg border bg-card p-4 shadow-sm">
-                <div className="space-y-2">
-                  {primaryCol && (
-                    <div>
-                      {rowHref ? (
-                        <Link
-                          href={rowHref(item)}
-                          className="text-base font-semibold text-brand-highlight hover:underline"
-                        >
-                          {primaryCol.render(item)}
-                        </Link>
-                      ) : (
-                        <p className="text-base font-semibold">{primaryCol.render(item)}</p>
-                      )}
-                    </div>
-                  )}
-                  {mobileCols.slice(1).map((col) => (
-                    <div key={col.key} className="flex items-start justify-between gap-3 text-sm">
-                      <span className="shrink-0 text-muted-foreground">{col.header}</span>
-                      <span className="min-w-0 text-right">{col.render(item)}</span>
-                    </div>
-                  ))}
-                </div>
-                {actions && (
-                  <div className="mt-3 flex flex-wrap gap-3 border-t pt-3">{actions(item)}</div>
-                )}
-              </div>
-            ))}
-            {filtered.length === 0 && (
-              <p className="py-8 text-center text-sm text-muted-foreground">Nenhum registro encontrado.</p>
-            )}
-          </div>
+          {toolbar}
 
-          {/* Desktop: table */}
-          <div className="-mx-1 hidden overflow-x-auto md:block">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  {columns.map((col) => (
-                    <TableHead key={col.key} className="whitespace-nowrap">
-                      {col.header}
-                    </TableHead>
-                  ))}
-                  {actions && <TableHead className="text-right">Acoes</TableHead>}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+          {loading ? (
+            <div className="space-y-2" aria-busy="true" aria-label="Carregando">
+              {Array.from({ length: loadingRows }).map((_, index) => (
+                <Skeleton key={index} className="h-14 w-full rounded-xl" />
+              ))}
+            </div>
+          ) : filtered.length === 0 ? (
+            empty
+          ) : (
+            <>
+              {/* Mobile: cards */}
+              <div className="space-y-3 md:hidden">
                 {filtered.map((item) => (
-                  <TableRow key={item.id}>
-                    {columns.map((col) => {
-                      const content = col.render(item);
-                      return (
-                        <TableCell
-                          key={col.key}
-                          className="max-w-[200px] truncate"
-                          title={cellTitle(content)}
-                        >
-                          {rowHref && col.key === primaryCol?.key ? (
-                            <Link href={rowHref(item)} className="font-medium text-brand-highlight hover:underline">
-                              {content}
+                  <div key={item.id} className="rounded-lg border bg-card p-4 shadow-sm">
+                    <div className="space-y-2">
+                      {primaryCol && (
+                        <div>
+                          {rowHref ? (
+                            <Link
+                              href={rowHref(item)}
+                              className="text-base font-semibold text-brand-highlight hover:underline"
+                            >
+                              {primaryCol.render(item)}
                             </Link>
                           ) : (
-                            content
+                            <div className="text-base font-semibold">{primaryCol.render(item)}</div>
                           )}
-                        </TableCell>
-                      );
-                    })}
-                    {actions && <TableCell className="text-right whitespace-nowrap">{actions(item)}</TableCell>}
-                  </TableRow>
+                        </div>
+                      )}
+                      {mobileCols.slice(1).map((col) => (
+                        <div key={col.key} className="flex items-start justify-between gap-3 text-sm">
+                          <span className="shrink-0 text-muted-foreground">{col.header}</span>
+                          <span className="min-w-0 text-right">{col.render(item)}</span>
+                        </div>
+                      ))}
+                    </div>
+                    {actions && (
+                      <div className="mt-3 flex flex-wrap gap-3 border-t pt-3">{actions(item)}</div>
+                    )}
+                  </div>
                 ))}
-                {filtered.length === 0 && (
-                  <TableRow>
-                    <TableCell
-                      colSpan={columns.length + (actions ? 1 : 0)}
-                      className="text-center text-muted-foreground"
-                    >
-                      Nenhum registro encontrado.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
+              </div>
+
+              {/* Desktop: table */}
+              <div className="-mx-1 hidden overflow-x-auto md:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      {columns.map((col) => (
+                        <TableHead key={col.key} className="whitespace-nowrap">
+                          {col.header}
+                        </TableHead>
+                      ))}
+                      {actions && <TableHead className="text-right">Ações</TableHead>}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filtered.map((item) => (
+                      <TableRow key={item.id}>
+                        {columns.map((col) => {
+                          const content = col.render(item);
+                          return (
+                            <TableCell
+                              key={col.key}
+                              className="max-w-[280px] truncate"
+                              title={cellTitle(content)}
+                            >
+                              {rowHref && col.key === primaryCol?.key ? (
+                                <Link href={rowHref(item)} className="font-medium text-brand-highlight hover:underline">
+                                  {content}
+                                </Link>
+                              ) : (
+                                content
+                              )}
+                            </TableCell>
+                          );
+                        })}
+                        {actions && <TableCell className="whitespace-nowrap text-right">{actions(item)}</TableCell>}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
+          )}
+
+          {footer}
         </CardContent>
       </Card>
     </PageShell>

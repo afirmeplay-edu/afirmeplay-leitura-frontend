@@ -4,6 +4,7 @@ import { useEffect, useRef, type KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
 import { BookOpen, ClipboardCheck, type LucideIcon } from "lucide-react";
 import { APP_SYSTEMS, SYSTEM_HOME, SYSTEM_LABEL, type AppSystem } from "@/config/routes";
+import { confirmNavigation } from "@/lib/navigation-guard";
 import { cn } from "@/lib/utils";
 
 const SYSTEM_ICON: Record<AppSystem, LucideIcon> = {
@@ -27,7 +28,7 @@ export function SystemSwitcher({ active, compact = false }: SystemSwitcherProps)
   const activeIndex = APP_SYSTEMS.indexOf(active);
 
   function go(system: AppSystem) {
-    if (system === active) return;
+    if (system === active || !confirmNavigation()) return;
     router.push(SYSTEM_HOME[system]);
   }
 
@@ -38,7 +39,7 @@ export function SystemSwitcher({ active, compact = false }: SystemSwitcherProps)
       if (index < 0) return;
       event.preventDefault();
       const target = APP_SYSTEMS[index];
-      if (target !== active) router.push(SYSTEM_HOME[target]);
+      if (target !== active && confirmNavigation()) router.push(SYSTEM_HOME[target]);
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);

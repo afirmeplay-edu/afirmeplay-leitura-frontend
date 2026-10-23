@@ -615,3 +615,122 @@ export interface StudentApplicationResult {
   compreensao?: StudentApplicationComprehension | null;
   audioUrls?: StudentApplicationAudioUrls | null;
 }
+
+/** Banco de questões do ICA — `/afirme-reading/questions` (CONTRATO_QUESTOES.md). */
+export type BankQuestionOrigin = "afirme_ler" | "afirme_play";
+
+/** Valores usados no Play; o formatter devolve "Médio" quando vazio, então a resposta é `string`. */
+export type BankQuestionDifficulty = "Abaixo do Básico" | "Básico" | "Adequado" | "Avançado";
+
+export interface BankQuestionRef {
+  id: string;
+  name: string;
+}
+
+export interface BankQuestionImage {
+  id: string;
+  type?: string | null;
+  width?: number | null;
+  height?: number | null;
+  minio_bucket?: string | null;
+  minio_object_name?: string | null;
+  /** `/questions/<questionId>/images/<imageId>` — rota do Play, fora de `/afirme-reading`. */
+  imageUrl?: string | null;
+}
+
+export interface BankQuestionOption {
+  id: string;
+  text: string;
+  isCorrect: boolean;
+  image?: BankQuestionImage | null;
+}
+
+export interface BankQuestion {
+  id: string;
+  number: number;
+  title: string;
+  description: string;
+  text: string;
+  formattedText: string;
+  secondStatement: string;
+  type: string;
+  alternatives: BankQuestionOption[];
+  options: BankQuestionOption[];
+  solution: string;
+  correct_answer: string;
+  formattedSolution: string;
+  skills: string[];
+  difficulty: string;
+  value: number;
+  topics: unknown[];
+  version: number;
+  subject: BankQuestionRef | null;
+  grade: BankQuestionRef | null;
+  educationStage: BankQuestionRef | null;
+  createdAt: string | null;
+  createdBy: BankQuestionRef | null;
+  updatedAt: string | null;
+  lastModifiedBy: BankQuestionRef | null;
+  origin: BankQuestionOrigin;
+  scopeType: ScopeType;
+}
+
+export interface BankQuestionPagination {
+  page: number;
+  per_page: number;
+  total: number;
+  pages: number;
+  has_next: boolean;
+  has_prev: boolean;
+  next_num: number | null;
+  prev_num: number | null;
+}
+
+export interface BankQuestionList {
+  data: BankQuestion[];
+  pagination: BankQuestionPagination;
+}
+
+export interface ListBankQuestionsParams {
+  page?: number;
+  /** Máximo 100 (acima disso o backend usa 100). */
+  per_page?: number;
+  type?: "multipleChoice";
+  subject_id?: string;
+  grade_id?: string;
+  difficulty?: string;
+  origin?: BankQuestionOrigin;
+  q?: string;
+}
+
+export interface BankQuestionOptionPayload {
+  /** Letra (A–H). */
+  id?: string;
+  text: string;
+  /** data-URL (nova imagem) ou o objeto devolvido pela API (imagem já salva). */
+  image?: string | BankQuestionImage | null;
+  /** Booleano real: o backend recusa `"true"`. */
+  isCorrect: boolean;
+}
+
+/** `solution`/`correct_answer` não são enviados: o backend calcula a letra. */
+export interface CreateBankQuestionPayload {
+  text: string;
+  formattedText?: string;
+  secondStatement?: string;
+  type: "multipleChoice";
+  subjectId: string;
+  grade: string;
+  educationStageId?: string | null;
+  difficulty?: BankQuestionDifficulty;
+  skills?: string;
+  value?: number;
+  topics?: string[];
+  options: BankQuestionOptionPayload[];
+  formattedSolution?: string;
+}
+
+/** PUT parcial; `null` limpa campos opcionais (o contrato converte `educationStageId: ""` em `null`). */
+export type UpdateBankQuestionPayload = {
+  [K in keyof CreateBankQuestionPayload]?: CreateBankQuestionPayload[K] | null;
+};

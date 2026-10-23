@@ -327,6 +327,91 @@ Principal: Início · Conteúdo: **Banco de questões** (Criar questão, Listar 
 
 ---
 
+## Etapa 5 — Banco de questões e construtor de avaliação
+
+### Entregáveis
+
+| Peça | Arquivo |
+|---|---|
+| Cliente HTTP (`listBankQuestions`, `getBankQuestion`, `createBankQuestion`, `updateBankQuestion`) | `src/lib/api/afirme-reading/questions.ts` |
+| Tipos `BankQuestion*`, `CreateBankQuestionPayload`, `UpdateBankQuestionPayload` (aceita `null` para limpar) | `src/lib/api/afirme-reading/types.ts` |
+| `afirmeReadingApi.put` | `src/lib/api/afirme-reading/client.ts` |
+| Normalizador de erro único (`normalizeApiError`) + chaves `erro`/`mensagem`/`msg` no `getApiErrorMessage` | `src/lib/api/errors.ts` |
+| Catálogos (disciplinas, habilidades, séries, etapas) | `src/lib/api/question-catalog.ts` |
+| HTML seguro (DOMPurify) + URL de imagem + montagem do HTML simples | `src/lib/ica/question-html.ts`, `src/components/ica/question-html.tsx` |
+| Imagem → data-URL com validação (PNG/JPG/GIF/WEBP, ≤ 1 MB) | `src/lib/ica/image-file.ts` |
+| Regras/rótulos (letras A–H, dificuldades, origem, escopo, somente leitura) | `src/lib/ica/questions.ts` |
+| Listagem | `src/components/ica/questions/questions-list-page.tsx` (+ `question-filters`, `question-badges`, `question-preview`, `question-preview-sheet`) |
+| Formulário criar/editar | `question-form.tsx`, `question-options-editor.tsx`, `question-draft.ts`, `question-create-page.tsx`, `question-detail-page.tsx` |
+| Construtor | `src/components/ica/assessments/assessment-builder-page.tsx`, `question-picker-dialog.tsx`, `src/lib/ica/assessment-draft.ts` |
+| Lista de avaliações (vazia + rascunho local) | `src/components/ica/assessments/assessments-list-page.tsx` |
+| Hooks | `use-debounced-value`, `use-question-catalog`, `use-skill-label`, `use-unsaved-changes`, `use-flip-list` |
+| Guarda de navegação (alterações não salvas) | `src/lib/navigation-guard.ts` (consultada pelo seletor de sistema e pelo "Sair") |
+
+### Decisões
+
+- **`dompurify@3.4.17`** (versão exata). Sem `window` (SSR) o DOMPurify não expõe `sanitize`; nesse caso `QuestionHtml` mostra o texto simples. Tags/atributos perigosos (`style`, `iframe`, `form`…) são removidos; `<img>` só fica com `src` resolvível; links abrem em nova aba com `rel="noopener noreferrer"`.
+- **Imagens**: `GET /questions/<id>/images/<imageId>` é **pública** no backend (`question_routes.py`, sem `@jwt_required`). O front reescreve `src="/questions/..."` para `/api/questions/...`, que o rewrite já cobre. **Não** foi preciso blob/object URL nem cache.
+- **Catálogos** (autorizado pelo usuário): `GET /subjects` (`[{id,name}]`), `GET /skills/subject/:id` e `GET /skills/grade/:id` (`[{id,code,description,subject_id,grade_ids}]`), `GET /grades`, `GET /education_stages`. Disciplinas e habilidades ficam em cache de memória (tabelas globais); séries recarregam ao trocar de município.
+- **Listagem**: sempre `type=multipleChoice` (também no banco, não só no construtor — questões de outros tipos do Play não servem ao ICA); `per_page=20`; filtros e página na query string com os mesmos nomes da API (`q`, `subject_id`, `grade_id`, `difficulty`, `origin`, `page`); busca com debounce de 350 ms; recarrega ao trocar de município; skeleton, estado vazio com CTA (limpar filtros / criar questão), estado de erro com "Tentar novamente"; selos de origem ("Afirme Play · somente leitura") e escopo; `Sheet` de pré-visualização com gabarito destacado, habilidade e valor.
+- **`DataListPage`/`FormPage`/`Sheet`/`Select`** não tinham consumidores (DataList/Form/Sheet) ou tinham bug de camada (Select): foram estendidos com props opcionais retrocompatíveis. `Sheet` e `SelectContent` subiram de `z-50` para acima dos diálogos (`z-[1000]+`) — antes um `Select` dentro de `Dialog` (ex.: o picker de município do header) abria **atrás** do diálogo.
+- **Formulário**: enunciado em texto simples + até 3 imagens (o `formattedText` é montado como `<p>` por linha + `<img>`); sem editor rico (nenhuma lib instalada). Se a questão já tinha formatação rica, um aviso explica que ela vira texto simples **só se** o enunciado for alterado — se não for, o PUT não envia `text`/`formattedText` e o HTML original fica intacto.
+- Alternativas: 4 por padrão, 2–8, letra clicável com semântica de rádio (`role="radiogroup"`, setas trocam), texto e/ou imagem, adicionar/remover com animação de 150–200 ms, letras recalculadas pela posição, nenhuma marcada por padrão (evita gabarito acidental).
+- Validação no cliente espelha o contrato (enunciado, disciplina, série, 2–8 alternativas, texto ou imagem em cada, exatamente uma correta, valor > 0); erros inline + toast + foco no primeiro campo.
+- Edição: PUT só com campos alterados; `options` vai inteiro se qualquer alternativa mudar; campos opcionais limpos vão como `null`. `solution` nunca é enviado.
+- Somente leitura previsível: origem `afirme_play` ou papel sem escrita (`aplicador`) → tela de visualização, botão "Editar" desabilitado com tooltip. O escopo fino (quem criou) fica com o backend; o 403 aparece em toast.
+- Aviso de alterações não salvas: `beforeunload`, clique em links internos (captura) e navegação programática via `confirmNavigation()`. `Ctrl/Cmd + Enter` salva.
+- **Construtor**: 16 fechadas (teal) · 3 abertas (âmbar) · 1 produção textual (rosa), com número e rótulo de tipo; contador ao vivo + barra de progresso; seletor em `Dialog` (busca, filtros, pré-visualização inline, "Adicionar", duplicatas bloqueadas, pré-filtra pela série/disciplina da avaliação); trocar/remover; reordenar com setas acessíveis e animação FLIP (Web Animations API, respeita `prefers-reduced-motion`); abertas/produção bloqueadas "Aguardando suporte…"; "Salvar" desabilitado com tooltip; rascunho no `localStorage` por município (`ica_assessment_draft:<cityId>`), com "Descartar rascunho".
+- Estado "pronta" só com os 20 itens; como abertas/produção não existem, a tela mostra "Múltipla escolha completa" quando as 16 estão preenchidas.
+
+### Relatório da Etapa 5
+
+- **Verificado**: `tsc` 0; build OK (38 páginas); lint sem warnings novos; grep limpo. No navegador (sem backend), a listagem mostra o estado de erro com "Tentar novamente".
+- **Não verificado no navegador**: fluxo com dados reais (listar/criar/editar/pré-visualizar e construtor). Uma simulação de API no navegador foi bloqueada pela revisão automática de ferramentas; fica no checklist manual.
+- `npm install` reportou 16 vulnerabilidades em dependências **pré-existentes** (não tratadas aqui).
+
+---
+
+## Verificação final
+
+| Item | Resultado |
+|---|---|
+| `tsc --noEmit` | 0 erros |
+| `next build` (inclui lint) | OK, 38 páginas; 9 warnings, todos legados (eram 12) |
+| Arquivos fora do frontend do Afirme Ler | `git status` limpo em `afirmeplay_backend` e `afirmeplay-frontend` |
+| `reading-levels.ts` | sem diff desde o baseline |
+| `CaedAplicador` | só paths de links e 2 rótulos de texto alterados; motor intocado |
+| Rotas antigas | 308 verificados por `curl` |
+
+### Checklist manual (para o usuário)
+
+1. Login → trocar Leitura/ICA várias vezes (clique, setas no seletor, `Alt+1`/`Alt+2`).
+2. Deep-link em rota antiga (ex.: `/app/cadastros/textos`) → redireciona.
+3. Papéis professor, diretor, coordenador, admin, tecadm, **aplicador** (não vê "Criar questão"/"Criar avaliação"; tela de questão em somente leitura).
+4. Sidebar recolhida (tooltips, submenu em dropdown) e expandida (grupo ativo aberto).
+5. Admin: trocar município no header → listas recarregam; rascunho do construtor é por município.
+6. `prefers-reduced-motion` ativo → sem animações.
+7. Aplicador da Leitura em tela cheia (`/app/leitura/avaliacao-fluencia/aplicar`) sem header/sidebar; gravação e upload de áudio.
+8. Criar, listar, editar e pré-visualizar questão (com imagem no enunciado e em alternativa); editar questão do Play → bloqueado.
+9. Construtor: preencher as 16 fechadas, reordenar, trocar, remover, recarregar a página (rascunho volta).
+
+---
+
+## Pendências de backend (consolidadas — nada foi alterado no backend)
+
+| # | Pendência | Impacto no front |
+|---|---|---|
+| P1 | API de avaliações do ICA | "Salvar" do construtor desabilitado; lista de avaliações vazia |
+| P2 | Tipos de questão aberta e produção textual | Slots 17–20 bloqueados |
+| P3 | Aplicação e correção (cartão-resposta) e Resultados | Itens "Em breve" no menu |
+| P4 | Merge da branch de `/afirme-reading/questions` | Telas do banco recebem 404 até lá |
+| P5 | Rota de imagem `/questions/<id>/images/<id>` é pública e não filtra escopo/município | Observação de segurança |
+| P6 | Confirmar como o PUT trata `difficulty: null`, `skills: null` e imagens já salvas reenviadas como objeto/`src="/questions/..."` | Limpar campos opcionais e editar enunciado com imagem existente |
+| P7 | Rotas próprias do Afirme Ler para disciplinas/habilidades (hoje usa as do Play) | Só troca a implementação de `question-catalog.ts` |
+| P8 | Limite de tamanho de imagem no backend | Front limita a 1 MB por imagem (decisão provisória) |
+
+---
+
 ### Inconsistências de legado (registrar, não corrigir)
 
 - "Revisão e áudio" lista `/guided-sessions`; a prática atual grava `/fluency-sessions`.

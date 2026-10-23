@@ -1,5 +1,10 @@
-import { InDevelopment } from "@/components/layout/in-development";
+import { Suspense } from "react";
+import { QuestionsListPage } from "@/components/ica/questions/questions-list-page";
 
 export default function IcaQuestoesPage() {
-  return <InDevelopment title="Banco de questões" />;
+  return (
+    <Suspense>
+      <QuestionsListPage />
+    </Suspense>
+  );
 }

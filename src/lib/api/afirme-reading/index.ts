@@ -19,6 +19,12 @@ export {
   deleteReadingQuestion,
 } from "@/lib/api/afirme-reading/texts";
 export {
+  listBankQuestions,
+  getBankQuestion,
+  createBankQuestion,
+  updateBankQuestion,
+} from "@/lib/api/afirme-reading/questions";
+export {
   createGuidedSession,
   listGuidedSessions,
   getGuidedSession,
@@ -124,4 +130,16 @@ export type {
   StudentApplicationComprehension,
   StudentApplicationAudioUrls,
   StudentApplicationResult,
+  BankQuestion,
+  BankQuestionDifficulty,
+  BankQuestionImage,
+  BankQuestionList,
+  BankQuestionOption,
+  BankQuestionOptionPayload,
+  BankQuestionOrigin,
+  BankQuestionPagination,
+  BankQuestionRef,
+  CreateBankQuestionPayload,
+  ListBankQuestionsParams,
+  UpdateBankQuestionPayload,
 } from "@/lib/api/afirme-reading/types";

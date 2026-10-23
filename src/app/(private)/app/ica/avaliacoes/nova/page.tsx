@@ -1,5 +1,5 @@
-import { InDevelopment } from "@/components/layout/in-development";
+import { AssessmentBuilderPage } from "@/components/ica/assessments/assessment-builder-page";
 
 export default function IcaNovaAvaliacaoPage() {
-  return <InDevelopment title="Nova avaliação do ICA" />;
+  return <AssessmentBuilderPage />;
 }

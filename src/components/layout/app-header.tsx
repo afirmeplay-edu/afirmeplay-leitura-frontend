@@ -8,6 +8,7 @@ import { LogOut, MapPin, Menu, Settings, UserRound, X } from "lucide-react";
 import { ROUTES, SYSTEM_HOME, type AppSystem } from "@/config/routes";
 import { isAdminRole } from "@/lib/auth/jwt";
 import { getInitials, getRoleLabel } from "@/lib/auth/roles";
+import { confirmNavigation } from "@/lib/navigation-guard";
 import { useAuthStore } from "@/stores/auth-store";
 import { AdminCityPicker } from "@/components/auth/admin-city-picker";
 import { SystemSwitcher } from "@/components/layout/system-switcher";
@@ -49,6 +50,7 @@ export function AppHeader({ system, isMobile, isMenuOpen, onToggleMenu }: AppHea
   const isAdmin = isAdminRole(user?.role);
 
   function handleLogout() {
+    if (!confirmNavigation()) return;
     logout();
     router.replace(ROUTES.login);
   }

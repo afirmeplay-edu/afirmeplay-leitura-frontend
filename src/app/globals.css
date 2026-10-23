@@ -161,6 +161,35 @@ body {
     @apply transition-all duration-300 ease-out;
   }
 
+  .question-html p {
+    @apply my-1.5;
+  }
+
+  .question-html img {
+    @apply my-2 h-auto max-h-80 max-w-full rounded-lg border object-contain;
+  }
+
+  .question-html ul {
+    @apply my-1.5 list-disc pl-5;
+  }
+
+  .question-html ol {
+    @apply my-1.5 list-decimal pl-5;
+  }
+
+  .question-html table {
+    @apply my-2 w-full border-collapse text-sm;
+  }
+
+  .question-html td,
+  .question-html th {
+    @apply border px-2 py-1 align-top;
+  }
+
+  .question-html a {
+    @apply text-brand-highlight underline;
+  }
+
   .sidebar-desc-hover {
     display: grid;
     grid-template-rows: 0fr;
