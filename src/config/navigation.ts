@@ -15,6 +15,8 @@ export interface NavChildLink {
   href: string;
   label: string;
   roles?: string[];
+  /** Ativo só no path exato (necessário quando o filho aponta para o mesmo path do pai). */
+  exact?: boolean;
 }
 
 export interface NavLink {
@@ -47,46 +49,39 @@ export interface DashboardShortcut {
 const L = ROUTES.leitura;
 const I = ROUTES.ica;
 
+/** O hub mock `ROUTES.leitura.relatorios` saiu do menu de propósito (a rota continua existindo). */
 export const NAV_LEITURA: NavCategory[] = [
   {
     label: "Principal",
     items: [
-      { href: L.home, label: "Inicio", description: "Painel principal do sistema", icon: Home },
+      { href: L.home, label: "Início", description: "Painel principal do sistema", icon: Home },
     ],
   },
   {
-    label: "Avaliacoes",
+    label: "Avaliações",
     items: [
       {
         href: L.fluencia.selecao,
-        label: "Avaliação de Fluência",
-        description: "Leiturometro e ICA",
+        label: "Avaliar",
+        description: "Leiturômetro",
         icon: Gauge,
         children: [
-          { href: L.fluencia.criar, label: "Criar Avaliação" },
-          { href: L.fluencia.listar, label: "Listar Avaliação" },
+          { href: L.fluencia.criar, label: "Criar avaliação" },
+          { href: L.fluencia.listar, label: "Avaliações criadas" },
+          { href: L.fluencia.selecao, label: "Aplicar", exact: true },
         ],
       },
       {
         href: L.pratica.root,
-        label: "Praticar Avaliação de Fluência",
+        label: "Praticar",
         description: "Prática das atividades de fluência",
         icon: BookOpen,
         children: [
+          { href: `${L.pratica.root}?aba=palavras`, label: "Palavras conhecidas" },
+          { href: `${L.pratica.root}?aba=pouco-comuns`, label: "Palavras pouco comuns" },
+          { href: `${L.pratica.root}?aba=texto`, label: "Texto" },
           { href: L.revisao, label: "Revisão e áudio" },
-          { href: `${L.pratica.root}?aba=palavras`, label: "Praticar palavras conhecidas" },
-          {
-            href: `${L.pratica.root}?aba=pouco-comuns`,
-            label: "Praticar palavras pouco conhecidas",
-          },
-          { href: `${L.pratica.root}?aba=texto`, label: "Praticar texto" },
         ],
-      },
-      {
-        href: L.avaliacoes.root,
-        label: "Avaliacoes aplicadas",
-        description: "Provas aplicadas e erros por fase",
-        icon: Layers,
       },
       {
         href: L.cadastros.root,
@@ -94,41 +89,24 @@ export const NAV_LEITURA: NavCategory[] = [
         description: "Listas de palavras, textos e perguntas",
         icon: ClipboardList,
         children: [
-          {
-            href: L.cadastros.conhecidas,
-            label: "Lista de palavras conhecidas",
-            roles: ["admin"],
-          },
-          {
-            href: L.cadastros.poucoComuns,
-            label: "Lista de palavras pouco comuns",
-          },
-          {
-            href: L.cadastros.textos,
-            label: "Criar textos e perguntas",
-          },
+          { href: L.cadastros.conhecidas, label: "Palavras conhecidas", roles: ["admin"] },
+          { href: L.cadastros.poucoComuns, label: "Palavras pouco comuns" },
+          { href: L.cadastros.textos, label: "Textos e perguntas" },
         ],
       },
     ],
   },
   {
-    label: "Relatorios",
+    label: "Relatórios",
     items: [
       {
         href: L.relatoriosFluencia,
-        label: "Resultados de fluencia",
-        description: "IFL, perfis leitores e alertas",
-        icon: BarChart3,
-      },
-      {
-        href: L.relatorios,
-        label: "Relatorios",
-        description: "ICA, fluencia e geral",
+        label: "Resultados",
+        description: "IFL, perfis leitores e provas aplicadas",
         icon: BarChart3,
         children: [
-          { href: `${L.relatorios}?aba=ica`, label: "Relatorio ICA" },
-          { href: `${L.relatorios}?aba=fluencia`, label: "Relatorio fluencia" },
-          { href: `${L.relatorios}?aba=geral`, label: "Visao geral" },
+          { href: L.relatoriosFluencia, label: "Resultados de fluência" },
+          { href: L.avaliacoes.root, label: "Avaliações aplicadas" },
         ],
       },
     ],
@@ -155,28 +133,28 @@ export const DASHBOARD_SHORTCUTS: Record<AppSystem, DashboardShortcut[]> = {
   leitura: [
     {
       href: L.fluencia.selecao,
-      label: "Aplicar avaliacao",
+      label: "Aplicar avaliação",
       description: "Modo leitura sem distração",
       accent: "emerald",
       icon: Gauge,
     },
     {
       href: L.pratica.root,
-      label: "Leitura guiada",
-      description: "Roteiro de mediação",
+      label: "Praticar leitura",
+      description: "Palavras e texto, sem registro oficial",
       accent: "blue",
       icon: BookOpen,
     },
     {
       href: L.avaliacoes.root,
-      label: "Avaliacoes aplicadas",
+      label: "Avaliações aplicadas",
       description: "Cards e histórico",
       accent: "amber",
       icon: Layers,
     },
     {
       href: L.relatoriosFluencia,
-      label: "Relatorios",
+      label: "Relatórios",
       description: "Alfabetômetro e exportações",
       accent: "purple",
       icon: BarChart3,

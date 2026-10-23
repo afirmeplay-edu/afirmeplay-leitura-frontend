@@ -92,7 +92,7 @@ export function CaedAplicador({ mode = "oficial" }: CaedAplicadorProps) {
   const router = useRouter();
   const params = useSearchParams();
   const isPractice = mode === "praticar";
-  const layoutTitle = isPractice ? "Praticar Avaliação de Fluência" : "Avaliação de Fluência";
+  const layoutTitle = isPractice ? "Praticar leitura" : "Avaliação de Fluência";
 
   const sessionId = params.get("sessionId") ?? "";
   const evaluationId = params.get("evaluationId") ?? "";
@@ -800,7 +800,7 @@ export function CaedAplicador({ mode = "oficial" }: CaedAplicadorProps) {
                         questionLabel="QUESTÃO 2"
                         title={
                           isPractice
-                            ? "Praticar palavras pouco conhecidas"
+                            ? "Praticar palavras pouco comuns"
                             : "Lista de palavras pouco comuns"
                         }
                         words={q2Items}

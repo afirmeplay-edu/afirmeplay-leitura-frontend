@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { BookOpen, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ROUTES } from "@/config/routes";
+
+const LEVELS_HINT = "Nível de leitura (PL1–LF), escala ICA da fluência";
 import { getPerfilLeitorStyle } from "@/lib/colors/reading-levels";
 import { formatPct } from "@/lib/relatorios-fluencia/format";
 import { NIVEIS, type DistribuicaoNivel } from "@/lib/relatorios-fluencia/types";
@@ -32,28 +35,39 @@ export function DashboardHero({ distribuicao, className }: DashboardHeroProps) {
             </p>
           </div>
 
-          <ul className="flex flex-wrap gap-2">
-            {NIVEIS.map((nivel) => {
-              const style = getPerfilLeitorStyle(nivel.code);
-              const item = distribuicao?.find((d) => d.code === nivel.code);
-              const label =
-                item != null ? `${nivel.short} ${formatPct(item.percentual)}` : nivel.short;
+          <TooltipProvider delayDuration={200}>
+            <ul className="flex flex-wrap gap-2" aria-label={LEVELS_HINT}>
+              {NIVEIS.map((nivel, index) => {
+                const style = getPerfilLeitorStyle(nivel.code);
+                const item = distribuicao?.find((d) => d.code === nivel.code);
+                const label =
+                  item != null ? `${nivel.short} ${formatPct(item.percentual)}` : nivel.short;
 
-              return (
-                <li
-                  key={nivel.code}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-black/20 px-2.5 py-1 text-xs font-medium text-white backdrop-blur-sm"
-                >
-                  <span
-                    className="h-2 w-2 shrink-0 rounded-full"
-                    style={{ backgroundColor: style.hex }}
-                    aria-hidden
-                  />
-                  {label}
-                </li>
-              );
-            })}
-          </ul>
+                const chip = (
+                  <li
+                    key={nivel.code}
+                    tabIndex={index === 0 ? 0 : undefined}
+                    className="inline-flex items-center gap-1.5 rounded-full bg-black/20 px-2.5 py-1 text-xs font-medium text-white backdrop-blur-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+                  >
+                    <span
+                      className="h-2 w-2 shrink-0 rounded-full"
+                      style={{ backgroundColor: style.hex }}
+                      aria-hidden
+                    />
+                    {label}
+                  </li>
+                );
+
+                if (index !== 0) return chip;
+                return (
+                  <Tooltip key={nivel.code}>
+                    <TooltipTrigger asChild>{chip}</TooltipTrigger>
+                    <TooltipContent>{LEVELS_HINT}</TooltipContent>
+                  </Tooltip>
+                );
+              })}
+            </ul>
+          </TooltipProvider>
         </div>
 
         <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:flex-row sm:items-center lg:flex-col lg:items-stretch">

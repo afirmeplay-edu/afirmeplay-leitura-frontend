@@ -259,6 +259,40 @@ Verificado com `next start` + `curl`: todas as antigas → 308 para a nova com s
 
 ---
 
+## Etapa 3 — Nomenclatura (só rótulos)
+
+### Termos renomeados
+
+| Onde | Antes | Depois |
+|---|---|---|
+| Menu · categoria | Avaliacoes / Relatorios | Avaliações / Relatórios |
+| Menu · Início | Inicio | Início |
+| Menu · grupo | Avaliação de Fluência — "Leiturometro e ICA" | **Avaliar** — "Leiturômetro" |
+| Menu · filhos de Avaliar | Criar Avaliação · Listar Avaliação | Criar avaliação · Avaliações criadas · **Aplicar** (novo filho → seleção oficial, `exact`) |
+| Menu · grupo | Praticar Avaliação de Fluência | **Praticar** |
+| Menu · filhos de Praticar | Revisão e áudio · Praticar palavras conhecidas · Praticar palavras pouco conhecidas · Praticar texto | Palavras conhecidas · Palavras pouco comuns · Texto · Revisão e áudio |
+| Menu · filhos de Cadastros | Lista de palavras conhecidas · Lista de palavras pouco comuns · Criar textos e perguntas | Palavras conhecidas (só admin) · Palavras pouco comuns · Textos e perguntas |
+| Menu · Resultados | "Resultados de fluencia" (item) + "Avaliacoes aplicadas" (item) + "Relatorios" (hub mock) | Grupo **Resultados**: Resultados de fluência · Avaliações aplicadas. Hub mock fora do menu |
+| Dashboard · atalhos | Aplicar avaliacao · Leitura guiada / Roteiro de mediação · Avaliacoes aplicadas · Relatorios | Aplicar avaliação · **Praticar leitura** / "Palavras e texto, sem registro oficial" · Avaliações aplicadas · Relatórios |
+| Título da prática (`fluencia-selecao`, `caed-aplicador`) | Praticar Avaliação de Fluência | Praticar leitura |
+| Textos da prática (`practice-tabs`, `caed-aplicador`, `fluencia-selecao`) | palavras pouco conhecidas | palavras pouco comuns |
+
+### Decisões
+
+- Estrutura do menu mantida em accordion (grupos com filhos), dentro das categorias que já existiam.
+- `NavChildLink.exact`: "Aplicar" aponta para o mesmo path do pai (`/app/leitura/avaliacao-fluencia`); sem `exact` ficaria ativo também em Criar/Listar.
+- Botão "Ver relatórios" do hero **já** apontava para o relatório real (`relatorios-fluencia`) antes da refatoração — divergência com o prompt, nada a mudar além do path novo.
+- Hub mock `/app/leitura/relatorios` saiu do menu; a rota continua e o botão "Ver relatórios" do Leiturômetro ainda leva a ele (legado).
+- Tooltip "Nível de leitura (PL1–LF), escala ICA da fluência" no primeiro chip do hero (focável por teclado); `aria-label` com o mesmo texto na lista. Cores, valores e labels de `reading-levels.ts` intocados (`git diff` vazio desde o baseline).
+- Mantidos de propósito: "Leitura guiada" em `status-badge.tsx` e no toast de `guided-session-flow.tsx` (referem-se ao domínio legado `guided-sessions`, não ao menu); eyebrow "Compromisso Criança Alfabetizada · ICA" na seleção de fluência (é o ICA da fluência, preservado); título "Relatorio de fluencia" dentro do hub mock (fora do menu, fora de escopo).
+
+### Relatório da Etapa 3
+
+- **Verificado**: build e `tsc` limpos; lint sem warnings novos; grep sem os termos antigos em rótulos de menu/dashboard/prática.
+- **Sinalizar ao usuário**: "Revisão e áudio" lista `guided-sessions` (legado), enquanto a prática grava `fluency-sessions` — comportamento **não** alterado.
+
+---
+
 ### Inconsistências de legado (registrar, não corrigir)
 
 - "Revisão e áudio" lista `/guided-sessions`; a prática atual grava `/fluency-sessions`.

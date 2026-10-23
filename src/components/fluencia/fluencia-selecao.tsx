@@ -590,7 +590,7 @@ export function FluenciaSelecao({ variant = "oficial" }: FluenciaSelecaoProps) {
     <PageShell>
       <PageHeader
         eyebrow="Compromisso Criança Alfabetizada · ICA"
-        title={isPractice ? "Praticar Avaliação de Fluência" : "Avaliação de Fluência Leitora"}
+        title={isPractice ? "Praticar leitura" : "Avaliação de Fluência Leitora"}
         description={
           isPractice
             ? hideNarrativeText
@@ -607,7 +607,7 @@ export function FluenciaSelecao({ variant = "oficial" }: FluenciaSelecaoProps) {
           <p className="font-medium">{isPractice ? "Sobre esta prática" : "Sobre esta avaliação"}</p>
           <p>
             {isPractice
-              ? "Pratique lista de palavras conhecidas, palavras pouco conhecidas e texto narrativo. O professor ouve o áudio e marca manualmente."
+              ? "Pratique lista de palavras conhecidas, palavras pouco comuns e texto narrativo. O professor ouve o áudio e marca manualmente."
               : "Avaliação individual. São 3 questões: lista de palavras, lista de palavras pouco comuns e leitura de texto narrativo com perguntas de compreensão. O professor ouve a gravação e classifica cada palavra."}
           </p>
           <p>

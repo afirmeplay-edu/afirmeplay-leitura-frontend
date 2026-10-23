@@ -7,7 +7,7 @@ import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { getSidebarThemeStyles } from "@/constants/sidebarThemes";
-import { isNavLinkActive, type NavCategory, type NavLink } from "@/config/navigation";
+import { isNavLinkActive, type NavCategory, type NavChildLink, type NavLink } from "@/config/navigation";
 import type { AppSystem } from "@/config/routes";
 import {
   DropdownMenu,
@@ -33,14 +33,16 @@ function resolveChildHref(childHref: string, pathname: string, search: string) {
   return next ? `${path}?${next}` : path;
 }
 
-function isChildActive(pathname: string, search: string, href: string) {
-  return isNavLinkActive(pathname, search, href, { exactPath: href.includes("?") });
+function isChildActive(pathname: string, search: string, child: NavChildLink) {
+  return isNavLinkActive(pathname, search, child.href, {
+    exactPath: child.exact || child.href.includes("?"),
+  });
 }
 
 function isItemActive(item: NavLink, pathname: string, search: string) {
   if (item.disabled) return false;
   if (isNavLinkActive(pathname, search, item.href)) return true;
-  return item.children?.some((child) => isChildActive(pathname, search, child.href)) ?? false;
+  return item.children?.some((child) => isChildActive(pathname, search, child)) ?? false;
 }
 
 interface SidebarProps {
@@ -220,7 +222,7 @@ function MenuItem({
             <DropdownMenuLabel>{item.label}</DropdownMenuLabel>
             <DropdownMenuSeparator />
             {item.children?.map((child) => {
-              const childActive = isChildActive(pathname, search, child.href);
+              const childActive = isChildActive(pathname, search, child);
               return (
                 <DropdownMenuItem key={child.href} asChild className="cursor-pointer">
                   <Link
@@ -273,7 +275,7 @@ function MenuItem({
               style={{ borderColor: "var(--sidebar-border)" }}
             >
               {item.children?.map((child) => {
-                const childActive = isChildActive(pathname, search, child.href);
+                const childActive = isChildActive(pathname, search, child);
                 return (
                   <li key={`${item.href}-${child.href}`}>
                     <Link
