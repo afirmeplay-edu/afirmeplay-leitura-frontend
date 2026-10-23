@@ -14,6 +14,7 @@ import {
 import axios from "axios";
 import { toast } from "sonner";
 import { DASHBOARD_FEATURE_CARDS } from "@/config/navigation";
+import { ROUTES } from "@/config/routes";
 import { getRelatorioResultados, getResultadosFiltros } from "@/lib/api/afirme-reading/resultados";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import { getSelectedCityId, getSelectedCitySlug } from "@/lib/city-domain";
@@ -38,10 +39,10 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const SHORTCUT_ICONS: Record<string, LucideIcon> = {
-  "/app/avaliacao-fluencia": Gauge,
-  "/app/avaliacao-leitura-guiada": BookOpen,
-  "/app/avaliacoes": Layers,
-  "/app/relatorios-fluencia": BarChart3,
+  [ROUTES.leitura.fluencia.selecao]: Gauge,
+  [ROUTES.leitura.pratica.root]: BookOpen,
+  [ROUTES.leitura.avaliacoes.root]: Layers,
+  [ROUTES.leitura.relatoriosFluencia]: BarChart3,
 };
 
 function hasCityContext() {

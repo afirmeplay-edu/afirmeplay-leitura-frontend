@@ -36,6 +36,7 @@ import {
   getKnownWordListId,
 } from "@/lib/afirme-reading/evaluation-contract";
 import { fluencyAplicarHref } from "@/lib/fluencia/aplicar-href";
+import { ROUTES } from "@/config/routes";
 import { useAuthStore } from "@/stores/auth-store";
 import { AdminCityPicker } from "@/components/auth/admin-city-picker";
 import { PageHeader } from "@/components/layout/page-header";
@@ -913,19 +914,19 @@ export function FluenciaSelecao({ variant = "oficial" }: FluenciaSelecaoProps) {
 
       <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end sm:gap-3">
         <Button variant="outline" asChild className="w-full sm:w-auto">
-          <Link href="/app/cadastros">Cadastrar listas, textos e perguntas</Link>
+          <Link href={ROUTES.leitura.cadastros.root}>Cadastrar listas, textos e perguntas</Link>
         </Button>
         {isPractice ? (
           <Button variant="outline" asChild className="w-full sm:w-auto">
-            <Link href="/app/revisao-leitura-guiada">Revisão e áudio</Link>
+            <Link href={ROUTES.leitura.revisao}>Revisão e áudio</Link>
           </Button>
         ) : (
           <Button variant="outline" asChild className="w-full sm:w-auto">
-            <Link href="/app/avaliacao-fluencia/listar">Listar avaliações</Link>
+            <Link href={ROUTES.leitura.fluencia.listar}>Listar avaliações</Link>
           </Button>
         )}
         <Button variant="ghost" asChild className="w-full sm:w-auto">
-          <Link href="/app">← Início</Link>
+          <Link href={ROUTES.leitura.home}>← Início</Link>
         </Button>
         {isPractice ? (
           <Button

@@ -1,14 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { ChevronDown, ChevronLeft, LogOut } from "lucide-react";
+import { usePathname, useSearchParams } from "next/navigation";
+import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect, useState, type CSSProperties } from "react";
 import { cn } from "@/lib/utils";
 import { getSidebarThemeStyles } from "@/constants/sidebarThemes";
 import { isNavLinkActive, filterNavCategoriesByRole, NAV_CATEGORIES, type NavCategory, type NavLink } from "@/config/navigation";
 import { useAuthStore } from "@/stores/auth-store";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 function resolveChildHref(childHref: string, pathname: string, search: string) {
@@ -29,22 +28,6 @@ interface SidebarProps {
   onNavigate?: () => void;
   isMobile?: boolean;
   onCollapsedChange?: (collapsed: boolean) => void;
-}
-
-const ROLE_LABELS: Record<string, string> = {
-  admin: "Administrador",
-  professor: "Professor",
-  diretor: "Diretor",
-  coordenador: "Coordenador",
-};
-
-function getInitials(name: string) {
-  return name
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join("");
 }
 
 function CategorySeparator({ name, isCollapsed }: { name: string; isCollapsed: boolean }) {
@@ -230,16 +213,12 @@ export function Sidebar({ onNavigate, isMobile, onCollapsedChange }: SidebarProp
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const search = searchParams.toString();
-  const router = useRouter();
-  const logout = useAuthStore((state) => state.logout);
   const user = useAuthStore((state) => state.user);
   const navCategories = filterNavCategoriesByRole(NAV_CATEGORIES, user?.role);
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   const themeStyles = getSidebarThemeStyles();
   const collapsed = isCollapsed && !isMobile;
-  const displayName = user?.name ?? "Usuario";
-  const roleLabel = ROLE_LABELS[user?.role ?? ""] ?? user?.role ?? "Usuario";
 
   useEffect(() => {
     if (isMobile) return;
@@ -259,86 +238,29 @@ export function Sidebar({ onNavigate, isMobile, onCollapsedChange }: SidebarProp
     });
   }
 
-  function handleLogout() {
-    logout();
-    router.replace("/login");
-    onNavigate?.();
-  }
-
-  const logoutClasses = cn(
-    "sidebar-link group flex w-full items-center gap-2 rounded-2xl px-2 py-2 transition-all duration-300 md:px-3 md:py-2.5",
-    "hover:translate-x-2 hover:!bg-[var(--sidebar-link-hover-bg)]",
-    collapsed && "justify-center px-0"
-  );
-
   return (
     <TooltipProvider delayDuration={0}>
       <aside
         className={cn(
-          "relative z-50 flex h-full min-h-[100dvh] flex-col border-r shadow-xl transition-[width] duration-300",
+          "relative z-50 flex h-full flex-col border-r shadow-xl transition-[width] duration-300 md:shadow-none",
           isMobile && "animate-sidebar-slide-in w-screen",
           !isMobile && (collapsed ? "w-16" : "w-64 md:w-72")
         )}
         style={{ ...themeStyles, background: "var(--sidebar-bg)" } as CSSProperties}
       >
-        <div
-          className={cn("shrink-0 p-3", isMobile && "pt-[calc(0.75rem+env(safe-area-inset-top,0px))]", !collapsed && "sm:p-4")}
-          style={{ borderBottom: "1px solid var(--sidebar-border)" }}
-        >
-          <div className={cn("flex items-center", collapsed ? "justify-center" : "justify-between gap-2")}>
-            {!collapsed ? (
-              <img
-                src="/AFIRME-LER-LOGO.png"
-                alt="Afirme Ler"
-                className="h-14 w-auto max-w-[240px] shrink-0 object-contain"
-              />
-            ) : (
-              <button type="button" onClick={toggleCollapsed} className="rounded-full p-1 hover:bg-[var(--sidebar-link-hover-bg)]">
-                <img
-                  src="/AFIRME-LER-LOGO.png"
-                  alt="Afirme Ler"
-                  className="h-8 w-8 shrink-0 object-contain"
-                />
-              </button>
-            )}
-            {!isMobile && !collapsed && (
-              <button
-                type="button"
-                onClick={toggleCollapsed}
-                aria-label="Recolher menu"
-                className="rounded-full p-1.5 text-[var(--sidebar-icon-color)] hover:bg-[var(--sidebar-link-hover-bg)]"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </button>
-            )}
-          </div>
-
-          {!collapsed && (
-            <Link
-              href="/app/perfil"
-              onClick={onNavigate}
-              className="mt-3 flex items-center gap-3 rounded-xl border p-3 transition hover:shadow-sm"
-              style={{
-                background: "var(--sidebar-user-card-bg)",
-                borderColor: "var(--sidebar-user-card-border)",
-              }}
+        {!isMobile && (
+          <div className={cn("flex shrink-0 px-2 pt-2", collapsed ? "justify-center" : "justify-end md:px-3")}>
+            <button
+              type="button"
+              onClick={toggleCollapsed}
+              aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
+              aria-expanded={!collapsed}
+              className="flex h-10 w-10 items-center justify-center rounded-full text-[var(--sidebar-icon-color)] transition-colors hover:bg-[var(--sidebar-link-hover-bg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sidebar-focus-ring)]"
             >
-              <Avatar className="h-10 w-10">
-                <AvatarFallback className="bg-primary/10 text-sm font-bold text-primary">
-                  {getInitials(displayName)}
-                </AvatarFallback>
-              </Avatar>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold" style={{ color: "var(--sidebar-text)" }}>
-                  {displayName}
-                </p>
-                <p className="truncate text-xs" style={{ color: "var(--sidebar-text-muted)" }}>
-                  {roleLabel}
-                </p>
-              </div>
-            </Link>
-          )}
-        </div>
+              {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+            </button>
+          </div>
+        )}
 
         <nav className="custom-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain py-2">
           {navCategories.map((category: NavCategory) => (
@@ -364,29 +286,9 @@ export function Sidebar({ onNavigate, isMobile, onCollapsedChange }: SidebarProp
           className="shrink-0 border-t p-2 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] md:px-3"
           style={{ borderColor: "var(--sidebar-border)" }}
         >
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button type="button" onClick={handleLogout} className={logoutClasses}>
-                <div
-                  className={cn(
-                    "flex items-center justify-center rounded-full bg-[var(--sidebar-icon-bg)] transition-all group-hover:bg-[var(--sidebar-icon-bg-hover)]",
-                    collapsed ? "h-10 w-10" : "h-8 w-8"
-                  )}
-                >
-                  <LogOut className="h-4 w-4 text-[var(--sidebar-icon-color)]" />
-                </div>
-                {!collapsed && (
-                  <span className="text-xs font-medium md:text-sm" style={{ color: "var(--sidebar-text)" }}>
-                    Sair
-                  </span>
-                )}
-              </button>
-            </TooltipTrigger>
-            {collapsed && <TooltipContent side="right">Sair</TooltipContent>}
-          </Tooltip>
           <p
             className={cn(
-              "mt-2 px-2 text-[10px] leading-tight text-muted-foreground md:px-3",
+              "px-2 text-[10px] leading-tight text-muted-foreground md:px-3",
               collapsed ? "px-0 text-center" : "text-left"
             )}
           >

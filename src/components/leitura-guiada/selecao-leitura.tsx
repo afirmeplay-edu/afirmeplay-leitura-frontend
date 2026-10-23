@@ -10,6 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getMockSchools, getMockClasses, getMockStudents, getMockTexts } from "@/lib/mock";
+import { ROUTES } from "@/config/routes";
 
 export function SelecaoLeitura() {
   const router = useRouter();
@@ -34,7 +35,7 @@ export function SelecaoLeitura() {
         icon={BookOpen}
       >
         <Button variant="outline" asChild className="w-full sm:w-auto">
-          <Link href="/app/avaliacao-leitura-guiada/demo">Modo demonstracao</Link>
+          <Link href={ROUTES.leitura.pratica.demo}>Modo demonstracao</Link>
         </Button>
       </PageHeader>
 
@@ -96,7 +97,7 @@ export function SelecaoLeitura() {
       <Button
         className="w-full sm:w-auto"
         disabled={!canStart}
-        onClick={() => router.push(`/app/avaliacao-leitura-guiada/sessao?aluno=${studentId}&texto=${textId}`)}
+        onClick={() => router.push(`${ROUTES.leitura.pratica.sessao}?aluno=${studentId}&texto=${textId}`)}
       >
         Iniciar Avaliacao de Leitura
       </Button>

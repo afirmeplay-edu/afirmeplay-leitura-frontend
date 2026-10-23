@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { getMockStudentById, getMockTextById } from "@/lib/mock";
+import { ROUTES } from "@/config/routes";
 import { cn } from "@/lib/utils";
 
 const STEPS = ["Leitura", "Avaliacao", "Compreensao", "Resultados"];
@@ -35,7 +36,7 @@ export function WizardSessao() {
     <FullscreenLayout
       title="Leitura Guiada"
       subtitle={student ? `${student.name}` : ""}
-      backHref="/app/avaliacao-leitura-guiada"
+      backHref={ROUTES.leitura.pratica.root}
       onClose={() => setConfirmExit(true)}
     >
       <div className="mx-auto w-full min-w-0 max-w-3xl space-y-4 sm:space-y-6">
@@ -137,7 +138,7 @@ export function WizardSessao() {
         confirmLabel="Sair"
         variant="destructive"
         icon={AlertTriangle}
-        onConfirm={() => router.push("/app/avaliacao-leitura-guiada")}
+        onConfirm={() => router.push(ROUTES.leitura.pratica.root)}
       />
     </FullscreenLayout>
   );

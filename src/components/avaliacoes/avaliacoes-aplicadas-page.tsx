@@ -10,6 +10,7 @@ import {
   type ReadingEvaluation,
 } from "@/lib/api/afirme-reading";
 import { getApiErrorMessage } from "@/lib/api/errors";
+import { ROUTES } from "@/config/routes";
 import {
   getEvaluationKind,
   getEvaluationKindLabel,
@@ -109,7 +110,7 @@ export function AvaliacoesAplicadasPage() {
         description="Consulte as provas já aplicadas no município e veja o histórico por avaliação."
       >
         <Button asChild>
-          <Link href="/app/avaliacao-fluencia">
+          <Link href={ROUTES.leitura.fluencia.selecao}>
             <Plus className="h-4 w-4" />
             Aplicar nova avaliação
           </Link>
@@ -263,7 +264,7 @@ export function AvaliacoesAplicadasPage() {
                     <Button
                       type="button"
                       className="w-full gap-2"
-                      onClick={() => router.push(`/app/avaliacoes/${evaluation.id}`)}
+                      onClick={() => router.push(ROUTES.leitura.avaliacoes.detalhe(evaluation.id))}
                     >
                       <Users className="h-4 w-4" />
                       Ver alunos aplicados

@@ -2,6 +2,7 @@
 
 import { useEffect, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import { ROUTES } from "@/config/routes";
 import { useAuthStore } from "@/stores/auth-store";
 
 interface RoleGuardProps {
@@ -10,7 +11,7 @@ interface RoleGuardProps {
   children: ReactNode;
 }
 
-export function RoleGuard({ allow, fallbackHref = "/app", children }: RoleGuardProps) {
+export function RoleGuard({ allow, fallbackHref = ROUTES.app, children }: RoleGuardProps) {
   const router = useRouter();
   const user = useAuthStore((state) => state.user);
   const initialized = useAuthStore((state) => state.initialized);

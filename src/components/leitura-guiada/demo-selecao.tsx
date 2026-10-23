@@ -9,6 +9,7 @@ import { SectionCard } from "@/components/shared/section-card";
 import { DifficultyBadge } from "@/components/shared/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { getMockStudents, getMockTexts } from "@/lib/mock";
+import { ROUTES } from "@/config/routes";
 
 export function DemoSelecao() {
   const router = useRouter();
@@ -41,7 +42,7 @@ export function DemoSelecao() {
               key={t.id}
               type="button"
               className="rounded-lg border p-4 text-left transition hover:shadow-md"
-              onClick={() => router.push(`/app/avaliacao-leitura-guiada/sessao?aluno=alu-1&texto=${t.id}`)}
+              onClick={() => router.push(`${ROUTES.leitura.pratica.sessao}?aluno=alu-1&texto=${t.id}`)}
             >
               <div className="mb-2 flex flex-wrap items-center gap-2">
                 <h3 className="font-semibold">{t.title}</h3>
@@ -54,7 +55,7 @@ export function DemoSelecao() {
         </div>
       </SectionCard>
 
-      <Link href="/app/avaliacao-leitura-guiada" className="text-sm text-primary hover:underline">
+      <Link href={ROUTES.leitura.pratica.root} className="text-sm text-primary hover:underline">
         Voltar para selecao completa
       </Link>
     </PageShell>

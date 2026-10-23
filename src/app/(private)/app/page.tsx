@@ -1,5 +1,5 @@
-import { DashboardHome } from "@/components/dashboard/dashboard-home";
+import { SystemRedirect } from "@/components/layout/system-redirect";
 
-export default function AppHomePage() {
-  return <DashboardHome />;
+export default function AppPage() {
+  return <SystemRedirect />;
 }

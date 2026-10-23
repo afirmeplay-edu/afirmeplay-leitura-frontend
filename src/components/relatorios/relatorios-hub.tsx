@@ -11,6 +11,7 @@ import { IcaLevelBadge, StatusBadge } from "@/components/shared/status-badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ResponsiveTable } from "@/components/ui/responsive-table";
 import { getMockIcaReport, getMockEvaluations } from "@/lib/mock";
+import { ROUTES } from "@/config/routes";
 
 const PIE_COLORS = ["#ef4444", "#f59e0b", "#22c55e", "#7030A0"];
 
@@ -22,7 +23,7 @@ export function RelatoriosHub() {
   const evaluations = getMockEvaluations();
 
   const setAba = (value: string) => {
-    router.push(`/app/relatorios?aba=${value}`);
+    router.push(`${ROUTES.leitura.relatorios}?aba=${value}`);
   };
 
   return (

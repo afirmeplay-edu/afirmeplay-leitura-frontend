@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { readLastSystem, ROUTES, SYSTEM_HOME } from "@/config/routes";
 import { useAuthStore } from "@/stores/auth-store";
 
 export function HomeRedirect() {
@@ -17,14 +18,14 @@ export function HomeRedirect() {
     async function redirect() {
       const token = useAuthStore.getState().token ?? localStorage.getItem("token");
       if (!token) {
-        router.replace("/login");
+        router.replace(ROUTES.login);
         return;
       }
 
       const ok = await persistUser();
       if (cancelled) return;
 
-      router.replace(ok ? "/app" : "/login");
+      router.replace(ok ? SYSTEM_HOME[readLastSystem()] : ROUTES.login);
     }
 
     void redirect();

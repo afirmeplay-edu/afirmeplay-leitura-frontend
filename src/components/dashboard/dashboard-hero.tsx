@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { BookOpen, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ROUTES } from "@/config/routes";
 import { getPerfilLeitorStyle } from "@/lib/colors/reading-levels";
 import { formatPct } from "@/lib/relatorios-fluencia/format";
 import { NIVEIS, type DistribuicaoNivel } from "@/lib/relatorios-fluencia/types";
@@ -57,7 +58,7 @@ export function DashboardHero({ distribuicao, className }: DashboardHeroProps) {
 
         <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:flex-row sm:items-center lg:flex-col lg:items-stretch">
           <Button asChild className="bg-white text-slate-900 hover:bg-white/95 hover:text-slate-900">
-            <Link href="/app/avaliacao-fluencia/criar">
+            <Link href={ROUTES.leitura.fluencia.criar}>
               <BookOpen className="h-4 w-4" />
               Nova avaliação
             </Link>
@@ -67,7 +68,7 @@ export function DashboardHero({ distribuicao, className }: DashboardHeroProps) {
             variant="outline"
             className="border-white/70 bg-transparent text-white hover:bg-white/10 hover:text-white"
           >
-            <Link href="/app/relatorios-fluencia">
+            <Link href={ROUTES.leitura.relatoriosFluencia}>
               <BarChart3 className="h-4 w-4" />
               Ver relatórios
             </Link>

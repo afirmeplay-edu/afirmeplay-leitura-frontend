@@ -14,6 +14,7 @@ import {
   type ReadingEvaluation,
 } from "@/lib/api/afirme-reading";
 import { getApiErrorMessage, getApiErrorStatus } from "@/lib/api/errors";
+import { ROUTES } from "@/config/routes";
 import { getEvaluationKindLabel } from "@/lib/afirme-reading/evaluation-contract";
 import { AdminCityPicker } from "@/components/auth/admin-city-picker";
 import { PageHeader } from "@/components/layout/page-header";
@@ -109,7 +110,7 @@ export function AvaliacaoAplicadaAlunosPage({ evaluationId }: { evaluationId: st
   );
 
   function openStudent(student: EvaluationApplicantStudent) {
-    router.push(`/app/avaliacoes/${evaluationId}/aluno/${student.id}`);
+    router.push(ROUTES.leitura.avaliacoes.aluno(evaluationId, student.id));
   }
 
   return (
@@ -124,7 +125,7 @@ export function AvaliacaoAplicadaAlunosPage({ evaluationId }: { evaluationId: st
         }
       >
         <Button variant="outline" asChild>
-          <Link href="/app/avaliacoes">
+          <Link href={ROUTES.leitura.avaliacoes.root}>
             <ArrowLeft className="h-4 w-4" />
             Voltar
           </Link>

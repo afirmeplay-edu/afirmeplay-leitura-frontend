@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { ROUTES } from "@/config/routes";
 
 export default function NotFound() {
   return (
@@ -7,7 +8,7 @@ export default function NotFound() {
       <h1 className="text-6xl font-bold text-bluebrand-deep">404</h1>
       <p className="text-lg text-muted-foreground">Pagina nao encontrada.</p>
       <Button asChild className="bg-bluebrand-base hover:bg-bluebrand-deep">
-        <Link href="/app">Voltar ao inicio</Link>
+        <Link href={ROUTES.app}>Voltar ao inicio</Link>
       </Button>
     </div>
   );

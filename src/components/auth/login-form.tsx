@@ -9,6 +9,7 @@ import Link from "next/link";
 import axios from "axios";
 import { fetchAvailableCities, type AvailableCity } from "@/lib/api/cities";
 import { setCityContext } from "@/lib/city-domain";
+import { readLastSystem, SYSTEM_HOME } from "@/config/routes";
 import { useAuthStore } from "@/stores/auth-store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,7 +50,7 @@ export function LoginForm() {
 
       const ok = await persistUser();
       if (cancelled || !ok) return;
-      router.replace("/app");
+      router.replace(SYSTEM_HOME[readLastSystem()]);
     }
 
     void resumeSession();
@@ -149,7 +150,7 @@ export function LoginForm() {
         localStorage.removeItem("remember_registration");
       }
       toast.success("Login realizado com sucesso.");
-      router.replace("/app");
+      router.replace(SYSTEM_HOME[readLastSystem()]);
     } catch (error: unknown) {
       const status = (error as { response?: { status?: number } })?.response?.status;
       const data = (error as {
