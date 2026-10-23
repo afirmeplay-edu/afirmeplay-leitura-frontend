@@ -1,5 +1,3 @@
-export type SidebarThemeId = "panel";
-
 export interface SidebarThemeVars {
   "--sidebar-bg": string;
   "--sidebar-border": string;
@@ -13,33 +11,24 @@ export interface SidebarThemeVars {
   "--sidebar-link-active-bg": string;
   "--sidebar-link-active-text": string;
   "--sidebar-category-text": string;
-  "--sidebar-user-card-bg": string;
-  "--sidebar-user-card-border": string;
-  "--sidebar-button-border": string;
-  "--sidebar-button-hover-bg": string;
-  "--sidebar-button-hover-text": string;
   "--sidebar-focus-ring": string;
 }
 
+/** Cores de acento vêm de `--system-*` (definidas por `data-system` no shell), então a sidebar segue o sistema ativo. */
 const panelLight: SidebarThemeVars = {
   "--sidebar-bg": "#ffffff",
-  "--sidebar-border": "#ece8f2",
-  "--sidebar-icon-bg": "rgba(112, 48, 160, 0.1)",
-  "--sidebar-icon-bg-hover": "rgba(112, 48, 160, 0.16)",
-  "--sidebar-icon-color": "#7030A0",
+  "--sidebar-border": "color-mix(in srgb, var(--system-text) 12%, #ffffff)",
+  "--sidebar-icon-bg": "var(--system-soft)",
+  "--sidebar-icon-bg-hover": "color-mix(in srgb, var(--system-text) 16%, transparent)",
+  "--sidebar-icon-color": "var(--system-text)",
   "--sidebar-icon-color-active": "#ffffff",
   "--sidebar-text": "#1e293b",
   "--sidebar-text-muted": "#64748b",
-  "--sidebar-link-hover-bg": "rgba(112, 48, 160, 0.06)",
-  "--sidebar-link-active-bg": "linear-gradient(90deg, #7030A0, #E53E7F)",
+  "--sidebar-link-hover-bg": "color-mix(in srgb, var(--system-text) 6%, transparent)",
+  "--sidebar-link-active-bg": "var(--system-gradient)",
   "--sidebar-link-active-text": "#ffffff",
   "--sidebar-category-text": "#94a3b8",
-  "--sidebar-user-card-bg": "#faf8fc",
-  "--sidebar-user-card-border": "#ece8f2",
-  "--sidebar-button-border": "#ece8f2",
-  "--sidebar-button-hover-bg": "rgba(112, 48, 160, 0.06)",
-  "--sidebar-button-hover-text": "#7030A0",
-  "--sidebar-focus-ring": "rgba(112, 48, 160, 0.35)",
+  "--sidebar-focus-ring": "color-mix(in srgb, var(--system-text) 35%, transparent)",
 };
 
 export function getSidebarThemeStyles(): SidebarThemeVars {

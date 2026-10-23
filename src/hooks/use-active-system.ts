@@ -13,7 +13,8 @@ import {
 export function useActiveSystem(): AppSystem {
   const pathname = usePathname();
   const routeSystem = getSystemFromPathname(pathname);
-  const [lastSystem, setLastSystem] = useState<AppSystem>("leitura");
+  // Lido no primeiro render: o shell só monta no cliente (atrás do AuthGuard), então não há divergência de hidratação.
+  const [lastSystem, setLastSystem] = useState<AppSystem>(() => routeSystem ?? readLastSystem());
 
   useEffect(() => {
     if (routeSystem) {

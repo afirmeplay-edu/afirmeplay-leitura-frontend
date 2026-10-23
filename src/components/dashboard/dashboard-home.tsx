@@ -5,16 +5,12 @@ import {
   AlertTriangle,
   BarChart3,
   BookOpen,
-  ClipboardList,
   Gauge,
   Info,
-  Layers,
-  type LucideIcon,
 } from "lucide-react";
 import axios from "axios";
 import { toast } from "sonner";
-import { DASHBOARD_FEATURE_CARDS } from "@/config/navigation";
-import { ROUTES } from "@/config/routes";
+import { DASHBOARD_SHORTCUTS } from "@/config/navigation";
 import { getRelatorioResultados, getResultadosFiltros } from "@/lib/api/afirme-reading/resultados";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import { getSelectedCityId, getSelectedCitySlug } from "@/lib/city-domain";
@@ -37,13 +33,6 @@ import { SectionCard } from "@/components/shared/section-card";
 import { StatCard } from "@/components/shared/stat-card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
-
-const SHORTCUT_ICONS: Record<string, LucideIcon> = {
-  [ROUTES.leitura.fluencia.selecao]: Gauge,
-  [ROUTES.leitura.pratica.root]: BookOpen,
-  [ROUTES.leitura.avaliacoes.root]: Layers,
-  [ROUTES.leitura.relatoriosFluencia]: BarChart3,
-};
 
 function hasCityContext() {
   return Boolean(getSelectedCityId() || getSelectedCitySlug());
@@ -216,14 +205,14 @@ export function DashboardHome() {
       ) : null}
 
       <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {DASHBOARD_FEATURE_CARDS.map((card) => (
+        {DASHBOARD_SHORTCUTS.leitura.map((card) => (
           <ShortcutTile
             key={card.href}
             href={card.href}
             label={card.label}
             description={card.description}
             accent={card.accent}
-            icon={SHORTCUT_ICONS[card.href] ?? ClipboardList}
+            icon={card.icon}
           />
         ))}
       </section>

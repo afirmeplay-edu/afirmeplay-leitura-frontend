@@ -7,7 +7,9 @@ import {
   Layers,
   type LucideIcon,
 } from "lucide-react";
-import { ROUTES, SYSTEM_HOME } from "@/config/routes";
+import { ROUTES, SYSTEM_HOME, type AppSystem } from "@/config/routes";
+
+export { getSystemFromPathname } from "@/config/routes";
 
 export interface NavChildLink {
   href: string;
@@ -22,6 +24,9 @@ export interface NavLink {
   icon: LucideIcon;
   roles?: string[];
   children?: NavChildLink[];
+  /** Item visível mas não clicável (ex.: "Em breve"); `href` serve só como chave. */
+  disabled?: boolean;
+  badge?: string;
 }
 
 export interface NavCategory {
@@ -29,9 +34,20 @@ export interface NavCategory {
   items: NavLink[];
 }
 
-const L = ROUTES.leitura;
+export type ShortcutAccent = "purple" | "blue" | "emerald" | "amber" | "green" | "orange" | "teal";
 
-export const NAV_CATEGORIES: NavCategory[] = [
+export interface DashboardShortcut {
+  href: string;
+  label: string;
+  description: string;
+  accent: ShortcutAccent;
+  icon: LucideIcon;
+}
+
+const L = ROUTES.leitura;
+const I = ROUTES.ica;
+
+export const NAV_LEITURA: NavCategory[] = [
   {
     label: "Principal",
     items: [
@@ -119,36 +135,55 @@ export const NAV_CATEGORIES: NavCategory[] = [
   },
 ];
 
-export const DASHBOARD_FEATURE_CARDS = [
+export const NAV_ICA: NavCategory[] = [
   {
-    href: L.fluencia.selecao,
-    label: "Aplicar avaliacao",
-    description: "Modo leitura sem distração",
-    accent: "emerald",
+    label: "Principal",
+    items: [{ href: I.home, label: "Início", description: "Painel do Sistema ICA", icon: Home }],
   },
-  {
-    href: L.pratica.root,
-    label: "Leitura guiada",
-    description: "Roteiro de mediação",
-    accent: "blue",
-  },
-  {
-    href: L.avaliacoes.root,
-    label: "Avaliacoes aplicadas",
-    description: "Cards e histórico",
-    accent: "amber",
-  },
-  {
-    href: L.relatoriosFluencia,
-    label: "Relatorios",
-    description: "Alfabetômetro e exportações",
-    accent: "purple",
-  },
-] as const;
+];
 
-export function getAllNavLinks(): NavLink[] {
-  return NAV_CATEGORIES.flatMap((c) => c.items);
+const NAV_BY_SYSTEM: Record<AppSystem, NavCategory[]> = {
+  leitura: NAV_LEITURA,
+  ica: NAV_ICA,
+};
+
+export function getNavForSystem(system: AppSystem): NavCategory[] {
+  return NAV_BY_SYSTEM[system];
 }
+
+export const DASHBOARD_SHORTCUTS: Record<AppSystem, DashboardShortcut[]> = {
+  leitura: [
+    {
+      href: L.fluencia.selecao,
+      label: "Aplicar avaliacao",
+      description: "Modo leitura sem distração",
+      accent: "emerald",
+      icon: Gauge,
+    },
+    {
+      href: L.pratica.root,
+      label: "Leitura guiada",
+      description: "Roteiro de mediação",
+      accent: "blue",
+      icon: BookOpen,
+    },
+    {
+      href: L.avaliacoes.root,
+      label: "Avaliacoes aplicadas",
+      description: "Cards e histórico",
+      accent: "amber",
+      icon: Layers,
+    },
+    {
+      href: L.relatoriosFluencia,
+      label: "Relatorios",
+      description: "Alfabetômetro e exportações",
+      accent: "purple",
+      icon: BarChart3,
+    },
+  ],
+  ica: [],
+};
 
 export function canAccessByRoles(role: string | null | undefined, roles?: string[]) {
   if (!roles?.length) return true;
@@ -202,7 +237,3 @@ export function isNavLinkActive(
 
   return true;
 }
-
-// Mantido para compatibilidade com referencias legadas.
-export type AppNavItem = NavLink;
-export const APP_NAV_ITEMS: AppNavItem[] = getAllNavLinks();

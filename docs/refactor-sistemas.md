@@ -13,10 +13,12 @@ Branch de trabalho: `lucas` (working tree limpo no início).
 | Verificação | Resultado |
 |---|---|
 | `npx tsc --noEmit` | 0 erros |
-| `npm run lint` | 0 erros, 10 warnings pré-existentes (imports não usados, `<img>`, deps de hooks) |
+| `npm run lint` | 0 erros, 12 warnings pré-existentes (imports não usados, `<img>`, deps de hooks) |
 | `npm run build` | OK, 32 páginas |
 
-Os 10 warnings de lint são legado e **não** serão corrigidos nesta refatoração (fora de escopo). Qualquer warning novo é regressão.
+(Correção: a primeira leitura contou 10 warnings a partir de saída truncada; a lista completa tem 12, incluindo `_markings` em `caed-aplicador.tsx` e a dependência `user?.role` em `fluencia-selecao.tsx`.)
+
+Os 12 warnings de lint são legado e **não** serão corrigidos nesta refatoração (fora de escopo). Qualquer warning novo é regressão.
 
 ### Dependências (`package.json`)
 
@@ -227,9 +229,33 @@ Verificado com `next start` + `curl`: todas as antigas → 308 para a nova com s
 ### Relatório da Etapa 1
 
 - **Mudou**: 27 páginas movidas com `git mv` para `src/app/(private)/app/leitura/`; `/app` virou `SystemRedirect`; redirects 308; `routes.ts`; todos os paths hardcoded trocados; `AppHeader` + `SystemSwitcher` + `useActiveSystem`; sidebar sem card/sair.
-- **Verificado**: `tsc` 0 erros; build OK (34 páginas); lint 0 erros e 7 warnings (eram 10 — sumiram os 3 de `<img>`); grep sem nenhum `/app/<segmento-antigo>` fora de `routes.ts`; redirects por `curl`; navegação real no navegador (redirect legado → header → troca para ICA → menu do usuário); filho `?aba=texto` destacado (o `exactPath` continua funcionando); `FullscreenLayout` (`z-[80]`, `fixed inset-0`) continua cobrindo header (`z-[60]`) e sidebar — o motor do aplicador não foi tocado.
+- **Verificado**: `tsc` 0 erros; build OK (34 páginas); lint 0 erros e 9 warnings (eram 12 — sumiram os 3 de `<img>`); grep sem nenhum `/app/<segmento-antigo>` fora de `routes.ts`; redirects por `curl`; navegação real no navegador (redirect legado → header → troca para ICA → menu do usuário); filho `?aba=texto` destacado (o `exactPath` continua funcionando); `FullscreenLayout` (`z-[80]`, `fixed inset-0`) continua cobrindo header (`z-[60]`) e sidebar — o motor do aplicador não foi tocado.
 - **Observação**: o `tsc` acusou erros só em `.next/types` antigos (gerados pelo build anterior com os paths velhos); somem após um novo `next build`.
 - **Pendente**: as 4 pastas vazias antigas (`avaliacao-fluencia`, `avaliacao-leitura-guiada`, `avaliacoes`, `cadastros`) não puderam ser removidas pela ferramenta (bloqueio de permissão). Git não as rastreia e o Next as ignora; podem ser apagadas à mão. `useScrollToTop` rola `window`, mas quem rola é o `<main>` (comportamento legado, inalterado).
+
+---
+
+## Etapa 2 — Dois mapas de navegação e sidebar por sistema
+
+### Decisões
+
+- `navigation.ts` exporta `NAV_LEITURA`, `NAV_ICA`, `getNavForSystem`, `getSystemFromPathname` (re-export de `routes.ts`), `filterNavCategoriesByRole`, `canAccessByRoles`, `isNavLinkActive` e `DASHBOARD_SHORTCUTS: Record<AppSystem, …>` (cada atalho carrega o próprio ícone; o mapa `SHORTCUT_ICONS` do dashboard saiu).
+- Removidos por não terem consumidores: `NAV_CATEGORIES`, `DASHBOARD_FEATURE_CARDS`, `getAllNavLinks`, `APP_NAV_ITEMS`/`AppNavItem`, `SidebarThemeId`, vars `--sidebar-user-card-*` e `--sidebar-button-*`.
+- `NavLink` ganhou `disabled` e `badge` (usados na Etapa 4 para "Em breve").
+- O `PrivateShell` filtra por papel e passa `categories` + `system` à `Sidebar` (um componente só).
+- `sidebarThemes.ts` agora referencia `--system-*` (`color-mix` para hover/borda/anel). A Leitura fica visualmente igual: borda ≈ `#EEE6F3` (antes `#ece8f2`).
+- Accordion: Radix `Accordion` (`type="multiple"`, controlado) com `animate-accordion-down/up` (200 ms). Pai com filhos continua sem navegar. Grupos com rota ativa abrem sozinhos (inclusive ao navegar).
+- Sidebar recolhida: tooltip em todos os itens; grupos abrem um `DropdownMenu` à direita com os filhos (substitui o popover pedido, já que `@radix-ui/react-popover` não está instalado).
+- Troca de sistema: `<nav key={system}>` com `animate-in fade-in-0 slide-in-from-left-2 duration-200`; cores transicionam pelas variáveis registradas.
+- `aria-current="page"` nos links ativos; `aria-label` nos itens recolhidos (o ícone é `aria-hidden`); alvos ≥ 40 px (`min-h-10`).
+- `useActiveSystem` lê `last_system` já no primeiro render (seguro porque o shell só monta no cliente, depois do `AuthGuard`) — evita o flash Leitura→ICA em `/app/perfil`.
+- **Role `aplicador`**: incluído em `UserRole`/`ROLE_LABELS`; `ICA_WRITE_ROLES` + `canWriteIca()` em `roles.ts` (sem `aplicador`, como no contrato). Na Leitura nada muda para o aplicador (o frontend não restringe papéis além de "palavras conhecidas" e o prompt proíbe mexer em domínio).
+
+### Relatório da Etapa 2
+
+- **Verificado**: `tsc` 0; build OK; lint 9 warnings legados (nenhum novo). No navegador: grupo ativo abre sozinho; `aria-current` no item ativo; troca para ICA mostra só "Início" em teal e nenhum item da Leitura; sidebar recolhida com submenu em dropdown; `sidebar_collapsed` persistido.
+- **Corrigido durante a revisão**: item recolhido sem nome acessível; item ativo recolhido sem cantos arredondados.
+- **Pendente**: nada desta etapa.
 
 ---
 

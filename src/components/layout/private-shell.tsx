@@ -1,16 +1,23 @@
 "use client";
 
-import { Suspense, useEffect, useState, type ReactNode } from "react";
+import { Suspense, useEffect, useMemo, useState, type ReactNode } from "react";
 import { AppHeader } from "@/components/layout/app-header";
 import { Sidebar } from "@/components/layout/sidebar";
+import { filterNavCategoriesByRole, getNavForSystem } from "@/config/navigation";
 import { useActiveSystem } from "@/hooks/use-active-system";
 import { useScrollToTop } from "@/hooks/use-scroll-to-top";
 import { cn } from "@/lib/utils";
+import { useAuthStore } from "@/stores/auth-store";
 
 const HEADER_OFFSET = "top-[calc(4rem+env(safe-area-inset-top,0px))]";
 
 export function PrivateShell({ children }: { children: ReactNode }) {
   const system = useActiveSystem();
+  const role = useAuthStore((state) => state.user?.role);
+  const navCategories = useMemo(
+    () => filterNavCategoriesByRole(getNavForSystem(system), role),
+    [system, role]
+  );
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -65,6 +72,8 @@ export function PrivateShell({ children }: { children: ReactNode }) {
         >
           <Suspense fallback={<div className="h-full w-full bg-white" />}>
             <Sidebar
+              categories={navCategories}
+              system={system}
               onNavigate={() => setIsMobileMenuOpen(false)}
               isMobile={isMobile}
               onCollapsedChange={setIsSidebarCollapsed}

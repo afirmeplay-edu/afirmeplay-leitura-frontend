@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import type { ShortcutAccent } from "@/config/navigation";
 import { cn } from "@/lib/utils";
 
 const ACCENT_STYLES = {
@@ -22,7 +23,10 @@ const ACCENT_STYLES = {
   orange: {
     icon: "bg-orange-500/10 text-orange-600",
   },
-} as const;
+  teal: {
+    icon: "bg-teal-600/10 text-teal-700",
+  },
+} as const satisfies Record<ShortcutAccent, { icon: string }>;
 
 interface ShortcutTileProps {
   href: string;
