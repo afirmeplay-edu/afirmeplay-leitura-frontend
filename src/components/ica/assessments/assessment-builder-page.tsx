@@ -42,6 +42,7 @@ import { useQuestionCatalog } from "@/hooks/use-question-catalog";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth-store";
 import { RoleGuard } from "@/components/auth/role-guard";
+import { IcaCityScope } from "@/components/ica/ica-city-scope";
 import { PageHeader } from "@/components/layout/page-header";
 import { PageShell } from "@/components/shared/page-shell";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
@@ -556,7 +557,9 @@ function AssessmentBuilder() {
 export function AssessmentBuilderPage() {
   return (
     <RoleGuard allow={canWriteIca} fallbackHref={ROUTES.ica.avaliacoes.root}>
-      <AssessmentBuilder />
+      <IcaCityScope emptyMessage="Selecione o município para montar a avaliação.">
+        <AssessmentBuilder />
+      </IcaCityScope>
     </RoleGuard>
   );
 }

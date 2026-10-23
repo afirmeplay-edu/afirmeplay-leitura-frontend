@@ -412,6 +412,30 @@ Principal: Início · Conteúdo: **Banco de questões** (Criar questão, Listar 
 
 ---
 
+## Revisão pós-entrega (município no ICA + backend)
+
+### Bloco de município no ICA
+
+- **Causa**: as telas da Leitura renderizam o `AdminCityPicker` no corpo da página (ele retorna `null` para não-admin); as do ICA só tinham o picker no diálogo do header.
+- **Correção**: `src/components/ica/ica-city-scope.tsx` (mesmo padrão do `CadastrosShell`): picker no topo + conteúdo só depois do município pronto, remontando ao trocar. Usado em banco de questões, criar/editar questão, avaliações e construtor; na home do ICA só o picker.
+- Importa no backend: `apply_visibility_filter` usa o município do contexto (`X-City-ID` do admin) para mostrar questões `CITY`.
+
+### Backend revisado (branch `markindev`, sem alterações)
+
+| Ponto | Conclusão |
+|---|---|
+| Criar/editar/listar questões | Implementação bate com o contrato; front já alinhado |
+| PUT com `difficulty`/`skills`/`educationStageId` = `null` | Limpa o campo (P6 resolvida) |
+| Imagens já salvas | `src="/questions/..."` no enunciado e `image` (objeto) na alternativa são preservados (P6 resolvida) |
+| Regra de edição (`user_can_modify`) | GLOBAL só admin; CITY só admin/tecadm do município; PRIVATE só admin e o dono → **front passou a prever** (antes só bloqueava Play/aplicador) |
+| `isCorrect` na resposta | O formatter (`normalize_alternatives_with_correct`) também marca alternativa cujo texto seja igual ao gabarito → **front passou a usar a letra de `correct_answer`** |
+| `/skills/subject/:id` e `/skills/grade/:id` | Respondem **404** quando vazio → **front passou a tratar como lista vazia** (antes mostrava erro) |
+| Tipos aberta/produção | O banco tem tipos discursivos (`essay`, `aberta`, `open`…, `DISCURSIVE_TYPES`), mas a rota do Afirme Ler aceita só múltipla escolha (P2 continua) |
+| Avaliação ICA | Não existe rota em `/afirme-reading`; `POST /test` do Play recusa questões do Afirme Ler (P1 continua) |
+| Aplicação/correção | O Play tem cartão-resposta (`answer_sheet_routes`, `answer_sheet_import`) e prova subjetiva (`subjective_tests`), nenhum ligado ao Afirme Ler (P3 continua) |
+
+---
+
 ### Inconsistências de legado (registrar, não corrigir)
 
 - "Revisão e áudio" lista `/guided-sessions`; a prática atual grava `/fluency-sessions`.

@@ -12,6 +12,7 @@ import {
   MIN_QUESTION_OPTIONS,
   optionLetter,
   QUESTION_DIFFICULTIES,
+  questionCorrectFlags,
   questionOptions,
 } from "@/lib/ica/questions";
 
@@ -79,6 +80,7 @@ export function emptyQuestionDraft(): QuestionDraft {
 }
 
 export function draftFromQuestion(question: BankQuestion): QuestionDraft {
+  const correct = questionCorrectFlags(question);
   return {
     text: question.text?.trim() || htmlToPlainText(question.formattedText),
     statementImages: extractImageSources(question.formattedText),
@@ -91,11 +93,11 @@ export function draftFromQuestion(question: BankQuestion): QuestionDraft {
     value: question.value != null ? String(question.value) : "1",
     topics: (question.topics ?? []).filter((topic): topic is string => typeof topic === "string").join(", "),
     solution: htmlToPlainText(question.formattedSolution),
-    options: questionOptions(question).map((option) => ({
+    options: questionOptions(question).map((option, index) => ({
       key: newOptionKey(),
       text: option.text ?? "",
       image: option.image ?? null,
-      isCorrect: option.isCorrect === true,
+      isCorrect: correct[index] === true,
     })),
   };
 }

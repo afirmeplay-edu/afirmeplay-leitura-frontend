@@ -20,9 +20,9 @@ interface QuestionPreviewSheetProps {
 }
 
 export function QuestionPreviewSheet({ question, onOpenChange, footer }: QuestionPreviewSheetProps) {
-  const role = useAuthStore((state) => state.user?.role);
+  const user = useAuthStore((state) => state.user);
   const skillLabel = useSkillLabel(question);
-  const reason = question ? readOnlyReason(question, role) : null;
+  const reason = question ? readOnlyReason(question, user) : null;
   const letter = question ? questionCorrectLetter(question) : "";
 
   return (

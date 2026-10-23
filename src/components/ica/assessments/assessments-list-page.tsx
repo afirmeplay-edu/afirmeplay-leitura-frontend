@@ -14,6 +14,7 @@ import {
 } from "@/lib/ica/assessment-draft";
 import { ICA_BRAND } from "@/lib/ica/brand";
 import { useAuthStore } from "@/stores/auth-store";
+import { IcaCityScope } from "@/components/ica/ica-city-scope";
 import { PageHeader } from "@/components/layout/page-header";
 import { PageShell } from "@/components/shared/page-shell";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,14 @@ function formatDateTime(iso: string | null) {
 }
 
 export function AssessmentsListPage() {
+  return (
+    <IcaCityScope emptyMessage="Selecione o município para ver as avaliações.">
+      <AssessmentsList />
+    </IcaCityScope>
+  );
+}
+
+function AssessmentsList() {
   const role = useAuthStore((state) => state.user?.role);
   const cityId = useAuthStore((state) => state.selectedCityId);
   const canWrite = canWriteIca(role);

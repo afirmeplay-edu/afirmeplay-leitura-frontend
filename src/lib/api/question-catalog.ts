@@ -1,4 +1,5 @@
 import { api } from "@/lib/api/client";
+import { getApiErrorStatus } from "@/lib/api/errors";
 import { listEducationStages, listGrades } from "@/lib/api/grades";
 import type { EducationStage, Grade } from "@/lib/api/afirme-reading/types";
 
@@ -71,23 +72,28 @@ export async function listSubjects(): Promise<CatalogSubject[]> {
   });
 }
 
+/** As rotas de habilidade respondem 404 quando não há nenhuma; aqui isso vira lista vazia. */
+async function getSkills(path: string): Promise<CatalogSkill[]> {
+  try {
+    const { data } = await api.get(path);
+    return toArray<RawSkill>(data).map(toSkill);
+  } catch (error) {
+    if (getApiErrorStatus(error) === 404) return [];
+    throw error;
+  }
+}
+
 /** Com disciplina: `/skills/subject/:id` (filtrando pela série, se houver). Só com série: `/skills/grade/:id`. */
 export async function listSkills(filter: { subjectId?: string; gradeId?: string }): Promise<CatalogSkill[]> {
   const { subjectId, gradeId } = filter;
   if (subjectId) {
-    const skills = await cached(`skills:subject:${subjectId}`, async () => {
-      const { data } = await api.get(`/skills/subject/${subjectId}`);
-      return toArray<RawSkill>(data).map(toSkill);
-    });
+    const skills = await cached(`skills:subject:${subjectId}`, () => getSkills(`/skills/subject/${subjectId}`));
     return gradeId
       ? skills.filter((skill) => skill.gradeIds.length === 0 || skill.gradeIds.includes(gradeId))
       : skills;
   }
   if (gradeId) {
-    return cached(`skills:grade:${gradeId}`, async () => {
-      const { data } = await api.get(`/skills/grade/${gradeId}`);
-      return toArray<RawSkill>(data).map(toSkill);
-    });
+    return cached(`skills:grade:${gradeId}`, () => getSkills(`/skills/grade/${gradeId}`));
   }
   return [];
 }

@@ -12,6 +12,7 @@ import { questionCorrectLetter, readOnlyReason, toPreviewModel } from "@/lib/ica
 import { useAuthStore } from "@/stores/auth-store";
 import { PageHeader } from "@/components/layout/page-header";
 import { PageShell } from "@/components/shared/page-shell";
+import { IcaCityScope } from "@/components/ica/ica-city-scope";
 import { OriginBadge, ScopeBadge } from "@/components/ica/questions/question-badges";
 import { QuestionForm } from "@/components/ica/questions/question-form";
 import { QuestionPreview } from "@/components/ica/questions/question-preview";
@@ -61,8 +62,15 @@ function QuestionReadOnlyView({ question, reason }: { question: BankQuestion; re
 }
 
 export function QuestionDetailPage({ id }: { id: string }) {
-  const role = useAuthStore((state) => state.user?.role);
-  const cityId = useAuthStore((state) => state.selectedCityId);
+  return (
+    <IcaCityScope emptyMessage="Selecione o município para abrir a questão.">
+      <QuestionDetail id={id} />
+    </IcaCityScope>
+  );
+}
+
+function QuestionDetail({ id }: { id: string }) {
+  const user = useAuthStore((state) => state.user);
   const [question, setQuestion] = useState<BankQuestion | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<{ status: number | null; message: string } | null>(null);
@@ -88,7 +96,7 @@ export function QuestionDetailPage({ id }: { id: string }) {
     return () => {
       cancelled = true;
     };
-  }, [id, cityId, reloadKey]);
+  }, [id, reloadKey]);
 
   if (loading) {
     return (
@@ -129,7 +137,7 @@ export function QuestionDetailPage({ id }: { id: string }) {
     );
   }
 
-  const reason = readOnlyReason(question, role);
+  const reason = readOnlyReason(question, user);
   if (reason) return <QuestionReadOnlyView question={question} reason={reason} />;
 
   return <QuestionForm key={question.id} mode="edit" question={question} onSaved={setQuestion} />;

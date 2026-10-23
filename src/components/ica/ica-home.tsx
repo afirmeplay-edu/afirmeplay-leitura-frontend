@@ -8,6 +8,7 @@ import { canWriteIca } from "@/lib/auth/roles";
 import { ICA_BRAND, ICA_TITLE } from "@/lib/ica/brand";
 import { useAuthStore } from "@/stores/auth-store";
 import { ShortcutTile } from "@/components/dashboard/shortcut-tile";
+import { AdminCityPicker } from "@/components/auth/admin-city-picker";
 import { PageHeader } from "@/components/layout/page-header";
 import { PageShell } from "@/components/shared/page-shell";
 import { SectionCard } from "@/components/shared/section-card";
@@ -37,6 +38,7 @@ export function IcaHome() {
 
   return (
     <PageShell>
+      <AdminCityPicker />
       <PageHeader
         brand={ICA_BRAND}
         title={ICA_TITLE}

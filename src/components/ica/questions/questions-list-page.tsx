@@ -16,6 +16,7 @@ import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useQuestionCatalog } from "@/hooks/use-question-catalog";
 import { useAuthStore } from "@/stores/auth-store";
 import { DataListPage, type DataListColumn } from "@/components/shared/data-list-page";
+import { IcaCityScope } from "@/components/ica/ica-city-scope";
 import { OriginBadge, ScopeBadge } from "@/components/ica/questions/question-badges";
 import {
   hasActiveQuestionFilters,
@@ -45,12 +46,19 @@ function readPage(params: URLSearchParams) {
 }
 
 export function QuestionsListPage() {
+  return (
+    <IcaCityScope emptyMessage="Selecione o município para carregar o banco de questões.">
+      <QuestionsList />
+    </IcaCityScope>
+  );
+}
+
+function QuestionsList() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const role = useAuthStore((state) => state.user?.role);
-  const cityId = useAuthStore((state) => state.selectedCityId);
-  const canWrite = canWriteIca(role);
+  const user = useAuthStore((state) => state.user);
+  const canWrite = canWriteIca(user?.role);
   const { subjects, grades } = useQuestionCatalog();
 
   const filters = useMemo(() => readFilters(searchParams), [searchParams]);
@@ -126,7 +134,7 @@ export function QuestionsListPage() {
       });
 
     return () => controller.abort();
-  }, [cityId, filters, page, reloadKey, urlQuery]);
+  }, [filters, page, reloadKey, urlQuery]);
 
   function applyFilters(patch: Partial<QuestionFilterValue>) {
     const next = { ...filters, ...patch };
@@ -172,7 +180,7 @@ export function QuestionsListPage() {
   ];
 
   function renderActions(question: BankQuestion) {
-    const reason = readOnlyReason(question, role);
+    const reason = readOnlyReason(question, user);
     return (
       <span className="inline-flex gap-1">
         <Button variant="ghost" size="sm" className="h-9" onClick={() => setPreview(question)}>
