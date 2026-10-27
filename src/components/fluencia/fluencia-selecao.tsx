@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Eye, Gauge, Info, Loader2, Play } from "lucide-react";
+import { Eye, Gauge, Info, Loader2, Play, UserX } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 import {
@@ -13,6 +13,7 @@ import {
   listEvaluations,
   listReadingTexts,
   listWordLists,
+  markFluencySessionAbsent,
   type EvaluationApplicantClass,
   type EvaluationApplicantStudent,
   type EvaluationApplicants,
@@ -36,10 +37,12 @@ import {
   getKnownWordListId,
 } from "@/lib/afirme-reading/evaluation-contract";
 import { fluencyAplicarHref } from "@/lib/fluencia/aplicar-href";
+import { ROUTES } from "@/config/routes";
 import { useAuthStore } from "@/stores/auth-store";
 import { AdminCityPicker } from "@/components/auth/admin-city-picker";
 import { PageHeader } from "@/components/layout/page-header";
 import { PageShell } from "@/components/shared/page-shell";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -117,6 +120,8 @@ export function FluenciaSelecao({ variant = "oficial" }: FluenciaSelecaoProps) {
   const [loadingApplicants, setLoadingApplicants] = useState(false);
   const [creating, setCreating] = useState(false);
   const [actingStudentId, setActingStudentId] = useState<string | null>(null);
+  const [applicantsReload, setApplicantsReload] = useState(0);
+  const [absentTarget, setAbsentTarget] = useState<EvaluationApplicantStudent | null>(null);
 
   const selectedSchool = useMemo(
     () => schools.find((item) => item.id === schoolId) ?? null,
@@ -280,7 +285,7 @@ export function FluenciaSelecao({ variant = "oficial" }: FluenciaSelecaoProps) {
     return () => {
       cancelled = true;
     };
-  }, [cityReady, evaluationId, isPractice, user?.id]);
+  }, [cityReady, evaluationId, isPractice, user?.id, user?.role, applicantsReload]);
 
   useEffect(() => {
     if (!isPractice || !schoolId || !cityReady) {
@@ -544,6 +549,29 @@ export function FluenciaSelecao({ variant = "oficial" }: FluenciaSelecaoProps) {
     }
   }
 
+  /**
+   * Ausência é marcada numa sessão (`POST /fluency-sessions/:id/absent`): sem aplicação em andamento, cria a
+   * sessão antes. O aluno ausente pode ser aplicado de novo depois.
+   */
+  async function handleMarkAbsent() {
+    const student = absentTarget;
+    if (!student) return;
+    setActingStudentId(student.id);
+    try {
+      const current = student.application;
+      const sessionId =
+        current && current.status === "em_andamento"
+          ? current.sessionId
+          : (await createFluencySession({ evaluationId, studentId: student.id })).id;
+      await markFluencySessionAbsent(sessionId);
+      setAbsentTarget(null);
+      toast.success(`${student.name} marcado como ausente.`);
+      setApplicantsReload((key) => key + 1);
+    } finally {
+      setActingStudentId(null);
+    }
+  }
+
   async function handleStartPractice() {
     if (!selectedStudent) {
       toast.error("Selecione o estudante.");
@@ -589,7 +617,7 @@ export function FluenciaSelecao({ variant = "oficial" }: FluenciaSelecaoProps) {
     <PageShell>
       <PageHeader
         eyebrow="Compromisso Criança Alfabetizada · ICA"
-        title={isPractice ? "Praticar Avaliação de Fluência" : "Avaliação de Fluência Leitora"}
+        title={isPractice ? "Praticar leitura" : "Avaliação de Fluência Leitora"}
         description={
           isPractice
             ? hideNarrativeText
@@ -606,7 +634,7 @@ export function FluenciaSelecao({ variant = "oficial" }: FluenciaSelecaoProps) {
           <p className="font-medium">{isPractice ? "Sobre esta prática" : "Sobre esta avaliação"}</p>
           <p>
             {isPractice
-              ? "Pratique lista de palavras conhecidas, palavras pouco conhecidas e texto narrativo. O professor ouve o áudio e marca manualmente."
+              ? "Pratique lista de palavras conhecidas, palavras pouco comuns e texto narrativo. O professor ouve o áudio e marca manualmente."
               : "Avaliação individual. São 3 questões: lista de palavras, lista de palavras pouco comuns e leitura de texto narrativo com perguntas de compreensão. O professor ouve a gravação e classifica cada palavra."}
           </p>
           <p>
@@ -890,6 +918,18 @@ export function FluenciaSelecao({ variant = "oficial" }: FluenciaSelecaoProps) {
                                   Ver
                                 </Button>
                               ) : null}
+                              {student.application?.status !== "ausente" && (student.canStart || student.canContinue) ? (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="text-amber-800 hover:bg-amber-50"
+                                  disabled={creating || busy}
+                                  onClick={() => setAbsentTarget(student)}
+                                >
+                                  <UserX className="h-4 w-4" />
+                                  Ausente
+                                </Button>
+                              ) : null}
                             </div>
                           </li>
                         );
@@ -913,19 +953,19 @@ export function FluenciaSelecao({ variant = "oficial" }: FluenciaSelecaoProps) {
 
       <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end sm:gap-3">
         <Button variant="outline" asChild className="w-full sm:w-auto">
-          <Link href="/app/cadastros">Cadastrar listas, textos e perguntas</Link>
+          <Link href={ROUTES.leitura.cadastros.root}>Cadastrar listas, textos e perguntas</Link>
         </Button>
         {isPractice ? (
           <Button variant="outline" asChild className="w-full sm:w-auto">
-            <Link href="/app/revisao-leitura-guiada">Revisão e áudio</Link>
+            <Link href={ROUTES.leitura.revisao}>Revisão e áudio</Link>
           </Button>
         ) : (
           <Button variant="outline" asChild className="w-full sm:w-auto">
-            <Link href="/app/avaliacao-fluencia/listar">Listar avaliações</Link>
+            <Link href={ROUTES.leitura.fluencia.listar}>Listar avaliações</Link>
           </Button>
         )}
         <Button variant="ghost" asChild className="w-full sm:w-auto">
-          <Link href="/app">← Início</Link>
+          <Link href={ROUTES.leitura.home}>← Início</Link>
         </Button>
         {isPractice ? (
           <Button
@@ -944,6 +984,19 @@ export function FluenciaSelecao({ variant = "oficial" }: FluenciaSelecaoProps) {
           </Button>
         ) : null}
       </div>
+      <ConfirmDialog
+        open={absentTarget != null}
+        onOpenChange={(open) => !open && setAbsentTarget(null)}
+        title="Marcar como ausente?"
+        description={
+          absentTarget
+            ? `${absentTarget.name} fica como ausente nesta avaliação. O que já foi registrado numa aplicação em andamento deixa de contar. Depois é possível aplicar de novo.`
+            : undefined
+        }
+        confirmLabel="Marcar ausente"
+        icon={UserX}
+        onConfirm={handleMarkAbsent}
+      />
     </PageShell>
   );
 }

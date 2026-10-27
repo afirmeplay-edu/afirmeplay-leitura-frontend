@@ -6,7 +6,7 @@ export function createMockUser(registration: string, slug?: string): User {
   const username = registration.split("@")[0] || "usuario";
   return {
     id: "usr-mock-dev",
-    name: `Usuario ${username}`,
+    name: `Usuário ${username}`,
     email: registration.includes("@") ? registration : `${username}@afirmeplay.com.br`,
     registration: username,
     role: "admin",

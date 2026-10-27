@@ -57,7 +57,14 @@ function normalizeClass(raw: Record<string, unknown>): SchoolClass {
     name: label,
     year,
     className: typeof raw.className === "string" ? raw.className : null,
-    schoolId: raw.schoolId != null ? String(raw.schoolId) : null,
+    schoolId:
+      raw.schoolId != null
+        ? String(raw.schoolId)
+        : raw.school_id != null
+          ? String(raw.school_id)
+          : asRecord(raw.school)?.id != null
+            ? String(asRecord(raw.school)?.id)
+            : null,
     gradeId:
       raw.gradeId != null
         ? String(raw.gradeId)
@@ -133,13 +140,23 @@ export async function listSchools() {
   }
 }
 
+/**
+ * `GET /classes/school/:id` filtra no servidor. `GET /classes` ignora `schoolId` e devolve todas as turmas do
+ * perfil, por isso o fallback filtra pela escola aqui.
+ */
 export async function listClassesBySchool(schoolId: string) {
   try {
-    const { data } = await api.get("/classes", { params: { schoolId } });
+    const { data } = await api.get(`/classes/school/${schoolId}`);
     return unwrapList<Record<string, unknown>>(data).map(normalizeClass);
-  } catch {
-    const { data } = await api.get(`/schools/${schoolId}/classes`);
-    return unwrapList<Record<string, unknown>>(data).map(normalizeClass);
+  } catch (error) {
+    try {
+      const { data } = await api.get("/classes");
+      return unwrapList<Record<string, unknown>>(data)
+        .map(normalizeClass)
+        .filter((item) => item.schoolId === schoolId);
+    } catch {
+      throw error;
+    }
   }
 }
 

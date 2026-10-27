@@ -14,6 +14,7 @@ import {
   type StudentApplicationWord,
 } from "@/lib/api/afirme-reading";
 import { getApiErrorMessage, getApiErrorStatus } from "@/lib/api/errors";
+import { ROUTES } from "@/config/routes";
 import { EDICAO_LABEL, type EdicaoCode } from "@/lib/relatorios-fluencia/types";
 import { tokenizeNarrative } from "@/components/fluencia/fluency-browser-utils";
 import { assignSentenceIndices } from "@/components/fluencia/manual-marking";
@@ -248,7 +249,7 @@ export function AplicacaoVisualizacaoPage({
         description="Leitura palavra a palavra das listas, do texto narrativo e da compreensão."
       >
         <Button variant="outline" asChild>
-          <Link href={`/app/avaliacoes/${evaluationId}`}>
+          <Link href={ROUTES.leitura.avaliacoes.detalhe(evaluationId)}>
             <ArrowLeft className="h-4 w-4" />
             Voltar
           </Link>

@@ -53,7 +53,7 @@ const config: Config = {
           light: "#60A5FA",
         },
         "app-canvas": "hsl(var(--app-canvas))",
-        "brand-highlight": "#7030A0",
+        "brand-highlight": "rgb(var(--brand-highlight) / <alpha-value>)",
         "brand-hero": {
           from: "hsl(var(--brand-hero-from))",
           to: "hsl(var(--brand-hero-to))",

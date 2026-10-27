@@ -1,7 +1,12 @@
 import axios from "axios";
 import type { ApiErrorBody } from "@/lib/api/afirme-reading/types";
 
-const MESSAGE_KEYS = ["error", "message", "detail", "title"] as const;
+/**
+ * Ordem importa: `mensagem` (decorator de plano/município) é mais específica que `erro`.
+ * Formatos cobertos: `{ error }` (rotas), `{ erro, mensagem }` e `{ erro, role_required }` (decorators),
+ * `{ msg }` (Flask-JWT-Extended), além de `message`/`detail`/`title`.
+ */
+const MESSAGE_KEYS = ["error", "mensagem", "erro", "message", "msg", "detail", "title"] as const;
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
@@ -80,4 +85,41 @@ export function getApiErrorStatus(error: unknown) {
     return typeof status === "number" ? status : null;
   }
   return null;
+}
+
+export interface NormalizedApiError {
+  status: number | null;
+  message: string;
+  /** Presente no 403 do `role_required`. */
+  rolesRequired: string[] | null;
+  isNetworkError: boolean;
+}
+
+const STATUS_FALLBACK: Record<number, string> = {
+  400: "Dados inválidos. Revise o formulário.",
+  401: "Sua sessão expirou. Entre novamente.",
+  403: "Você não tem permissão para esta ação.",
+  404: "Registro não encontrado.",
+  422: "Sua sessão expirou. Entre novamente.",
+  500: "Erro interno ao processar a solicitação.",
+};
+
+/** Normalizador único para toasts: mensagem do backend → fallback por status → fallback da tela. */
+export function normalizeApiError(error: unknown, fallback: string): NormalizedApiError {
+  const status = getApiErrorStatus(error);
+  const body = asRecord(parsePayload(getErrorData(error)));
+  const roles = body?.role_required;
+  const isNetworkError = axios.isAxiosError(error) && !error.response;
+  const message =
+    messageFromUnknown(body) ||
+    (isNetworkError ? "Não foi possível conectar ao servidor." : null) ||
+    (status != null ? STATUS_FALLBACK[status] : null) ||
+    fallback;
+
+  return {
+    status,
+    message,
+    rolesRequired: Array.isArray(roles) ? roles.filter((role): role is string => typeof role === "string") : null,
+    isNetworkError,
+  };
 }

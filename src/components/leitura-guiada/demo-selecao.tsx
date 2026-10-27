@@ -9,6 +9,7 @@ import { SectionCard } from "@/components/shared/section-card";
 import { DifficultyBadge } from "@/components/shared/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { getMockStudents, getMockTexts } from "@/lib/mock";
+import { ROUTES } from "@/config/routes";
 
 export function DemoSelecao() {
   const router = useRouter();
@@ -18,12 +19,12 @@ export function DemoSelecao() {
   return (
     <PageShell>
       <PageHeader
-        title="Selecao Rapida (Demonstracao)"
+        title="Seleção rápida (demonstração)"
         description="Escolha um aluno e um texto para iniciar o fluxo de leitura guiada."
         icon={BookOpen}
       />
 
-      <SectionCard title="Alunos" description="Selecione um estudante para a demonstracao">
+      <SectionCard title="Alunos" description="Selecione um estudante para a demonstração">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {students.map((s) => (
             <div key={s.id} className="rounded-lg border p-4 transition hover:shadow-md">
@@ -34,14 +35,14 @@ export function DemoSelecao() {
         </div>
       </SectionCard>
 
-      <SectionCard title="Textos" description="Clique em um texto para iniciar a sessao">
+      <SectionCard title="Textos" description="Clique em um texto para iniciar a sessão">
         <div className="grid gap-4 md:grid-cols-2">
           {texts.map((t) => (
             <button
               key={t.id}
               type="button"
               className="rounded-lg border p-4 text-left transition hover:shadow-md"
-              onClick={() => router.push(`/app/avaliacao-leitura-guiada/sessao?aluno=alu-1&texto=${t.id}`)}
+              onClick={() => router.push(`${ROUTES.leitura.pratica.sessao}?aluno=alu-1&texto=${t.id}`)}
             >
               <div className="mb-2 flex flex-wrap items-center gap-2">
                 <h3 className="font-semibold">{t.title}</h3>
@@ -54,8 +55,8 @@ export function DemoSelecao() {
         </div>
       </SectionCard>
 
-      <Link href="/app/avaliacao-leitura-guiada" className="text-sm text-primary hover:underline">
-        Voltar para selecao completa
+      <Link href={ROUTES.leitura.pratica.root} className="text-sm text-primary hover:underline">
+        Voltar para a seleção completa
       </Link>
     </PageShell>
   );

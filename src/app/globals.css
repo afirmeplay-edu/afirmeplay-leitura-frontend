@@ -33,6 +33,72 @@
   --app-canvas: 220 14% 96%;
   --brand-hero-from: 274 54% 41%;
   --brand-hero-to: 330 72% 55%;
+  --brand-highlight: 112 48 160;
+}
+
+/* Registradas para que a troca Leitura ↔ ICA anime a cor (variáveis comuns não interpolam). */
+@property --system-from {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #7030a0;
+}
+
+@property --system-to {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #e53e7f;
+}
+
+@property --system-soft {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: rgb(112 48 160 / 0.1);
+}
+
+@property --system-text {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #7030a0;
+}
+
+/* Leitura mantém o roxo → magenta institucional. ICA: teal → azul-petróleo (texto branco ≥ 5,4:1 nas duas pontas). */
+[data-system="leitura"] {
+  --system-from: #7030a0;
+  --system-to: #e53e7f;
+  --system-soft: rgb(112 48 160 / 0.1);
+  --system-text: #7030a0;
+}
+
+[data-system="ica"] {
+  --system-from: #0f766e;
+  --system-to: #0369a1;
+  --system-soft: rgb(15 118 110 / 0.1);
+  --system-text: #0f766e;
+  /* Mesmas cores em HSL/RGB para os componentes compartilhados (PageHeader, StatCard, Button…). */
+  --brand-hero-from: 175 77% 26%;
+  --brand-hero-to: 201 96% 32%;
+  --brand-highlight: 15 118 110;
+}
+
+:root,
+[data-system] {
+  --system-gradient: linear-gradient(90deg, var(--system-from), var(--system-to));
+  transition:
+    --system-from 200ms ease-out,
+    --system-to 200ms ease-out,
+    --system-soft 200ms ease-out,
+    --system-text 200ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 * {
@@ -93,6 +159,35 @@ body {
 
   .sidebar-link {
     @apply transition-all duration-300 ease-out;
+  }
+
+  .question-html p {
+    @apply my-1.5;
+  }
+
+  .question-html img {
+    @apply my-2 h-auto max-h-80 max-w-full rounded-lg border object-contain;
+  }
+
+  .question-html ul {
+    @apply my-1.5 list-disc pl-5;
+  }
+
+  .question-html ol {
+    @apply my-1.5 list-decimal pl-5;
+  }
+
+  .question-html table {
+    @apply my-2 w-full border-collapse text-sm;
+  }
+
+  .question-html td,
+  .question-html th {
+    @apply border px-2 py-1 align-top;
+  }
+
+  .question-html a {
+    @apply text-brand-highlight underline;
   }
 
   .sidebar-desc-hover {

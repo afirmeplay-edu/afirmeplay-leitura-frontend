@@ -1,14 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { ChevronDown, ChevronLeft, LogOut } from "lucide-react";
-import { useEffect, useState, type CSSProperties } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
+import * as AccordionPrimitive from "@radix-ui/react-accordion";
+import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { getSidebarThemeStyles } from "@/constants/sidebarThemes";
-import { isNavLinkActive, filterNavCategoriesByRole, NAV_CATEGORIES, type NavCategory, type NavLink } from "@/config/navigation";
-import { useAuthStore } from "@/stores/auth-store";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { isNavLinkActive, type NavCategory, type NavChildLink, type NavLink } from "@/config/navigation";
+import type { AppSystem } from "@/config/routes";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 function resolveChildHref(childHref: string, pathname: string, search: string) {
@@ -25,26 +33,24 @@ function resolveChildHref(childHref: string, pathname: string, search: string) {
   return next ? `${path}?${next}` : path;
 }
 
+function isChildActive(pathname: string, search: string, child: NavChildLink) {
+  return isNavLinkActive(pathname, search, child.href, {
+    exactPath: child.exact || child.href.includes("?"),
+  });
+}
+
+function isItemActive(item: NavLink, pathname: string, search: string) {
+  if (item.disabled) return false;
+  if (isNavLinkActive(pathname, search, item.href)) return true;
+  return item.children?.some((child) => isChildActive(pathname, search, child)) ?? false;
+}
+
 interface SidebarProps {
+  categories: NavCategory[];
+  system: AppSystem;
   onNavigate?: () => void;
   isMobile?: boolean;
   onCollapsedChange?: (collapsed: boolean) => void;
-}
-
-const ROLE_LABELS: Record<string, string> = {
-  admin: "Administrador",
-  professor: "Professor",
-  diretor: "Diretor",
-  coordenador: "Coordenador",
-};
-
-function getInitials(name: string) {
-  return name
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join("");
 }
 
 function CategorySeparator({ name, isCollapsed }: { name: string; isCollapsed: boolean }) {
@@ -61,79 +67,60 @@ function CategorySeparator({ name, isCollapsed }: { name: string; isCollapsed: b
   );
 }
 
-function RenderMenuItem({
+function ItemContent({
   item,
-  pathname,
-  search,
-  onNavigate,
+  isActive,
   isCollapsed,
-  level = 0,
+  trailing,
 }: {
   item: NavLink;
-  pathname: string;
-  search: string;
-  onNavigate?: () => void;
+  isActive: boolean;
   isCollapsed: boolean;
-  level?: number;
+  trailing?: ReactNode;
 }) {
   const Icon = item.icon;
-  const hasChildren = Boolean(item.children?.length);
-  const active = isNavLinkActive(pathname, search, item.href);
-  const childActive = item.children?.some((c) => isNavLinkActive(pathname, search, c.href)) ?? false;
-  const isActive = active || childActive;
-  const [isOpen, setIsOpen] = useState(isActive);
-
-  useEffect(() => {
-    if (isActive) setIsOpen(true);
-  }, [isActive]);
-
   const description = item.description?.trim() ?? "";
   /** Descrições longas ficam ocultas e expandem abaixo no hover (sem reticências). */
   const isLongDescription = description.length > 28;
-
-  const itemClasses = cn(
-    "sidebar-link group relative flex w-full items-center gap-2 text-left transition-all duration-300 ease-out",
-    "hover:translate-x-2 active:translate-x-1 active:scale-[0.98]",
-    isCollapsed ? "justify-center px-0 py-1" : "rounded-2xl px-2 py-2 md:px-3 md:py-2.5",
-    !isActive && "hover:!bg-[var(--sidebar-link-hover-bg)]",
-    isActive && "font-semibold shadow-sm",
-    level > 0 && !isCollapsed && "ml-3 text-xs md:ml-4 md:text-sm",
-    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sidebar-focus-ring)]"
-  );
-  const itemStyle = isActive ? { background: "var(--sidebar-link-active-bg)" } : undefined;
-
   const descriptionClass = cn(
     "text-left text-[11px] leading-snug",
     isActive ? "text-white/80" : "text-[var(--sidebar-text-muted)]"
   );
 
-  const content = (
+  return (
     <div className="flex w-full items-center justify-between gap-1">
       <div className="flex min-w-0 flex-1 items-center gap-2 md:gap-3">
         <div
           className={cn(
-            "flex shrink-0 items-center justify-center rounded-full bg-[var(--sidebar-icon-bg)] transition-all duration-300 group-hover:scale-125 group-hover:bg-[var(--sidebar-icon-bg-hover)]",
+            "flex shrink-0 items-center justify-center rounded-full bg-[var(--sidebar-icon-bg)] transition-all duration-300",
+            !item.disabled && "group-hover:scale-110 group-hover:bg-[var(--sidebar-icon-bg-hover)]",
             isCollapsed ? "h-10 w-10" : "h-8 w-8 md:h-9 md:w-9",
             isActive && "bg-white/20 group-hover:bg-white/25"
           )}
         >
           <Icon
             className={cn(
-              "shrink-0 transition-all duration-300",
+              "shrink-0 transition-colors duration-300",
               isCollapsed ? "h-[18px] w-[18px]" : "h-4 w-4 md:h-[18px] md:w-[18px]",
               isActive ? "text-white" : "text-[var(--sidebar-icon-color)]"
             )}
+            aria-hidden
           />
         </div>
         {!isCollapsed && (
           <div className="min-w-0 flex-1 text-left">
             <span
               className={cn(
-                "block text-left text-xs font-semibold leading-snug md:text-sm",
+                "flex items-center gap-2 text-left text-xs font-semibold leading-snug md:text-sm",
                 isActive ? "text-white" : "text-[var(--sidebar-text)]"
               )}
             >
-              {item.label}
+              <span className="min-w-0">{item.label}</span>
+              {item.badge ? (
+                <span className="shrink-0 rounded-full bg-[var(--sidebar-icon-bg)] px-2 py-0.5 text-[10px] font-medium text-[var(--sidebar-icon-color)]">
+                  {item.badge}
+                </span>
+              ) : null}
             </span>
             {description ? (
               isLongDescription ? (
@@ -149,97 +136,257 @@ function RenderMenuItem({
           </div>
         )}
       </div>
-      {!isCollapsed && hasChildren && (
-        <ChevronDown
-          className={cn(
-            "h-3.5 w-3.5 shrink-0 transition-transform duration-300",
-            isActive ? "text-white" : "text-[var(--sidebar-icon-color)]",
-            isOpen && "rotate-180"
-          )}
-        />
-      )}
+      {!isCollapsed ? trailing : null}
     </div>
   );
+}
 
-  const wrapped = (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        {hasChildren ? (
-          <button
-            type="button"
-            className={itemClasses}
-            style={itemStyle}
-            title={isLongDescription ? description : undefined}
-            onClick={() => setIsOpen((v) => !v)}
-          >
-            {content}
-          </button>
-        ) : (
-          <Link
-            href={item.href}
-            onClick={onNavigate}
-            className={itemClasses}
-            style={itemStyle}
-            title={isLongDescription ? description : undefined}
-          >
-            {content}
-          </Link>
-        )}
-      </TooltipTrigger>
-      {isCollapsed ? (
-        <TooltipContent side="right">
-          {description ? `${item.label} — ${description}` : item.label}
-        </TooltipContent>
-      ) : null}
-    </Tooltip>
+function itemClasses(isActive: boolean, isCollapsed: boolean, disabled?: boolean) {
+  return cn(
+    "sidebar-link group relative flex w-full items-center gap-2 text-left transition-all duration-200 ease-out",
+    isCollapsed ? "justify-center rounded-2xl px-0 py-1" : "min-h-10 rounded-2xl px-2 py-2 md:px-3 md:py-2.5",
+    disabled
+      ? "cursor-not-allowed opacity-60"
+      : cn(
+          "hover:translate-x-1 active:scale-[0.98]",
+          !isActive && "hover:!bg-[var(--sidebar-link-hover-bg)]"
+        ),
+    isActive && "font-semibold shadow-sm",
+    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sidebar-focus-ring)]"
   );
+}
+
+const activeStyle: CSSProperties = { background: "var(--sidebar-link-active-bg)" };
+
+function MenuItem({
+  item,
+  pathname,
+  search,
+  onNavigate,
+  isCollapsed,
+}: {
+  item: NavLink;
+  pathname: string;
+  search: string;
+  onNavigate?: () => void;
+  isCollapsed: boolean;
+}) {
+  const hasChildren = Boolean(item.children?.length);
+  const isActive = isItemActive(item, pathname, search);
+  const selfActive = !item.disabled && isNavLinkActive(pathname, search, item.href);
+  const tooltip = item.description ? `${item.label} — ${item.description}` : item.label;
+
+  if (item.disabled) {
+    return (
+      <li>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span
+              role="link"
+              aria-disabled="true"
+              aria-label={item.badge ? `${item.label} (${item.badge})` : item.label}
+              tabIndex={0}
+              className={itemClasses(false, isCollapsed, true)}
+            >
+              <ItemContent item={item} isActive={false} isCollapsed={isCollapsed} />
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="right">
+            {item.badge ? `${item.label} · ${item.badge}` : item.label}
+          </TooltipContent>
+        </Tooltip>
+      </li>
+    );
+  }
+
+  if (hasChildren && isCollapsed) {
+    return (
+      <li>
+        <DropdownMenu>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className={itemClasses(isActive, true)}
+                  style={isActive ? activeStyle : undefined}
+                  aria-label={item.label}
+                >
+                  <ItemContent item={item} isActive={isActive} isCollapsed />
+                </button>
+              </DropdownMenuTrigger>
+            </TooltipTrigger>
+            <TooltipContent side="right">{tooltip}</TooltipContent>
+          </Tooltip>
+          <DropdownMenuContent side="right" align="start" className="z-[80] w-60">
+            <DropdownMenuLabel>{item.label}</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {item.children?.map((child) => {
+              const childActive = isChildActive(pathname, search, child);
+              return (
+                <DropdownMenuItem key={child.href} asChild className="cursor-pointer">
+                  <Link
+                    href={resolveChildHref(child.href, pathname, search)}
+                    onClick={onNavigate}
+                    aria-current={childActive ? "page" : undefined}
+                    className={cn(childActive && "font-semibold text-[var(--sidebar-icon-color)]")}
+                  >
+                    {child.label}
+                  </Link>
+                </DropdownMenuItem>
+              );
+            })}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </li>
+    );
+  }
+
+  if (hasChildren) {
+    return (
+      <AccordionPrimitive.Item value={item.href} asChild>
+        <li>
+          <AccordionPrimitive.Header asChild>
+            <div>
+              <AccordionPrimitive.Trigger
+                className={itemClasses(isActive, false)}
+                style={isActive ? activeStyle : undefined}
+              >
+                <ItemContent
+                  item={item}
+                  isActive={isActive}
+                  isCollapsed={false}
+                  trailing={
+                    <ChevronDown
+                      aria-hidden
+                      className={cn(
+                        "h-3.5 w-3.5 shrink-0 transition-transform duration-200 group-data-[state=open]:rotate-180",
+                        isActive ? "text-white" : "text-[var(--sidebar-icon-color)]"
+                      )}
+                    />
+                  }
+                />
+              </AccordionPrimitive.Trigger>
+            </div>
+          </AccordionPrimitive.Header>
+          <AccordionPrimitive.Content className="overflow-hidden data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
+            <ul
+              className="ml-1.5 mt-1 space-y-1 border-l pb-1 pl-2 md:ml-2 md:pl-3"
+              style={{ borderColor: "var(--sidebar-border)" }}
+            >
+              {item.children?.map((child) => {
+                const childActive = isChildActive(pathname, search, child);
+                return (
+                  <li key={`${item.href}-${child.href}`}>
+                    <Link
+                      href={resolveChildHref(child.href, pathname, search)}
+                      onClick={onNavigate}
+                      aria-current={childActive ? "page" : undefined}
+                      className={cn(
+                        "sidebar-link flex min-h-10 items-center rounded-xl px-3 py-2 text-xs transition-all duration-200 md:text-sm",
+                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sidebar-focus-ring)]",
+                        !childActive && "hover:translate-x-1 hover:bg-[var(--sidebar-link-hover-bg)]",
+                        childActive && "font-semibold text-white"
+                      )}
+                      style={childActive ? activeStyle : undefined}
+                    >
+                      {child.label}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </AccordionPrimitive.Content>
+        </li>
+      </AccordionPrimitive.Item>
+    );
+  }
 
   return (
     <li>
-      {wrapped}
-      {hasChildren && isOpen && !isCollapsed && (
-        <ul className="ml-1.5 mt-1 space-y-1 border-l pl-2 md:ml-2 md:pl-3" style={{ borderColor: "var(--sidebar-border)" }}>
-          {item.children?.map((child) => {
-            const childActive = isNavLinkActive(pathname, search, child.href, {
-              exactPath: child.href.includes("?"),
-            });
-            return (
-              <li key={`${item.href}-${child.href}`}>
-                <Link
-                  href={resolveChildHref(child.href, pathname, search)}
-                  onClick={onNavigate}
-                  className={cn(
-                    "sidebar-link block rounded-xl px-3 py-2 text-xs transition-all duration-300 md:text-sm",
-                    !childActive && "hover:translate-x-1 hover:bg-[var(--sidebar-link-hover-bg)]",
-                    childActive && "font-semibold text-white"
-                  )}
-                  style={childActive ? { background: "var(--sidebar-link-active-bg)" } : undefined}
-                >
-                  {child.label}
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-      )}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Link
+            href={item.href}
+            onClick={onNavigate}
+            aria-current={selfActive ? "page" : undefined}
+            aria-label={isCollapsed ? item.label : undefined}
+            className={itemClasses(isActive, isCollapsed)}
+            style={isActive ? activeStyle : undefined}
+          >
+            <ItemContent item={item} isActive={isActive} isCollapsed={isCollapsed} />
+          </Link>
+        </TooltipTrigger>
+        {isCollapsed ? <TooltipContent side="right">{tooltip}</TooltipContent> : null}
+      </Tooltip>
     </li>
   );
 }
 
-export function Sidebar({ onNavigate, isMobile, onCollapsedChange }: SidebarProps) {
+function CategoryList({
+  category,
+  pathname,
+  search,
+  onNavigate,
+  isCollapsed,
+}: {
+  category: NavCategory;
+  pathname: string;
+  search: string;
+  onNavigate?: () => void;
+  isCollapsed: boolean;
+}) {
+  const activeGroups = useMemo(
+    () =>
+      category.items
+        .filter((item) => item.children?.length && isItemActive(item, pathname, search))
+        .map((item) => item.href),
+    [category.items, pathname, search]
+  );
+  const [openGroups, setOpenGroups] = useState<string[]>(activeGroups);
+  const activeKey = activeGroups.join("|");
+
+  useEffect(() => {
+    if (!activeKey) return;
+    setOpenGroups((prev) => {
+      const missing = activeKey.split("|").filter((href) => !prev.includes(href));
+      return missing.length ? [...prev, ...missing] : prev;
+    });
+  }, [activeKey]);
+
+  const items = category.items.map((item) => (
+    <MenuItem
+      key={item.href}
+      item={item}
+      pathname={pathname}
+      search={search}
+      onNavigate={onNavigate}
+      isCollapsed={isCollapsed}
+    />
+  ));
+
+  return (
+    <div>
+      <CategorySeparator name={category.label} isCollapsed={isCollapsed} />
+      {isCollapsed ? (
+        <ul className="space-y-0.5 px-2 md:px-3">{items}</ul>
+      ) : (
+        <AccordionPrimitive.Root type="multiple" value={openGroups} onValueChange={setOpenGroups} asChild>
+          <ul className="space-y-0.5 px-2 md:px-3">{items}</ul>
+        </AccordionPrimitive.Root>
+      )}
+    </div>
+  );
+}
+
+export function Sidebar({ categories, system, onNavigate, isMobile, onCollapsedChange }: SidebarProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const search = searchParams.toString();
-  const router = useRouter();
-  const logout = useAuthStore((state) => state.logout);
-  const user = useAuthStore((state) => state.user);
-  const navCategories = filterNavCategoriesByRole(NAV_CATEGORIES, user?.role);
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   const themeStyles = getSidebarThemeStyles();
   const collapsed = isCollapsed && !isMobile;
-  const displayName = user?.name ?? "Usuario";
-  const roleLabel = ROLE_LABELS[user?.role ?? ""] ?? user?.role ?? "Usuario";
 
   useEffect(() => {
     if (isMobile) return;
@@ -259,104 +406,48 @@ export function Sidebar({ onNavigate, isMobile, onCollapsedChange }: SidebarProp
     });
   }
 
-  function handleLogout() {
-    logout();
-    router.replace("/login");
-    onNavigate?.();
-  }
-
-  const logoutClasses = cn(
-    "sidebar-link group flex w-full items-center gap-2 rounded-2xl px-2 py-2 transition-all duration-300 md:px-3 md:py-2.5",
-    "hover:translate-x-2 hover:!bg-[var(--sidebar-link-hover-bg)]",
-    collapsed && "justify-center px-0"
-  );
-
   return (
     <TooltipProvider delayDuration={0}>
       <aside
         className={cn(
-          "relative z-50 flex h-full min-h-[100dvh] flex-col border-r shadow-xl transition-[width] duration-300",
+          "relative z-50 flex h-full flex-col border-r shadow-xl transition-[width] duration-300 md:shadow-none",
           isMobile && "animate-sidebar-slide-in w-screen",
           !isMobile && (collapsed ? "w-16" : "w-64 md:w-72")
         )}
-        style={{ ...themeStyles, background: "var(--sidebar-bg)" } as CSSProperties}
+        style={{ ...themeStyles, background: "var(--sidebar-bg)", borderColor: "var(--sidebar-border)" } as CSSProperties}
+        aria-label="Menu principal"
       >
-        <div
-          className={cn("shrink-0 p-3", isMobile && "pt-[calc(0.75rem+env(safe-area-inset-top,0px))]", !collapsed && "sm:p-4")}
-          style={{ borderBottom: "1px solid var(--sidebar-border)" }}
-        >
-          <div className={cn("flex items-center", collapsed ? "justify-center" : "justify-between gap-2")}>
-            {!collapsed ? (
-              <img
-                src="/AFIRME-LER-LOGO.png"
-                alt="Afirme Ler"
-                className="h-14 w-auto max-w-[240px] shrink-0 object-contain"
-              />
-            ) : (
-              <button type="button" onClick={toggleCollapsed} className="rounded-full p-1 hover:bg-[var(--sidebar-link-hover-bg)]">
-                <img
-                  src="/AFIRME-LER-LOGO.png"
-                  alt="Afirme Ler"
-                  className="h-8 w-8 shrink-0 object-contain"
-                />
-              </button>
-            )}
-            {!isMobile && !collapsed && (
-              <button
-                type="button"
-                onClick={toggleCollapsed}
-                aria-label="Recolher menu"
-                className="rounded-full p-1.5 text-[var(--sidebar-icon-color)] hover:bg-[var(--sidebar-link-hover-bg)]"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </button>
-            )}
-          </div>
-
-          {!collapsed && (
-            <Link
-              href="/app/perfil"
-              onClick={onNavigate}
-              className="mt-3 flex items-center gap-3 rounded-xl border p-3 transition hover:shadow-sm"
-              style={{
-                background: "var(--sidebar-user-card-bg)",
-                borderColor: "var(--sidebar-user-card-border)",
-              }}
+        {!isMobile && (
+          <div className={cn("flex shrink-0 px-2 pt-2", collapsed ? "justify-center" : "justify-end md:px-3")}>
+            <button
+              type="button"
+              onClick={toggleCollapsed}
+              aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
+              aria-expanded={!collapsed}
+              className={cn(
+                "flex h-10 items-center justify-center rounded-full text-[var(--sidebar-icon-color)] transition-colors hover:bg-[var(--sidebar-link-hover-bg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sidebar-focus-ring)]",
+                collapsed ? "w-10" : "gap-1.5 px-3 text-xs font-medium"
+              )}
             >
-              <Avatar className="h-10 w-10">
-                <AvatarFallback className="bg-primary/10 text-sm font-bold text-primary">
-                  {getInitials(displayName)}
-                </AvatarFallback>
-              </Avatar>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold" style={{ color: "var(--sidebar-text)" }}>
-                  {displayName}
-                </p>
-                <p className="truncate text-xs" style={{ color: "var(--sidebar-text-muted)" }}>
-                  {roleLabel}
-                </p>
-              </div>
-            </Link>
-          )}
-        </div>
+              {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+              {collapsed ? null : <span>Recolher menu</span>}
+            </button>
+          </div>
+        )}
 
-        <nav className="custom-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain py-2">
-          {navCategories.map((category: NavCategory) => (
-            <div key={category.label}>
-              <CategorySeparator name={category.label} isCollapsed={collapsed} />
-              <ul className="space-y-0.5 px-2 md:px-3">
-                {category.items.map((item) => (
-                  <RenderMenuItem
-                    key={item.href}
-                    item={item}
-                    pathname={pathname}
-                    search={search}
-                    onNavigate={onNavigate}
-                    isCollapsed={collapsed}
-                  />
-                ))}
-              </ul>
-            </div>
+        <nav
+          key={system}
+          className="custom-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain py-2 animate-in fade-in-0 slide-in-from-left-2 duration-200"
+        >
+          {categories.map((category) => (
+            <CategoryList
+              key={category.label}
+              category={category}
+              pathname={pathname}
+              search={search}
+              onNavigate={onNavigate}
+              isCollapsed={collapsed}
+            />
           ))}
         </nav>
 
@@ -364,33 +455,13 @@ export function Sidebar({ onNavigate, isMobile, onCollapsedChange }: SidebarProp
           className="shrink-0 border-t p-2 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] md:px-3"
           style={{ borderColor: "var(--sidebar-border)" }}
         >
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button type="button" onClick={handleLogout} className={logoutClasses}>
-                <div
-                  className={cn(
-                    "flex items-center justify-center rounded-full bg-[var(--sidebar-icon-bg)] transition-all group-hover:bg-[var(--sidebar-icon-bg-hover)]",
-                    collapsed ? "h-10 w-10" : "h-8 w-8"
-                  )}
-                >
-                  <LogOut className="h-4 w-4 text-[var(--sidebar-icon-color)]" />
-                </div>
-                {!collapsed && (
-                  <span className="text-xs font-medium md:text-sm" style={{ color: "var(--sidebar-text)" }}>
-                    Sair
-                  </span>
-                )}
-              </button>
-            </TooltipTrigger>
-            {collapsed && <TooltipContent side="right">Sair</TooltipContent>}
-          </Tooltip>
           <p
             className={cn(
-              "mt-2 px-2 text-[10px] leading-tight text-muted-foreground md:px-3",
+              "px-2 text-[10px] leading-tight text-muted-foreground md:px-3",
               collapsed ? "px-0 text-center" : "text-left"
             )}
           >
-            {collapsed ? "© 2026" : "© 2026 Afirme Ler"}
+            {collapsed ? "© 2026" : "© 2026 Afirme Educacional"}
           </p>
         </footer>
       </aside>

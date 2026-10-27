@@ -14,7 +14,7 @@ export const PRACTICE_TABS: ReadonlyArray<{
   {
     id: "pouco-comuns",
     label: "Pouco Comuns",
-    practiceLabel: "Praticar palavras pouco conhecidas",
+    practiceLabel: "Praticar palavras pouco comuns",
   },
   { id: "texto", label: "Texto", practiceLabel: "Praticar texto" },
   { id: "compreensao", label: "Compreensão", practiceLabel: "Compreensão" },

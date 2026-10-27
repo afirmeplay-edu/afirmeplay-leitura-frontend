@@ -112,7 +112,7 @@ export async function exportarAlunoPptx(perfil: PerfilEstudanteRelatorio, extra?
   const PptxGenJS = mod.default;
   const pptx = new PptxGenJS();
   const cadastro = cadastroFromPerfil(perfil, extra);
-  pptx.author = "Afirme Ler";
+  pptx.author = "Afirme Educacional";
   pptx.title = `Relatório de fluência — ${cadastro.nome}`;
 
   const ultima = resultadoAtivo(perfil);
@@ -130,7 +130,7 @@ export async function exportarAlunoPptx(perfil: PerfilEstudanteRelatorio, extra?
     h: 0.55,
     fill: { color: hexNoHash(corCapa.hex) },
   });
-  capa.addText("Afirme Ler — Relatório de fluência", {
+  capa.addText("Afirme Educacional — Relatório de fluência", {
     x: 0.4,
     y: 0.7,
     w: 9.2,
@@ -358,7 +358,7 @@ export async function exportarEstudantePptx(perfil: PerfilEstudanteRelatorio, ed
   const mod = await import("pptxgenjs");
   const PptxGenJS = mod.default;
   const pptx = new PptxGenJS();
-  pptx.author = "Afirme Ler";
+  pptx.author = "Afirme Educacional";
   pptx.title = `Relatório de fluência — ${perfil.nome}`;
 
   const estudante = resultadoAtivo(perfil, edicao);
@@ -374,7 +374,7 @@ export async function exportarEstudantePptx(perfil: PerfilEstudanteRelatorio, ed
     h: 0.55,
     fill: { color: hexNoHash(corCapa.hex) },
   });
-  capa.addText("Afirme Ler — Relatório do estudante", {
+  capa.addText("Afirme Educacional — Relatório do estudante", {
     x: 0.4,
     y: 0.7,
     w: 9.2,

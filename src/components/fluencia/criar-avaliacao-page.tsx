@@ -18,6 +18,7 @@ import {
   type WordList,
 } from "@/lib/api/afirme-reading";
 import { listGrades } from "@/lib/api/grades";
+import { ROUTES } from "@/config/routes";
 import {
   listClassesBySchool,
   listSchools,
@@ -465,7 +466,7 @@ export function CriarAvaliacaoPage() {
         await createEvaluation(payload);
         toast.success("Avaliação criada com sucesso.");
       }
-      router.push("/app/avaliacao-fluencia/listar");
+      router.push(ROUTES.leitura.fluencia.listar);
     } catch (error) {
       toast.error(
         getApiErrorMessage(
@@ -690,7 +691,7 @@ export function CriarAvaliacaoPage() {
             {gradeIds.length > 0 && !loadingMaterials && knownLists.length === 0 ? (
               <p className="text-xs text-muted-foreground">
                 Não há lista de conhecidas para a série selecionada.{" "}
-                <Link href="/app/cadastros/palavras-conhecidas" className="underline underline-offset-2">
+                <Link href={ROUTES.leitura.cadastros.conhecidas} className="underline underline-offset-2">
                   Cadastrar lista
                 </Link>
               </p>
@@ -728,7 +729,7 @@ export function CriarAvaliacaoPage() {
             {gradeIds.length > 0 && !loadingMaterials && uncommonLists.length === 0 ? (
               <p className="text-xs text-muted-foreground">
                 Não há lista de pouco comuns para a série selecionada.{" "}
-                <Link href="/app/cadastros/palavras-pouco-comuns" className="underline underline-offset-2">
+                <Link href={ROUTES.leitura.cadastros.poucoComuns} className="underline underline-offset-2">
                   Cadastrar lista
                 </Link>
               </p>
@@ -794,7 +795,7 @@ export function CriarAvaliacaoPage() {
                       ? (
                         <>
                           Nenhum texto cadastrado para a série selecionada.{" "}
-                          <Link href="/app/cadastros/textos" className="underline underline-offset-2">
+                          <Link href={ROUTES.leitura.cadastros.textos} className="underline underline-offset-2">
                             Cadastrar texto
                           </Link>
                         </>
@@ -823,10 +824,10 @@ export function CriarAvaliacaoPage() {
 
       <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end sm:gap-3">
         <Button variant="outline" asChild className="w-full sm:w-auto">
-          <Link href="/app/cadastros">Cadastrar listas, textos e perguntas</Link>
+          <Link href={ROUTES.leitura.cadastros.root}>Cadastrar listas, textos e perguntas</Link>
         </Button>
         <Button variant="ghost" asChild className="w-full sm:w-auto">
-          <Link href="/app/avaliacao-fluencia/listar">← Listar Avaliação</Link>
+          <Link href={ROUTES.leitura.fluencia.listar}>← Listar Avaliação</Link>
         </Button>
         <Button
           className="w-full bg-emerald-600 hover:bg-emerald-700 sm:w-auto"

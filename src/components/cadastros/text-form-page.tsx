@@ -159,16 +159,17 @@ export function TextFormPage({ id }: TextFormPageProps) {
       return original ? !isSameQuestion(draft, original) : true;
     });
 
+    // DELETE primeiro: falha (400) quando a pergunta já tem resposta de aluno, e aí nada novo foi criado ainda.
+    for (const questionId of deletedIds) {
+      await deleteReadingQuestion(textId, questionId);
+    }
+
     for (const draft of changedDrafts) {
       await updateReadingQuestion(textId, draft.id, toUpdateQuestionPayload(draft));
     }
 
     if (newDrafts.length > 0) {
       await createReadingQuestionsBulk(textId, newDrafts.map(toStandaloneQuestionPayload));
-    }
-
-    for (const questionId of deletedIds) {
-      await deleteReadingQuestion(textId, questionId);
     }
   }
 

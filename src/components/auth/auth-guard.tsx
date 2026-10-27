@@ -2,13 +2,24 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { decodeJwtPayload } from "@/lib/auth/jwt";
 import { useAuthStore } from "@/stores/auth-store";
+
+/** O JWT dura 3 h e o `persist-user` devolve um novo: renova antes de vencer (aplicação longa sem recarregar). */
+const RENEW_BEFORE_MS = 10 * 60 * 1000;
+const MIN_RENEW_DELAY_MS = 30 * 1000;
+
+function msUntilExpiry(token: string | null) {
+  const exp = token ? decodeJwtPayload(token)?.exp : undefined;
+  return typeof exp === "number" ? exp * 1000 - Date.now() : null;
+}
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const initialized = useAuthStore((state) => state.initialized);
   const persistUser = useAuthStore((state) => state.persistUser);
   const logout = useAuthStore((state) => state.logout);
+  const token = useAuthStore((state) => state.token);
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
@@ -46,6 +57,26 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       cancelled = true;
     };
   }, [initialized, logout, persistUser, router]);
+
+  useEffect(() => {
+    if (checking || !token) return;
+    const remaining = msUntilExpiry(token);
+    if (remaining == null) return;
+    const timer = window.setTimeout(
+      () => void persistUser(),
+      Math.max(remaining - RENEW_BEFORE_MS, MIN_RENEW_DELAY_MS)
+    );
+    function handleVisibility() {
+      if (document.visibilityState !== "visible") return;
+      const left = msUntilExpiry(useAuthStore.getState().token);
+      if (left != null && left < RENEW_BEFORE_MS) void persistUser();
+    }
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => {
+      window.clearTimeout(timer);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, [checking, token, persistUser]);
 
   if (checking) {
     return <div className="min-h-screen bg-background" />;

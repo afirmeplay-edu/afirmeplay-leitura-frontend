@@ -23,6 +23,7 @@ import {
   type WordList,
 } from "@/lib/api/afirme-reading";
 import { getApiErrorMessage } from "@/lib/api/errors";
+import { ROUTES } from "@/config/routes";
 import { FullscreenLayout } from "@/components/layout/fullscreen-layout";
 import { Leiturometro } from "@/components/fluencia/leiturometro";
 import { MicrophoneTestStep } from "@/components/fluencia/microphone-test-step";
@@ -91,16 +92,16 @@ export function CaedAplicador({ mode = "oficial" }: CaedAplicadorProps) {
   const router = useRouter();
   const params = useSearchParams();
   const isPractice = mode === "praticar";
-  const layoutTitle = isPractice ? "Praticar Avaliação de Fluência" : "Avaliação de Fluência";
+  const layoutTitle = isPractice ? "Praticar leitura" : "Avaliação de Fluência";
 
   const sessionId = params.get("sessionId") ?? "";
   const evaluationId = params.get("evaluationId") ?? "";
   const viewMode = params.get("view") === "1";
   const backHref = isPractice
-    ? "/app/avaliacao-leitura-guiada"
+    ? ROUTES.leitura.pratica.root
     : evaluationId
-      ? `/app/avaliacao-fluencia?evaluationId=${encodeURIComponent(evaluationId)}`
-      : "/app/avaliacao-fluencia";
+      ? `${ROUTES.leitura.fluencia.selecao}?evaluationId=${encodeURIComponent(evaluationId)}`
+      : ROUTES.leitura.fluencia.selecao;
   const studentId = params.get("studentId") ?? params.get("aluno") ?? "";
   const studentName = params.get("studentName") ?? "";
   const classId = params.get("classId") ?? "";
@@ -799,7 +800,7 @@ export function CaedAplicador({ mode = "oficial" }: CaedAplicadorProps) {
                         questionLabel="QUESTÃO 2"
                         title={
                           isPractice
-                            ? "Praticar palavras pouco conhecidas"
+                            ? "Praticar palavras pouco comuns"
                             : "Lista de palavras pouco comuns"
                         }
                         words={q2Items}
@@ -1001,7 +1002,7 @@ export function CaedAplicador({ mode = "oficial" }: CaedAplicadorProps) {
                           <Button
                             variant="outline"
                             className="w-full sm:w-auto"
-                            onClick={() => router.push("/app/relatorios?aba=ica")}
+                            onClick={() => router.push(ROUTES.leitura.relatorios)}
                           >
                             Ver relatórios
                           </Button>

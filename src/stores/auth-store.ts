@@ -231,23 +231,26 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (cityId) cityApi.defaults.headers.common["X-City-ID"] = cityId;
 
       const { data } = await cityApi.get("/persist-user/");
-      const persistedUser = enrichUserFromToken((data?.user ?? data) as User, token);
+      // O backend emite um JWT novo (3 h) a cada persist-user; sem guardá-lo, a sessão vence no prazo do login.
+      const renewed = typeof data?.token === "string" && data.token ? (data.token as string) : token;
+      const persistedUser = enrichUserFromToken((data?.user ?? data) as User, renewed);
       if (!persistedUser?.id) {
         get().logout();
         return false;
       }
 
       const ctx = syncCityContext({
-        token,
+        token: renewed,
         user: persistedUser,
         loginSlug: slug,
         loginCityId: cityId,
       });
 
+      localStorage.setItem("token", renewed);
       localStorage.setItem("user", JSON.stringify(persistedUser));
       set({
         user: persistedUser,
-        token,
+        token: renewed,
         selectedSlug: ctx.selectedSlug,
         selectedCityId: ctx.selectedCityId,
         initialized: true,
@@ -256,7 +259,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     } catch (error) {
       // Só encerra sessão em não autorizado; erros de rede/5xx não disparam logout.
       const status = axios.isAxiosError(error) ? error.response?.status : undefined;
-      if (status === 401 || status === 403) {
+      if (status === 401 || status === 403 || status === 404) {
         get().logout();
       }
       return false;

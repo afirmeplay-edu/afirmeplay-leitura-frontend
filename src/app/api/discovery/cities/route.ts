@@ -8,7 +8,7 @@ export async function GET() {
   } catch (error) {
     console.error("[discovery/cities] Falha ao carregar municipios:", error);
     return NextResponse.json(
-      { cities: [], source: "none", error: "Nao foi possivel carregar municipios." },
+      { cities: [], source: "none", error: "Não foi possível carregar os municípios." },
       { status: 503 }
     );
   }

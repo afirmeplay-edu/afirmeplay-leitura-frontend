@@ -27,6 +27,7 @@ import {
   type ReadingEvaluationStatus,
 } from "@/lib/api/afirme-reading";
 import { listGrades } from "@/lib/api/grades";
+import { ROUTES } from "@/config/routes";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import {
   canDeleteEvaluation,
@@ -45,7 +46,7 @@ import { AdminCityPicker } from "@/components/auth/admin-city-picker";
 import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
@@ -95,7 +96,7 @@ const TYPE_BADGE_CLASS: Record<string, string> = {
 function applyHref(evaluation: ReadingEvaluation) {
   const params = new URLSearchParams();
   params.set("evaluationId", evaluation.id);
-  return `/app/avaliacao-fluencia?${params.toString()}`;
+  return `${ROUTES.leitura.fluencia.selecao}?${params.toString()}`;
 }
 
 function applyAction(evaluation: ReadingEvaluation) {
@@ -227,7 +228,7 @@ export function ListarAvaliacaoPage() {
 
   function handleTabChange(value: string) {
     if (value === "create") {
-      router.push("/app/avaliacao-fluencia/criar");
+      router.push(ROUTES.leitura.fluencia.criar);
       return;
     }
     setTab(value);
@@ -576,7 +577,7 @@ export function ListarAvaliacaoPage() {
                               <DropdownMenuItem
                                 className="cursor-pointer"
                                 onClick={() =>
-                                  router.push(`/app/avaliacao-fluencia/criar?id=${evaluation.id}`)
+                                  router.push(`${ROUTES.leitura.fluencia.criar}?id=${evaluation.id}`)
                                 }
                               >
                                 <Pencil className="mr-2 h-4 w-4" />

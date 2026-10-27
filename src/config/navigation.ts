@@ -1,17 +1,26 @@
 import {
   BarChart3,
   BookOpen,
+  ClipboardCheck,
   ClipboardList,
   Gauge,
   Home,
   Layers,
+  Library,
+  ScanLine,
   type LucideIcon,
 } from "lucide-react";
+import { ROUTES, SYSTEM_HOME, type AppSystem } from "@/config/routes";
+import { ICA_WRITE_ROLES } from "@/lib/auth/roles";
+
+export { getSystemFromPathname } from "@/config/routes";
 
 export interface NavChildLink {
   href: string;
   label: string;
   roles?: string[];
+  /** Ativo só no path exato (necessário quando o filho aponta para o mesmo path do pai). */
+  exact?: boolean;
 }
 
 export interface NavLink {
@@ -21,6 +30,9 @@ export interface NavLink {
   icon: LucideIcon;
   roles?: string[];
   children?: NavChildLink[];
+  /** Item visível mas não clicável (ex.: "Em breve"); `href` serve só como chave. */
+  disabled?: boolean;
+  badge?: string;
 }
 
 export interface NavCategory {
@@ -28,124 +40,216 @@ export interface NavCategory {
   items: NavLink[];
 }
 
-export const NAV_CATEGORIES: NavCategory[] = [
+export type ShortcutAccent = "purple" | "blue" | "emerald" | "amber" | "green" | "orange" | "teal";
+
+export interface DashboardShortcut {
+  href: string;
+  label: string;
+  description: string;
+  accent: ShortcutAccent;
+  icon: LucideIcon;
+  disabled?: boolean;
+  badge?: string;
+}
+
+const L = ROUTES.leitura;
+const I = ROUTES.ica;
+
+export const NAV_LEITURA: NavCategory[] = [
   {
     label: "Principal",
     items: [
-      { href: "/app", label: "Inicio", description: "Painel principal do sistema", icon: Home },
+      { href: L.home, label: "Início", description: "Painel principal do sistema", icon: Home },
     ],
   },
   {
-    label: "Avaliacoes",
+    label: "Avaliações",
     items: [
       {
-        href: "/app/avaliacao-fluencia",
-        label: "Avaliação de Fluência",
-        description: "Leiturometro e ICA",
+        href: L.fluencia.selecao,
+        label: "Avaliar",
+        description: "Leiturômetro",
         icon: Gauge,
         children: [
-          { href: "/app/avaliacao-fluencia/criar", label: "Criar Avaliação" },
-          { href: "/app/avaliacao-fluencia/listar", label: "Listar Avaliação" },
+          { href: L.fluencia.criar, label: "Criar avaliação" },
+          { href: L.fluencia.listar, label: "Avaliações criadas" },
+          { href: L.fluencia.selecao, label: "Aplicar", exact: true },
         ],
       },
       {
-        href: "/app/avaliacao-leitura-guiada",
-        label: "Praticar Avaliação de Fluência",
+        href: L.pratica.root,
+        label: "Praticar",
         description: "Prática das atividades de fluência",
         icon: BookOpen,
         children: [
-          { href: "/app/revisao-leitura-guiada", label: "Revisão e áudio" },
-          { href: "/app/avaliacao-leitura-guiada?aba=palavras", label: "Praticar palavras conhecidas" },
-          {
-            href: "/app/avaliacao-leitura-guiada?aba=pouco-comuns",
-            label: "Praticar palavras pouco conhecidas",
-          },
-          { href: "/app/avaliacao-leitura-guiada?aba=texto", label: "Praticar texto" },
+          { href: `${L.pratica.root}?aba=palavras`, label: "Palavras conhecidas" },
+          { href: `${L.pratica.root}?aba=pouco-comuns`, label: "Palavras pouco comuns" },
+          { href: `${L.pratica.root}?aba=texto`, label: "Texto" },
+          { href: L.automatica.root, label: "Leitura automática" },
+          { href: L.revisao, label: "Revisão e áudio" },
         ],
       },
       {
-        href: "/app/avaliacoes",
-        label: "Avaliacoes aplicadas",
-        description: "Provas aplicadas e erros por fase",
-        icon: Layers,
-      },
-      {
-        href: "/app/cadastros",
+        href: L.cadastros.root,
         label: "Cadastros",
         description: "Listas de palavras, textos e perguntas",
         icon: ClipboardList,
         children: [
-          {
-            href: "/app/cadastros/palavras-conhecidas",
-            label: "Lista de palavras conhecidas",
-            roles: ["admin"],
-          },
-          {
-            href: "/app/cadastros/palavras-pouco-comuns",
-            label: "Lista de palavras pouco comuns",
-          },
-          {
-            href: "/app/cadastros/textos",
-            label: "Criar textos e perguntas",
-          },
+          { href: L.cadastros.conhecidas, label: "Palavras conhecidas", roles: ["admin"] },
+          { href: L.cadastros.poucoComuns, label: "Palavras pouco comuns" },
+          { href: L.cadastros.textos, label: "Textos e perguntas" },
         ],
       },
     ],
   },
   {
-    label: "Relatorios",
+    label: "Relatórios",
     items: [
       {
-        href: "/app/relatorios-fluencia",
-        label: "Resultados de fluencia",
-        description: "IFL, perfis leitores e alertas",
-        icon: BarChart3,
-      },
-      {
-        href: "/app/relatorios",
-        label: "Relatorios",
-        description: "ICA, fluencia e geral",
+        href: L.relatorios,
+        label: "Resultados",
+        description: "IFL, perfis leitores e provas aplicadas",
         icon: BarChart3,
         children: [
-          { href: "/app/relatorios?aba=ica", label: "Relatorio ICA" },
-          { href: "/app/relatorios?aba=fluencia", label: "Relatorio fluencia" },
-          { href: "/app/relatorios?aba=geral", label: "Visao geral" },
+          { href: L.relatorios, label: "Painel de resultados", exact: true },
+          { href: L.relatoriosFluencia, label: "Relatório de fluência" },
+          { href: L.avaliacoes.root, label: "Avaliações aplicadas" },
         ],
       },
     ],
   },
 ];
 
-export const DASHBOARD_FEATURE_CARDS = [
-  {
-    href: "/app/avaliacao-fluencia",
-    label: "Aplicar avaliacao",
-    description: "Modo leitura sem distração",
-    accent: "emerald",
-  },
-  {
-    href: "/app/avaliacao-leitura-guiada",
-    label: "Leitura guiada",
-    description: "Roteiro de mediação",
-    accent: "blue",
-  },
-  {
-    href: "/app/avaliacoes",
-    label: "Avaliacoes aplicadas",
-    description: "Cards e histórico",
-    accent: "amber",
-  },
-  {
-    href: "/app/relatorios-fluencia",
-    label: "Relatorios",
-    description: "Alfabetômetro e exportações",
-    accent: "purple",
-  },
-] as const;
+const WRITE_ROLES = [...ICA_WRITE_ROLES];
 
-export function getAllNavLinks(): NavLink[] {
-  return NAV_CATEGORIES.flatMap((c) => c.items);
+export const NAV_ICA: NavCategory[] = [
+  {
+    label: "Principal",
+    items: [{ href: I.home, label: "Início", description: "Painel do Sistema ICA", icon: Home }],
+  },
+  {
+    label: "Conteúdo",
+    items: [
+      {
+        href: I.questoes.root,
+        label: "Banco de questões",
+        description: "Múltipla escolha, ditado e produção",
+        icon: Library,
+        children: [
+          { href: I.questoes.nova, label: "Criar questão", roles: WRITE_ROLES },
+          { href: I.questoes.root, label: "Listar questões", exact: true },
+        ],
+      },
+      {
+        href: I.avaliacoes.root,
+        label: "Avaliações",
+        description: "Montagem da prova",
+        icon: ClipboardCheck,
+        children: [
+          { href: I.avaliacoes.nova, label: "Criar avaliação", roles: WRITE_ROLES },
+          { href: I.avaliacoes.root, label: "Listar avaliações", exact: true },
+        ],
+      },
+    ],
+  },
+  {
+    label: "Acompanhamento",
+    items: [
+      {
+        href: I.aplicacao,
+        label: "Aplicação e correção",
+        description: "Turmas e cartões-resposta",
+        icon: ScanLine,
+      },
+      {
+        href: I.acompanhamento,
+        label: "Acompanhamento",
+        description: "Banco, avaliações e turmas",
+        icon: BarChart3,
+      },
+      {
+        href: `${I.home}#resultados`,
+        label: "Resultados",
+        description: "Desempenho por turma",
+        icon: BarChart3,
+        disabled: true,
+        badge: "Em breve",
+      },
+    ],
+  },
+];
+
+const NAV_BY_SYSTEM: Record<AppSystem, NavCategory[]> = {
+  leitura: NAV_LEITURA,
+  ica: NAV_ICA,
+};
+
+export function getNavForSystem(system: AppSystem): NavCategory[] {
+  return NAV_BY_SYSTEM[system];
 }
+
+export const DASHBOARD_SHORTCUTS: Record<AppSystem, DashboardShortcut[]> = {
+  leitura: [
+    {
+      href: L.fluencia.selecao,
+      label: "Aplicar avaliação",
+      description: "Modo leitura sem distração",
+      accent: "emerald",
+      icon: Gauge,
+    },
+    {
+      href: L.pratica.root,
+      label: "Praticar leitura",
+      description: "Palavras e texto, sem registro oficial",
+      accent: "blue",
+      icon: BookOpen,
+    },
+    {
+      href: L.avaliacoes.root,
+      label: "Avaliações aplicadas",
+      description: "Cards e histórico",
+      accent: "amber",
+      icon: Layers,
+    },
+    {
+      href: L.relatorios,
+      label: "Resultados",
+      description: "Painel, evolução no ano e turmas",
+      accent: "purple",
+      icon: BarChart3,
+    },
+  ],
+  ica: [
+    {
+      href: I.questoes.root,
+      label: "Questões",
+      description: "Múltipla escolha, ditado e produção escrita",
+      accent: "teal",
+      icon: Library,
+    },
+    {
+      href: I.avaliacoes.root,
+      label: "Avaliações",
+      description: "Monte a prova com 20 itens",
+      accent: "blue",
+      icon: ClipboardCheck,
+    },
+    {
+      href: I.aplicacao,
+      label: "Aplicação e correção",
+      description: "Turmas e cartões-resposta · correção em breve",
+      accent: "teal",
+      icon: ScanLine,
+    },
+    {
+      href: I.acompanhamento,
+      label: "Acompanhamento",
+      description: "Banco, avaliações e turmas",
+      accent: "purple",
+      icon: BarChart3,
+    },
+  ],
+};
 
 export function canAccessByRoles(role: string | null | undefined, roles?: string[]) {
   if (!roles?.length) return true;
@@ -170,6 +274,8 @@ export function filterNavCategoriesByRole(
     .filter((category) => category.items.length > 0);
 }
 
+const EXACT_MATCH_PATHS = new Set<string>([ROUTES.app, ...Object.values(SYSTEM_HOME)]);
+
 export function isNavLinkActive(
   pathname: string,
   search: string,
@@ -178,7 +284,7 @@ export function isNavLinkActive(
 ): boolean {
   const [path, query] = href.split("?");
 
-  if (path === "/app") return pathname === "/app";
+  if (EXACT_MATCH_PATHS.has(path)) return pathname === path;
 
   const pathMatch = options?.exactPath
     ? pathname === path
@@ -197,7 +303,3 @@ export function isNavLinkActive(
 
   return true;
 }
-
-// Mantido para compatibilidade com referencias legadas.
-export type AppNavItem = NavLink;
-export const APP_NAV_ITEMS: AppNavItem[] = getAllNavLinks();

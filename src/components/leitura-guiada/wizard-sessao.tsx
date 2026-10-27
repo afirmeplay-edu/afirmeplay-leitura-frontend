@@ -12,9 +12,10 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { getMockStudentById, getMockTextById } from "@/lib/mock";
+import { ROUTES } from "@/config/routes";
 import { cn } from "@/lib/utils";
 
-const STEPS = ["Leitura", "Avaliacao", "Compreensao", "Resultados"];
+const STEPS = ["Leitura", "Avaliação", "Compreensão", "Resultados"];
 
 export function WizardSessao() {
   const router = useRouter();
@@ -35,7 +36,7 @@ export function WizardSessao() {
     <FullscreenLayout
       title="Leitura Guiada"
       subtitle={student ? `${student.name}` : ""}
-      backHref="/app/avaliacao-leitura-guiada"
+      backHref={ROUTES.leitura.pratica.root}
       onClose={() => setConfirmExit(true)}
     >
       <div className="mx-auto w-full min-w-0 max-w-3xl space-y-4 sm:space-y-6">
@@ -59,18 +60,18 @@ export function WizardSessao() {
             {step === 0 && text && (
               <>
                 <h2 className="text-xl font-semibold">Etapa 1 — Leitura</h2>
-                <p className="text-sm text-muted-foreground">Instrucoes: leia o texto em voz alta. Cronometro simulado: 2:30</p>
+                <p className="text-sm text-muted-foreground">Instruções: leia o texto em voz alta. Cronômetro simulado: 2:30</p>
                 <div className="rounded-lg border p-6 leading-relaxed">
                   {words.map((w, i) => (
                     <span key={i} className={cn("mr-1", i === 3 && "rounded bg-yellow-200 px-0.5")}>{w}</span>
                   ))}
                 </div>
-                <Button onClick={() => setStep(1)}>Avancar para avaliacao</Button>
+                <Button onClick={() => setStep(1)}>Avançar para avaliação</Button>
               </>
             )}
             {step === 1 && text && (
               <>
-                <h2 className="text-xl font-semibold">Etapa 2 — Avaliacao de erros</h2>
+                <h2 className="text-xl font-semibold">Etapa 2 — Avaliação de erros</h2>
                 <p className="text-sm text-muted-foreground">Clique nas palavras com erro de leitura:</p>
                 <div className="flex flex-wrap gap-1">
                   {words.slice(0, 20).map((w, i) => (
@@ -90,16 +91,16 @@ export function WizardSessao() {
                   ))}
                 </div>
                 <div className="space-y-2">
-                  <Label>Prosodia (1-5)</Label>
+                  <Label>Prosódia (1-5)</Label>
                   <input type="range" min={1} max={5} value={prosody} onChange={(e) => setProsody(Number(e.target.value))} className="w-full" />
                   <p className="text-sm">Nota: {prosody}</p>
                 </div>
-                <Button onClick={() => setStep(2)}>Avancar</Button>
+                <Button onClick={() => setStep(2)}>Avançar</Button>
               </>
             )}
             {step === 2 && text && (
               <>
-                <h2 className="text-xl font-semibold">Etapa 3 — Compreensao</h2>
+                <h2 className="text-xl font-semibold">Etapa 3 — Compreensão</h2>
                 {text.questions.map((q) => (
                   <div key={q.id} className="space-y-2">
                     <p className="font-medium">{q.text}</p>
@@ -120,10 +121,10 @@ export function WizardSessao() {
                 <h2 className="text-xl font-semibold">Etapa 4 — Resultados</h2>
                 <div className="grid gap-4 sm:grid-cols-3">
                   <StatCard label="PLCM" value={plcm} icon={AlertTriangle} />
-                  <StatCard label="Precisao" value={`${accuracy}%`} icon={AlertTriangle} />
-                  <StatCard label="Prosodia" value={`${prosody}/5`} icon={AlertTriangle} />
+                  <StatCard label="Precisão" value={`${accuracy}%`} icon={AlertTriangle} />
+                  <StatCard label="Prosódia" value={`${prosody}/5`} icon={AlertTriangle} />
                 </div>
-                <Button className="w-full sm:w-auto">Salvar avaliacao (mock)</Button>
+                <Button className="w-full sm:w-auto">Salvar avaliação (demonstração)</Button>
               </>
             )}
           </CardContent>
@@ -132,12 +133,12 @@ export function WizardSessao() {
       <ConfirmDialog
         open={confirmExit}
         onOpenChange={setConfirmExit}
-        title="Sair da sessao?"
-        description="O progresso atual sera perdido nesta sessao demonstrativa."
+        title="Sair da sessão?"
+        description="O progresso atual será perdido nesta sessão demonstrativa."
         confirmLabel="Sair"
         variant="destructive"
         icon={AlertTriangle}
-        onConfirm={() => router.push("/app/avaliacao-leitura-guiada")}
+        onConfirm={() => router.push(ROUTES.leitura.pratica.root)}
       />
     </FullscreenLayout>
   );

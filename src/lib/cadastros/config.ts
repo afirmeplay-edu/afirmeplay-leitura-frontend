@@ -1,14 +1,10 @@
 import type { WordListKind } from "@/lib/api/afirme-reading";
 import { isKnownWordListKind } from "@/lib/afirme-reading/evaluation-contract";
+import { ROUTES } from "@/config/routes";
 
 export type CatalogWordListKind = "PALAVRAS_CONHECIDAS" | "POUCO_COMUNS";
 
-export const CADASTROS_PATHS = {
-  root: "/app/cadastros",
-  conhecidas: "/app/cadastros/palavras-conhecidas",
-  poucoComuns: "/app/cadastros/palavras-pouco-comuns",
-  textos: "/app/cadastros/textos",
-} as const;
+export const CADASTROS_PATHS = ROUTES.leitura.cadastros;
 
 export interface WordListKindConfig {
   kind: CatalogWordListKind;

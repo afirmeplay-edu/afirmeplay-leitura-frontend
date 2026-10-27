@@ -1,3 +1,5 @@
+import { ROUTES } from "@/config/routes";
+
 export interface FluencyAplicarParams {
   sessionId: string;
   evaluationId?: string;
@@ -35,6 +37,6 @@ export function fluencyAplicarHref(params: FluencyAplicarParams) {
   if (params.view) search.set("view", "1");
   if (params.aba) search.set("aba", params.aba);
 
-  const path = params.practice ? "/app/avaliacao-leitura-guiada" : "/app/avaliacao-fluencia/aplicar";
+  const path = params.practice ? ROUTES.leitura.pratica.root : ROUTES.leitura.fluencia.aplicar;
   return `${path}?${search.toString()}`;
 }

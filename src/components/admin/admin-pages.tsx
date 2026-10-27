@@ -19,14 +19,14 @@ export function PerfilPage() {
 
   return (
     <PageShell>
-      <PageHeader title="Meu perfil" description="Gerencie suas informacoes pessoais." icon={User} />
+      <PageHeader title="Meu perfil" description="Gerencie suas informações pessoais." icon={User} />
 
-      <SectionCard title="Dados pessoais" description="Informacoes da sua conta">
+      <SectionCard title="Dados pessoais" description="Informações da sua conta">
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2"><Label>Nome</Label><Input defaultValue={user?.name ?? ""} /></div>
-          <div className="space-y-2"><Label>Email</Label><Input defaultValue={user?.email ?? ""} /></div>
+          <div className="space-y-2"><Label>E-mail</Label><Input defaultValue={user?.email ?? ""} /></div>
         </div>
-        <Button className="mt-4">Salvar alteracoes (mock)</Button>
+        <Button className="mt-4">Salvar alterações (demonstração)</Button>
       </SectionCard>
 
       <SectionCard title="Alterar senha" description="Atualize sua senha de acesso">
@@ -59,15 +59,15 @@ export function RecuperarSenhaPage() {
           <h1 className="text-xl font-bold text-foreground">Recuperar senha</h1>
           {step === 1 && (
             <>
-              <p className="text-sm text-muted-foreground">Informe seu e-mail para receber o codigo de recuperacao.</p>
-              <div className="space-y-2"><Label>Email</Label><Input type="email" placeholder="seu@email.com" /></div>
-              <Button className="w-full" onClick={() => setStep(2)}>Enviar codigo</Button>
+              <p className="text-sm text-muted-foreground">Informe seu e-mail para receber o código de recuperação.</p>
+              <div className="space-y-2"><Label>E-mail</Label><Input type="email" placeholder="seu@email.com" /></div>
+              <Button className="w-full" onClick={() => setStep(2)}>Enviar código</Button>
             </>
           )}
           {step === 2 && (
             <>
-              <p className="text-sm text-muted-foreground">Digite o codigo enviado por e-mail.</p>
-              <div className="space-y-2"><Label>Codigo</Label><Input placeholder="000000" /></div>
+              <p className="text-sm text-muted-foreground">Digite o código enviado por e-mail.</p>
+              <div className="space-y-2"><Label>Código</Label><Input placeholder="000000" /></div>
               <Button className="w-full" onClick={() => setStep(3)}>Verificar</Button>
             </>
           )}

@@ -48,7 +48,7 @@ export function StatCard({
               <Icon className="h-4 w-4" />
             </div>
           </div>
-          <p className="break-words text-2xl font-bold leading-tight tracking-tight sm:text-3xl">{valueNode}</p>
+          <div className="break-words text-2xl font-bold leading-tight tracking-tight sm:text-3xl">{valueNode}</div>
           {trend ? <p className="text-xs text-white/75">{trend}</p> : null}
         </CardContent>
       </Card>
@@ -62,7 +62,7 @@ export function StatCard({
           <div className="flex items-start justify-between gap-2">
             <p className="text-sm text-muted-foreground">{label}</p>
             <div
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-violet-500/10 text-brand-highlight"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-highlight/10 text-brand-highlight"
               style={
                 accentColor
                   ? { backgroundColor: `${accentColor}22`, color: accentColor }
@@ -72,9 +72,9 @@ export function StatCard({
               <Icon className="h-4 w-4" />
             </div>
           </div>
-          <p className="break-words text-2xl font-bold leading-tight tracking-tight text-foreground sm:text-3xl">
+          <div className="break-words text-2xl font-bold leading-tight tracking-tight text-foreground sm:text-3xl">
             {valueNode}
-          </p>
+          </div>
           {trend ? <p className="text-xs text-muted-foreground">{trend}</p> : null}
         </CardContent>
       </Card>
@@ -102,14 +102,14 @@ export function StatCard({
         </div>
         <div className="min-w-0 flex-1">
           <p className={cn("text-sm text-muted-foreground", compact && "text-xs")}>{label}</p>
-          <p
+          <div
             className={cn(
               "break-words text-2xl font-bold leading-tight tracking-tight text-foreground",
               compact && "text-lg"
             )}
           >
             {valueNode}
-          </p>
+          </div>
           {trend && <p className="text-xs text-muted-foreground">{trend}</p>}
         </div>
       </CardContent>

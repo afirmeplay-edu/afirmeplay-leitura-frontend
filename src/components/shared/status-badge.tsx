@@ -9,10 +9,10 @@ const STATUS_MAP: Record<StatusType, { label: string; variant: "success" | "seco
   inativo: { label: "Inativo", variant: "secondary" },
   calibrado: { label: "Calibrado", variant: "info" },
   pendente: { label: "Pendente", variant: "warning" },
-  fluencia: { label: "Fluencia", variant: "info" },
+  fluencia: { label: "Fluência", variant: "info" },
   ica: { label: "ICA", variant: "default" },
   guiada: { label: "Leitura guiada", variant: "outline" },
-  padrao: { label: "Padrao", variant: "success" },
+  padrao: { label: "Padrão", variant: "success" },
 };
 
 export function StatusBadge({ status, label }: { status: StatusType; label?: string }) {

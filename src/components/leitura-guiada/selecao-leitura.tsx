@@ -10,6 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getMockSchools, getMockClasses, getMockStudents, getMockTexts } from "@/lib/mock";
+import { ROUTES } from "@/config/routes";
 
 export function SelecaoLeitura() {
   const router = useRouter();
@@ -29,12 +30,12 @@ export function SelecaoLeitura() {
   return (
     <div className="space-y-6 pb-8">
       <PageHeader
-        title="Nova Avaliacao de Leitura"
+        title="Nova avaliação de leitura"
         description="Selecione escola, turma, aluno e texto para iniciar a leitura guiada."
         icon={BookOpen}
       >
         <Button variant="outline" asChild className="w-full sm:w-auto">
-          <Link href="/app/avaliacao-leitura-guiada/demo">Modo demonstracao</Link>
+          <Link href={ROUTES.leitura.pratica.demo}>Modo demonstração</Link>
         </Button>
       </PageHeader>
 
@@ -96,9 +97,9 @@ export function SelecaoLeitura() {
       <Button
         className="w-full sm:w-auto"
         disabled={!canStart}
-        onClick={() => router.push(`/app/avaliacao-leitura-guiada/sessao?aluno=${studentId}&texto=${textId}`)}
+        onClick={() => router.push(`${ROUTES.leitura.pratica.sessao}?aluno=${studentId}&texto=${textId}`)}
       >
-        Iniciar Avaliacao de Leitura
+        Iniciar avaliação de leitura
       </Button>
     </div>
   );

@@ -151,7 +151,7 @@ export function AdminCityPicker({ onCityReadyChange }: AdminCityPickerProps) {
         setCatalogLoaded(true);
       } catch (error) {
         if (!cancelled) {
-          toast.error(getApiErrorMessage(error, "Nao foi possivel carregar os municipios."));
+          toast.error(getApiErrorMessage(error, "Não foi possível carregar os municípios."));
           setCatalogLoaded(true);
           notify(false, null);
         }
@@ -181,7 +181,7 @@ export function AdminCityPicker({ onCityReadyChange }: AdminCityPickerProps) {
 
   return (
     <div className="surface-panel space-y-2 p-4">
-      <Label>Municipio</Label>
+      <Label>Município</Label>
       <Select
         value={cityIdInCatalog(selectedCityId, cities) ? selectedCityId ?? undefined : undefined}
         onValueChange={(value) => {
@@ -192,7 +192,7 @@ export function AdminCityPicker({ onCityReadyChange }: AdminCityPickerProps) {
       >
         <SelectTrigger>
           <SelectValue
-            placeholder={loading ? "Carregando municipios..." : "Selecione o municipio"}
+            placeholder={loading ? "Carregando municípios..." : "Selecione o município"}
           />
         </SelectTrigger>
         <SelectContent>
@@ -205,7 +205,7 @@ export function AdminCityPicker({ onCityReadyChange }: AdminCityPickerProps) {
         </SelectContent>
       </Select>
       <p className="text-xs text-muted-foreground">
-        Contexto do municipio (X-City-ID / X-City-Slug) usado nas rotas tenant.
+        Contexto do município (X-City-ID / X-City-Slug) usado nas rotas tenant.
       </p>
     </div>
   );
