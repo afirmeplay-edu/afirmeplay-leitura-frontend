@@ -439,7 +439,44 @@ Principal: Início · Conteúdo: **Banco de questões** (Criar questão, Listar 
 ### Inconsistências de legado (registrar, não corrigir)
 
 - "Revisão e áudio" lista `/guided-sessions`; a prática atual grava `/fluency-sessions`.
-- Botão "Ver relatórios" do Leiturômetro (`caed-aplicador.tsx`) vai para o hub mock (`/app/leitura/relatorios?aba=ica`). Só o path foi atualizado; o destino mock foi mantido (o prompt só pede mudar o botão do hero).
+- Botão "Ver relatórios" do Leiturômetro (`caed-aplicador.tsx`) apontava para `/app/leitura/relatorios?aba=ica`. O parâmetro era do hub mock; a rodada seguinte levou o botão ao painel real.
 - `/app/relatorios` é 100% mock.
 - `/app/avaliacao-leitura-guiada/demo` e `/sessao` são mocks ainda roteados.
 - `GuidedSessionFlow` / `GuidedSelectionForm` sem rota.
+
+---
+
+## Rodada de continuidade (já no commit local `05c5b72`)
+
+O backend `markindev` passou a expor o que as pendências P1, P2 e P3 pediam. O front da branch `lucas` consome essas rotas. Nesta sessão não houve commit, push nem troca de branch, e o backend não foi alterado.
+
+### O que o front passou a fazer
+
+- Banco de questões com `multipleChoice`, `dictation` e `text_production` (formulário, lista, prévia e seletor).
+- Avaliação escrita em `/written-tests`: rascunho, composição 16 múltipla escolha + 3 ditados + 1 produção, publicação (o servidor exige 20 questões), PDF e exclusão.
+- Aplicação por turma, alunos, retirada antes do início e cartões-resposta (geração, consulta e ZIP).
+- Acompanhamento do ICA com contagens reais de banco, rascunhos, publicações e situação das turmas. Sem nota de aluno.
+- Painel de resultados da Leitura em `/app/leitura/relatorios`, no lugar do hub mock, com os dados de `/resultados`.
+- Leitura automática (`/guided-auto-sessions`) e marcação de ausente na fluência.
+- Ajustes de revisão: renovação do token, gravador sem segunda partida, exclusão de perguntas do texto antes do patch, limpeza de turno no relatório e perfil do aluno zerado ao recarregar.
+- Acentos em textos visíveis, remoção do ícone `/AFIRME-PLAY-ico.png` (404), `outputFileTracingRoot` e duração do sheet.
+
+O botão "Ver relatórios" do Leiturômetro ia para `?aba=ica`, parâmetro do hub mock. Agora abre o painel real de resultados.
+
+### O que continua fora do front
+
+| Pendência | Motivo |
+|---|---|
+| Resultados do ICA (desempenho do aluno) | Não há correção de cartão nem agregação de nota em `/resultados`. O item do menu segue "Em breve". |
+| Tabelas da prova escrita no município | Dependem de `provision_afirme_ler_written_tests.py --execute` no schema da cidade (tarefa de backend; não foi executada). |
+| Transcrição da leitura automática e geração dos cartões | Dependem do worker (STT/Celery) no servidor. |
+
+Páginas de demonstração e configuração ainda importam `src/lib/mock`. Essas rotas de legado continuam de propósito.
+
+### Verificação
+
+| Verificação | Resultado |
+|---|---|
+| `npx tsc --noEmit -p .` | 0 erros |
+| `npx eslint src` | 0 erros, 8 warnings legados (imports e deps de hooks já existentes; antes eram 9) |
+| Tela | Não exercitada aqui; a conferência visual fica com quem usa o sistema. |

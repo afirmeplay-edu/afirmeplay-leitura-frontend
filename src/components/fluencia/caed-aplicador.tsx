@@ -1002,7 +1002,7 @@ export function CaedAplicador({ mode = "oficial" }: CaedAplicadorProps) {
                           <Button
                             variant="outline"
                             className="w-full sm:w-auto"
-                            onClick={() => router.push(`${ROUTES.leitura.relatorios}?aba=ica`)}
+                            onClick={() => router.push(ROUTES.leitura.relatorios)}
                           >
                             Ver relatórios
                           </Button>
