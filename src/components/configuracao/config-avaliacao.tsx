@@ -22,7 +22,7 @@ export function ConfigAvaliacao() {
   return (
     <PageShell>
       <PageHeader
-        title="Configurar Avaliação"
+        title="Configurar avaliação"
         description="Gerencie listas de palavras, textos narrativos e perguntas de compreensão."
         icon={Settings2}
       />
@@ -36,7 +36,7 @@ export function ConfigAvaliacao() {
         <TabsContent value="listas">
           <SectionCard
             title="Listas de palavras"
-            description="Listas utilizadas nas avaliacoes de fluencia e ICA"
+            description="Listas utilizadas nas avaliações de fluência e ICA"
             actions={
               <Button onClick={() => setDialogOpen(true)}>
                 <Plus className="mr-2 h-4 w-4" />
@@ -50,7 +50,7 @@ export function ConfigAvaliacao() {
                   <TableHead>Nome</TableHead>
                   <TableHead>Tipo</TableHead>
                   <TableHead>Itens</TableHead>
-                  <TableHead>Padrao</TableHead>
+                  <TableHead>Padrão</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
               </TableHeader>
@@ -60,7 +60,7 @@ export function ConfigAvaliacao() {
                     <TableCell className="font-medium">{wl.name}</TableCell>
                     <TableCell>{wl.type}</TableCell>
                     <TableCell>{wl.items.length}</TableCell>
-                    <TableCell>{wl.isDefault ? <StatusBadge status="padrao" /> : <StatusBadge status="inativo" label="Nao" />}</TableCell>
+                    <TableCell>{wl.isDefault ? <StatusBadge status="padrao" /> : <StatusBadge status="inativo" label="Não" />}</TableCell>
                     <TableCell>{wl.active ? <StatusBadge status="ativo" /> : <StatusBadge status="inativo" />}</TableCell>
                   </TableRow>
                 ))}
@@ -84,7 +84,7 @@ export function ConfigAvaliacao() {
                 }
               >
                 <p className="line-clamp-3 text-sm text-muted-foreground">{text.content}</p>
-                <p className="mt-2 text-xs text-muted-foreground">{text.questions.length} perguntas de compreensao</p>
+                <p className="mt-2 text-xs text-muted-foreground">{text.questions.length} perguntas de compreensão</p>
               </SectionCard>
             ))}
           </div>
@@ -95,7 +95,7 @@ export function ConfigAvaliacao() {
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         title="Nova lista de palavras"
-        description="Cadastro demonstrativo de lista para avaliacao."
+        description="Cadastro demonstrativo de lista para avaliação."
         icon={Settings2}
         onSubmit={() => setDialogOpen(false)}
       >

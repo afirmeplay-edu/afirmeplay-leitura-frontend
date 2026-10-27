@@ -8,9 +8,6 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "Afirmeplay Leitura",
   description: "Sistema de leitura da Afirmeplay",
-  icons: {
-    icon: "/AFIRME-PLAY-ico.png",
-  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -55,7 +55,6 @@ export interface DashboardShortcut {
 const L = ROUTES.leitura;
 const I = ROUTES.ica;
 
-/** O hub mock `ROUTES.leitura.relatorios` saiu do menu de propósito (a rota continua existindo). */
 export const NAV_LEITURA: NavCategory[] = [
   {
     label: "Principal",
@@ -86,6 +85,7 @@ export const NAV_LEITURA: NavCategory[] = [
           { href: `${L.pratica.root}?aba=palavras`, label: "Palavras conhecidas" },
           { href: `${L.pratica.root}?aba=pouco-comuns`, label: "Palavras pouco comuns" },
           { href: `${L.pratica.root}?aba=texto`, label: "Texto" },
+          { href: L.automatica.root, label: "Leitura automática" },
           { href: L.revisao, label: "Revisão e áudio" },
         ],
       },
@@ -106,12 +106,13 @@ export const NAV_LEITURA: NavCategory[] = [
     label: "Relatórios",
     items: [
       {
-        href: L.relatoriosFluencia,
+        href: L.relatorios,
         label: "Resultados",
         description: "IFL, perfis leitores e provas aplicadas",
         icon: BarChart3,
         children: [
-          { href: L.relatoriosFluencia, label: "Resultados de fluência" },
+          { href: L.relatorios, label: "Painel de resultados", exact: true },
+          { href: L.relatoriosFluencia, label: "Relatório de fluência" },
           { href: L.avaliacoes.root, label: "Avaliações aplicadas" },
         ],
       },
@@ -132,7 +133,7 @@ export const NAV_ICA: NavCategory[] = [
       {
         href: I.questoes.root,
         label: "Banco de questões",
-        description: "Múltipla escolha",
+        description: "Múltipla escolha, ditado e produção",
         icon: Library,
         children: [
           { href: I.questoes.nova, label: "Criar questão", roles: WRITE_ROLES },
@@ -155,12 +156,16 @@ export const NAV_ICA: NavCategory[] = [
     label: "Acompanhamento",
     items: [
       {
-        href: `${I.home}#aplicacao-correcao`,
+        href: I.aplicacao,
         label: "Aplicação e correção",
-        description: "Cartão-resposta",
+        description: "Turmas e cartões-resposta",
         icon: ScanLine,
-        disabled: true,
-        badge: "Em breve",
+      },
+      {
+        href: I.acompanhamento,
+        label: "Acompanhamento",
+        description: "Banco, avaliações e turmas",
+        icon: BarChart3,
       },
       {
         href: `${I.home}#resultados`,
@@ -207,9 +212,9 @@ export const DASHBOARD_SHORTCUTS: Record<AppSystem, DashboardShortcut[]> = {
       icon: Layers,
     },
     {
-      href: L.relatoriosFluencia,
-      label: "Relatórios",
-      description: "Alfabetômetro e exportações",
+      href: L.relatorios,
+      label: "Resultados",
+      description: "Painel, evolução no ano e turmas",
       accent: "purple",
       icon: BarChart3,
     },
@@ -218,7 +223,7 @@ export const DASHBOARD_SHORTCUTS: Record<AppSystem, DashboardShortcut[]> = {
     {
       href: I.questoes.root,
       label: "Questões",
-      description: "Banco de múltipla escolha (Afirme Ler e Afirme Play)",
+      description: "Múltipla escolha, ditado e produção escrita",
       accent: "teal",
       icon: Library,
     },
@@ -230,13 +235,18 @@ export const DASHBOARD_SHORTCUTS: Record<AppSystem, DashboardShortcut[]> = {
       icon: ClipboardCheck,
     },
     {
-      href: `${I.home}#aplicacao-correcao`,
+      href: I.aplicacao,
       label: "Aplicação e correção",
-      description: "Cartão-resposta e correção automática",
+      description: "Turmas e cartões-resposta · correção em breve",
       accent: "teal",
       icon: ScanLine,
-      disabled: true,
-      badge: "Em breve",
+    },
+    {
+      href: I.acompanhamento,
+      label: "Acompanhamento",
+      description: "Banco, avaliações e turmas",
+      accent: "purple",
+      icon: BarChart3,
     },
   ],
 };

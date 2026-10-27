@@ -3,6 +3,7 @@ import type {
   BankQuestionDifficulty,
   BankQuestionImage,
   BankQuestionOptionPayload,
+  BankQuestionType,
   CreateBankQuestionPayload,
   UpdateBankQuestionPayload,
 } from "@/lib/api/afirme-reading/types";
@@ -10,10 +11,13 @@ import { buildQuestionHtml, extractImageSources, htmlToPlainText, resolveQuestio
 import {
   MAX_QUESTION_OPTIONS,
   MIN_QUESTION_OPTIONS,
+  normalizeQuestionType,
   optionLetter,
   QUESTION_DIFFICULTIES,
   questionCorrectFlags,
+  questionDictatedWord,
   questionOptions,
+  validateDictatedWord,
 } from "@/lib/ica/questions";
 
 export interface OptionDraft {
@@ -25,6 +29,9 @@ export interface OptionDraft {
 }
 
 export interface QuestionDraft {
+  type: BankQuestionType;
+  /** Só no ditado. */
+  dictatedWord: string;
   text: string;
   statementImages: string[];
   secondStatement: string;
@@ -40,6 +47,8 @@ export interface QuestionDraft {
 }
 
 export type QuestionField =
+  | "type"
+  | "dictatedWord"
   | "text"
   | "subjectId"
   | "gradeId"
@@ -62,8 +71,10 @@ export function emptyOption(): OptionDraft {
   return { key: newOptionKey(), text: "", image: null, isCorrect: false };
 }
 
-export function emptyQuestionDraft(): QuestionDraft {
+export function emptyQuestionDraft(type: BankQuestionType = "multipleChoice"): QuestionDraft {
   return {
+    type,
+    dictatedWord: "",
     text: "",
     statementImages: [],
     secondStatement: "",
@@ -80,8 +91,17 @@ export function emptyQuestionDraft(): QuestionDraft {
 }
 
 export function draftFromQuestion(question: BankQuestion): QuestionDraft {
+  const type = normalizeQuestionType(question.type) ?? "multipleChoice";
   const correct = questionCorrectFlags(question);
+  const options = questionOptions(question).map((option, index) => ({
+    key: newOptionKey(),
+    text: option.text ?? "",
+    image: option.image ?? null,
+    isCorrect: correct[index] === true,
+  }));
   return {
+    type,
+    dictatedWord: questionDictatedWord(question),
     text: question.text?.trim() || htmlToPlainText(question.formattedText),
     statementImages: extractImageSources(question.formattedText),
     secondStatement: question.secondStatement ?? "",
@@ -93,12 +113,8 @@ export function draftFromQuestion(question: BankQuestion): QuestionDraft {
     value: question.value != null ? String(question.value) : "1",
     topics: (question.topics ?? []).filter((topic): topic is string => typeof topic === "string").join(", "),
     solution: htmlToPlainText(question.formattedSolution),
-    options: questionOptions(question).map((option, index) => ({
-      key: newOptionKey(),
-      text: option.text ?? "",
-      image: option.image ?? null,
-      isCorrect: correct[index] === true,
-    })),
+    // Ditado e produção chegam sem alternativas; se o usuário trocar para múltipla escolha, começa com 4 vazias.
+    options: type === "multipleChoice" && options.length ? options : Array.from({ length: 4 }, emptyOption),
   };
 }
 
@@ -130,6 +146,13 @@ export function validateQuestionDraft(draft: QuestionDraft): QuestionValidationE
   if (!Number.isFinite(value) || value <= 0) {
     errors.push({ field: "value", message: "O valor deve ser um número maior que zero." });
   }
+
+  if (draft.type === "dictation") {
+    const message = validateDictatedWord(draft.dictatedWord);
+    if (message) errors.push({ field: "dictatedWord", message });
+    return errors;
+  }
+  if (draft.type === "text_production") return errors;
 
   if (draft.options.length < MIN_QUESTION_OPTIONS) {
     errors.push({ field: "options", message: "Informe pelo menos 2 alternativas." });
@@ -176,12 +199,13 @@ export function buildCreatePayload(draft: QuestionDraft): CreateBankQuestionPayl
   const payload: CreateBankQuestionPayload = {
     text,
     formattedText: buildQuestionHtml(text, draft.statementImages, "Imagem do enunciado"),
-    type: "multipleChoice",
+    type: draft.type,
     subjectId: draft.subjectId,
     grade: draft.gradeId,
     value: parseValue(draft.value),
-    options: draft.options.map(toOptionPayload),
   };
+  if (draft.type === "multipleChoice") payload.options = draft.options.map(toOptionPayload);
+  if (draft.type === "dictation") payload.dictatedWord = draft.dictatedWord.trim();
   if (draft.secondStatement.trim()) payload.secondStatement = draft.secondStatement.trim();
   if (draft.educationStageId) payload.educationStageId = draft.educationStageId;
   if (QUESTION_DIFFICULTIES.includes(draft.difficulty as BankQuestionDifficulty)) {
@@ -222,10 +246,18 @@ export function buildUpdatePayload(initial: QuestionDraft, current: QuestionDraf
     payload.formattedSolution = current.solution.trim() ? buildQuestionHtml(current.solution.trim()) : "";
   }
 
+  // O backend revalida o tipo final: vindo de ditado/produção, múltipla escolha exige `options`;
+  // vindo de outro tipo, ditado exige `dictatedWord`. Ditado e produção nunca levam `options`.
+  const typeChanged = current.type !== initial.type;
+  if (typeChanged) payload.type = current.type;
+
   const strip = (options: OptionDraft[]) =>
     options.map(({ text, image, isCorrect }) => ({ text: text.trim(), image, isCorrect }));
-  if (!same(strip(current.options), strip(initial.options))) {
+  if (current.type === "multipleChoice" && (typeChanged || !same(strip(current.options), strip(initial.options)))) {
     payload.options = current.options.map(toOptionPayload);
+  }
+  if (current.type === "dictation" && (typeChanged || current.dictatedWord.trim() !== initial.dictatedWord.trim())) {
+    payload.dictatedWord = current.dictatedWord.trim();
   }
 
   return payload;
@@ -235,5 +267,5 @@ export function isDraftDirty(initial: QuestionDraft, current: QuestionDraft) {
   const { options: a, ...restA } = initial;
   const { options: b, ...restB } = current;
   const strip = (options: OptionDraft[]) => options.map(({ text, image, isCorrect }) => ({ text, image, isCorrect }));
-  return !same(restA, restB) || !same(strip(a), strip(b));
+  return !same(restA, restB) || (current.type === "multipleChoice" && !same(strip(a), strip(b)));
 }

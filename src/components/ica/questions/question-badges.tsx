@@ -1,7 +1,37 @@
-import { Globe2, Lock, MapPin } from "lucide-react";
+import { Globe2, ListChecks, Lock, MapPin, Mic, PenLine } from "lucide-react";
 import type { BankQuestionOrigin, ScopeType } from "@/lib/api/afirme-reading/types";
-import { QUESTION_ORIGIN_LABEL, QUESTION_SCOPE_HINT, QUESTION_SCOPE_LABEL } from "@/lib/ica/questions";
+import {
+  normalizeQuestionType,
+  QUESTION_ORIGIN_LABEL,
+  QUESTION_SCOPE_HINT,
+  QUESTION_SCOPE_LABEL,
+  questionTypeLabel,
+} from "@/lib/ica/questions";
 import { cn } from "@/lib/utils";
+
+const TYPE_STYLE = {
+  multipleChoice: { icon: ListChecks, className: "border-brand-highlight/30 bg-brand-highlight/5 text-brand-highlight" },
+  dictation: { icon: Mic, className: "border-amber-300 bg-amber-50 text-amber-900" },
+  text_production: { icon: PenLine, className: "border-rose-300 bg-rose-50 text-rose-800" },
+} as const;
+
+export function QuestionTypeBadge({ type, className }: { type: string | null | undefined; className?: string }) {
+  const normalized = normalizeQuestionType(type);
+  const style = normalized ? TYPE_STYLE[normalized] : null;
+  const Icon = style?.icon ?? ListChecks;
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium",
+        style?.className ?? "border-slate-200 bg-slate-50 text-slate-700",
+        className
+      )}
+    >
+      <Icon className="h-3 w-3" aria-hidden />
+      {questionTypeLabel(type)}
+    </span>
+  );
+}
 
 export function OriginBadge({ origin, className }: { origin: BankQuestionOrigin; className?: string }) {
   const play = origin === "afirme_play";

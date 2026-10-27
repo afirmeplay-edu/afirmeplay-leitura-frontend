@@ -168,6 +168,7 @@ export function WordListFluencyStep({
   const onResultChangeRef = useRef(onResultChange);
   const onRunningChangeRef = useRef(onRunningChange);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const startingRef = useRef(false);
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const audioBlobRef = useRef<Blob | null>(null);
@@ -397,10 +398,13 @@ export function WordListFluencyStep({
   }
 
   async function startTimer() {
-    if (isRunning || words.length === 0) return;
+    // Clique duplo enquanto o navegador pede o microfone criaria um segundo gravador e deixaria o primeiro ligado.
+    if (isRunning || startingRef.current || words.length === 0) return;
+    startingRef.current = true;
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      startingRef.current = false;
       streamRef.current = stream;
       chunksRef.current = [];
       audioBlobRef.current = null;
@@ -415,6 +419,7 @@ export function WordListFluencyStep({
       mediaRecorderRef.current = recorder;
       recorder.start(1000);
     } catch {
+      startingRef.current = false;
       toast.error("Não foi possível acessar o microfone. Verifique a permissão.");
       return;
     }

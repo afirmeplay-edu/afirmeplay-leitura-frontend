@@ -87,16 +87,16 @@ export function LoginForm() {
           setSelectedSlug(city.slug);
           setCityContext({ slug: city.slug, cityId: city.id });
         } else if (data.length === 0) {
-          setCitiesError("Nenhum municipio disponivel no momento.");
+          setCitiesError("Nenhum município disponível no momento.");
         }
       } catch (error) {
         if (cancelled) return;
         if (axios.isAxiosError(error) && error.response?.status === 503) {
-          setCitiesError("Servico de municipios indisponivel. Inicie o backend local ou tente novamente.");
+          setCitiesError("Serviço de municípios indisponível. Inicie o backend local ou tente novamente.");
         } else if (axios.isAxiosError(error) && !error.response) {
-          setCitiesError("Backend indisponivel. Inicie o afirmeplay_backend (porta 5000).");
+          setCitiesError("Backend indisponível. Inicie o afirmeplay_backend (porta 5000).");
         } else {
-          setCitiesError("Nao foi possivel carregar os municipios.");
+          setCitiesError("Não foi possível carregar os municípios.");
         }
       } finally {
         if (!cancelled) setLoadingCities(false);
@@ -114,11 +114,11 @@ export function LoginForm() {
     event.preventDefault();
 
     if (!selectedSlug) {
-      toast.error("Selecione um municipio (obrigatorio para professor e demais roles).");
+      toast.error("Selecione um município (obrigatório para professor e demais perfis).");
       return;
     }
     if (!registration.trim() || !password.trim()) {
-      toast.error("Preencha usuario e senha.");
+      toast.error("Preencha usuário e senha.");
       return;
     }
 
@@ -162,7 +162,7 @@ export function LoginForm() {
           data?.error ||
             data?.mensagem ||
             data?.message ||
-            "Informe o municipio (X-City-Slug ou citySlug) no login."
+            "Informe o município (X-City-Slug ou citySlug) no login."
         );
       } else {
         toast.error(
@@ -230,7 +230,7 @@ export function LoginForm() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label className="text-xs uppercase tracking-wider text-blue-100">Municipio</Label>
+              <Label className="text-xs uppercase tracking-wider text-blue-100">Município</Label>
               <div className="relative">
                 <MapPin className="pointer-events-none absolute left-3 top-3.5 z-10 h-4 w-4 text-blue-200" />
                 <Select
@@ -244,8 +244,8 @@ export function LoginForm() {
                         loadingCities
                           ? "Carregando..."
                           : citiesError
-                            ? "Indisponivel"
-                            : "Selecione o municipio"
+                            ? "Indisponível"
+                            : "Selecione o município"
                       }
                     />
                   </SelectTrigger>
@@ -264,20 +264,20 @@ export function LoginForm() {
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs uppercase tracking-wider text-blue-100">Usuario</Label>
+              <Label className="text-xs uppercase tracking-wider text-blue-100">Usuário</Label>
               <div className="relative">
                 <User className="pointer-events-none absolute left-3 top-3.5 z-10 h-4 w-4 text-blue-200" />
                 <Input
                   value={registration}
                   onChange={(e) => handleRegistrationChange(e.target.value)}
                   className="h-12 border-none bg-blue-950/60 pl-10 text-white placeholder:text-blue-200/60"
-                  placeholder="usuario ou email"
+                  placeholder="usuário ou e-mail"
                   disabled={loading}
                   autoComplete="username"
                 />
               </div>
               <p className="text-xs text-blue-200/70">
-                Use o e-mail completo ou apenas o usuario (@afirmeplay.com.br).
+                Use o e-mail completo ou apenas o usuário (@afirmeplay.com.br).
               </p>
             </div>
 

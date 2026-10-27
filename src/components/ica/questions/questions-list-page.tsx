@@ -11,13 +11,19 @@ import { normalizeApiError } from "@/lib/api/errors";
 import { ROUTES } from "@/config/routes";
 import { canWriteIca } from "@/lib/auth/roles";
 import { ICA_BRAND } from "@/lib/ica/brand";
-import { formatQuestionValue, questionStatement, readOnlyReason } from "@/lib/ica/questions";
+import {
+  formatQuestionValue,
+  isBankQuestionType,
+  questionAnswerSummary,
+  questionStatement,
+  readOnlyReason,
+} from "@/lib/ica/questions";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useQuestionCatalog } from "@/hooks/use-question-catalog";
 import { useAuthStore } from "@/stores/auth-store";
 import { DataListPage, type DataListColumn } from "@/components/shared/data-list-page";
 import { IcaCityScope } from "@/components/ica/ica-city-scope";
-import { OriginBadge, ScopeBadge } from "@/components/ica/questions/question-badges";
+import { OriginBadge, QuestionTypeBadge, ScopeBadge } from "@/components/ica/questions/question-badges";
 import {
   hasActiveQuestionFilters,
   QuestionFilters,
@@ -32,7 +38,9 @@ const ORIGINS: BankQuestionOrigin[] = ["afirme_ler", "afirme_play"];
 
 function readFilters(params: URLSearchParams): QuestionFilterValue {
   const origin = params.get("origin") ?? "";
+  const type = params.get("type") ?? "";
   return {
+    type: isBankQuestionType(type) ? type : "",
     subjectId: params.get("subject_id") ?? "",
     gradeId: params.get("grade_id") ?? "",
     difficulty: params.get("difficulty") ?? "",
@@ -108,7 +116,7 @@ function QuestionsList() {
       {
         page,
         per_page: PER_PAGE,
-        type: "multipleChoice",
+        type: filters.type || undefined,
         q: urlQuery || undefined,
         subject_id: filters.subjectId || undefined,
         grade_id: filters.gradeId || undefined,
@@ -139,6 +147,7 @@ function QuestionsList() {
   function applyFilters(patch: Partial<QuestionFilterValue>) {
     const next = { ...filters, ...patch };
     updateUrl({
+      type: next.type || null,
       subject_id: next.subjectId || null,
       grade_id: next.gradeId || null,
       difficulty: next.difficulty || null,
@@ -149,7 +158,7 @@ function QuestionsList() {
 
   function clearFilters() {
     setSearchInput("");
-    updateUrl({ q: null, subject_id: null, grade_id: null, difficulty: null, origin: null, page: null });
+    updateUrl({ q: null, type: null, subject_id: null, grade_id: null, difficulty: null, origin: null, page: null });
   }
 
   const filtersActive = hasActiveQuestionFilters(filters) || Boolean(urlQuery);
@@ -162,6 +171,13 @@ function QuestionsList() {
         const statement = questionStatement(question) || "(sem enunciado)";
         return <span title={statement}>{statement}</span>;
       },
+    },
+    { key: "tipo", header: "Tipo", render: (question) => <QuestionTypeBadge type={question.type} /> },
+    {
+      key: "gabarito",
+      header: "Gabarito",
+      render: (question) => questionAnswerSummary(question) || "—",
+      hideOnMobile: true,
     },
     { key: "disciplina", header: "Disciplina", render: (question) => question.subject?.name ?? "—" },
     { key: "serie", header: "Série", render: (question) => question.grade?.name ?? "—" },
@@ -231,7 +247,7 @@ function QuestionsList() {
         <p className="text-sm text-muted-foreground">
           {filtersActive
             ? "Tente outra busca ou limpe os filtros."
-            : "Cadastre a primeira questão de múltipla escolha."}
+            : "Cadastre a primeira questão: múltipla escolha, ditado ou produção escrita."}
         </p>
       </div>
       <div className="flex flex-wrap justify-center gap-2">
@@ -298,7 +314,7 @@ function QuestionsList() {
       <DataListPage
         brand={ICA_BRAND}
         title="Banco de questões"
-        description="Questões de múltipla escolha do Afirme Ler e do Afirme Play visíveis para o seu perfil."
+        description="Questões de múltipla escolha, ditado e produção escrita do Afirme Ler e do Afirme Play visíveis para o seu perfil."
         icon={Library}
         items={items}
         columns={columns}
@@ -310,7 +326,7 @@ function QuestionsList() {
         rowHref={(question) => ROUTES.ica.questoes.detalhe(question.id)}
         actions={renderActions}
         toolbar={
-          <QuestionFilters value={filters} onChange={applyFilters} subjects={subjects} grades={grades} />
+          <QuestionFilters value={filters} onChange={applyFilters} subjects={subjects} grades={grades} withType />
         }
         loading={loading}
         loadingRows={6}

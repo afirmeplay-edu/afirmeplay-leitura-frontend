@@ -75,7 +75,7 @@ export function GuidedSelectionForm({ onStart }: GuidedSelectionFormProps) {
       const data = await listSchools();
       setSchools(data);
     } catch (error) {
-      toast.error(getApiErrorMessage(error, "Nao foi possivel carregar as escolas."));
+      toast.error(getApiErrorMessage(error, "Não foi possível carregar as escolas."));
       setSchools([]);
     } finally {
       setLoadingSchools(false);
@@ -88,7 +88,7 @@ export function GuidedSelectionForm({ onStart }: GuidedSelectionFormProps) {
       const data = await listReadingTexts({ orderBy: "title" });
       setTexts(data);
     } catch (error) {
-      toast.error(getApiErrorMessage(error, "Nao foi possivel carregar os textos."));
+      toast.error(getApiErrorMessage(error, "Não foi possível carregar os textos."));
       setTexts([]);
     } finally {
       setLoadingTexts(false);
@@ -127,7 +127,7 @@ export function GuidedSelectionForm({ onStart }: GuidedSelectionFormProps) {
         if (!cancelled) setClasses(data);
       } catch (error) {
         if (!cancelled) {
-          toast.error(getApiErrorMessage(error, "Nao foi possivel carregar as turmas."));
+          toast.error(getApiErrorMessage(error, "Não foi possível carregar as turmas."));
           setClasses([]);
         }
       } finally {
@@ -156,7 +156,7 @@ export function GuidedSelectionForm({ onStart }: GuidedSelectionFormProps) {
         if (!cancelled) setStudents(data);
       } catch (error) {
         if (!cancelled) {
-          toast.error(getApiErrorMessage(error, "Nao foi possivel carregar os alunos."));
+          toast.error(getApiErrorMessage(error, "Não foi possível carregar os alunos."));
           setStudents([]);
         }
       } finally {
@@ -209,7 +209,7 @@ export function GuidedSelectionForm({ onStart }: GuidedSelectionFormProps) {
               <SelectValue
                 placeholder={
                   !cityReady
-                    ? "Selecione o municipio primeiro"
+                    ? "Selecione o município primeiro"
                     : loadingSchools
                       ? "Carregando..."
                       : "Selecione a escola"
@@ -237,7 +237,7 @@ export function GuidedSelectionForm({ onStart }: GuidedSelectionFormProps) {
               <SelectValue
                 placeholder={
                   !cityReady
-                    ? "Selecione o municipio primeiro"
+                    ? "Selecione o município primeiro"
                     : !schoolId
                       ? "Selecione a escola primeiro"
                       : loadingClasses
@@ -267,7 +267,7 @@ export function GuidedSelectionForm({ onStart }: GuidedSelectionFormProps) {
               <SelectValue
                 placeholder={
                   !cityReady
-                    ? "Selecione o municipio primeiro"
+                    ? "Selecione o município primeiro"
                     : !classId
                       ? "Selecione a turma primeiro"
                       : loadingStudents
@@ -297,7 +297,7 @@ export function GuidedSelectionForm({ onStart }: GuidedSelectionFormProps) {
               <SelectValue
                 placeholder={
                   !cityReady
-                    ? "Selecione o municipio primeiro"
+                    ? "Selecione o município primeiro"
                     : loadingTexts
                       ? "Carregando..."
                       : "Selecione o texto"

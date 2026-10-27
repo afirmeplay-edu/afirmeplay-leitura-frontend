@@ -3,10 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import { Check, ChevronDown, ChevronLeft, ChevronRight, Plus, Search, SearchX } from "lucide-react";
 import { listBankQuestions } from "@/lib/api/afirme-reading/questions";
-import type { BankQuestion, BankQuestionPagination, Grade } from "@/lib/api/afirme-reading/types";
+import type { BankQuestion, BankQuestionPagination, BankQuestionType, Grade } from "@/lib/api/afirme-reading/types";
 import { normalizeApiError } from "@/lib/api/errors";
 import type { CatalogSubject } from "@/lib/api/question-catalog";
-import { questionCorrectLetter, questionStatement, toPreviewModel } from "@/lib/ica/questions";
+import { QUESTION_TYPE_LABEL, questionAnswerSummary, questionStatement, toPreviewModel } from "@/lib/ica/questions";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useAuthStore } from "@/stores/auth-store";
 import { cn } from "@/lib/utils";
@@ -30,6 +30,8 @@ interface QuestionPickerDialogProps {
   onOpenChange: (open: boolean) => void;
   /** Ex.: "Adicionar à posição 5" ou "Trocar a questão 3". */
   title: string;
+  /** Tipo da posição: o seletor só lista questões desse tipo. */
+  type: BankQuestionType;
   selectedIds: Set<string>;
   onPick: (question: BankQuestion) => void;
   subjects: CatalogSubject[];
@@ -41,6 +43,7 @@ export function QuestionPickerDialog({
   open,
   onOpenChange,
   title,
+  type,
   selectedIds,
   onPick,
   subjects,
@@ -69,7 +72,7 @@ export function QuestionPickerDialog({
 
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, filters]);
+  }, [debouncedSearch, filters, type]);
 
   useEffect(() => {
     if (!open) return;
@@ -80,7 +83,7 @@ export function QuestionPickerDialog({
       {
         page,
         per_page: PER_PAGE,
-        type: "multipleChoice",
+        type,
         q: debouncedSearch || undefined,
         subject_id: filters.subjectId || undefined,
         grade_id: filters.gradeId || undefined,
@@ -103,7 +106,7 @@ export function QuestionPickerDialog({
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [open, page, debouncedSearch, filters, cityId]);
+  }, [open, page, debouncedSearch, filters, cityId, type]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -111,7 +114,7 @@ export function QuestionPickerDialog({
         <DialogHeader className="space-y-1 border-b px-6 pb-4 pt-6 pr-12 text-left">
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>
-            Só questões de múltipla escolha. As já incluídas na avaliação ficam bloqueadas.
+            Só questões de {QUESTION_TYPE_LABEL[type].toLowerCase()}. As já incluídas na avaliação ficam bloqueadas.
           </DialogDescription>
         </DialogHeader>
 
@@ -172,7 +175,7 @@ export function QuestionPickerDialog({
                           {question.subject?.name ? <span>{question.subject.name}</span> : null}
                           {question.grade?.name ? <span>· {question.grade.name}</span> : null}
                           {question.difficulty ? <span>· {question.difficulty}</span> : null}
-                          {questionCorrectLetter(question) ? <span>· Gabarito {questionCorrectLetter(question)}</span> : null}
+                          {questionAnswerSummary(question) ? <span>· {questionAnswerSummary(question)}</span> : null}
                         </div>
                       </div>
                       <div className="flex shrink-0 gap-2">

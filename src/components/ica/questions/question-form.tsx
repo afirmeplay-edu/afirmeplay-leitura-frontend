@@ -5,14 +5,23 @@ import { useRouter } from "next/navigation";
 import { FilePlus2, ImagePlus, Info, Pencil, X } from "lucide-react";
 import { toast } from "sonner";
 import { createBankQuestion, updateBankQuestion } from "@/lib/api/afirme-reading/questions";
-import type { BankQuestion } from "@/lib/api/afirme-reading/types";
+import type { BankQuestion, BankQuestionType } from "@/lib/api/afirme-reading/types";
 import { normalizeApiError } from "@/lib/api/errors";
 import { formatSkillLabel, listSkills, type CatalogSkill } from "@/lib/api/question-catalog";
 import { ROUTES } from "@/config/routes";
 import { ICA_BRAND } from "@/lib/ica/brand";
 import { QUESTION_IMAGE_ACCEPT, QuestionImageError, readQuestionImage } from "@/lib/ica/image-file";
 import { buildQuestionHtml, resolveQuestionAssetUrl } from "@/lib/ica/question-html";
-import { QUESTION_DIFFICULTIES, optionLetter, type QuestionPreviewModel } from "@/lib/ica/questions";
+import {
+  DICTATED_WORD_MAX_LENGTH,
+  ICA_QUESTION_TYPES,
+  QUESTION_DIFFICULTIES,
+  QUESTION_TYPE_HINT,
+  QUESTION_TYPE_LABEL,
+  optionLetter,
+  type QuestionPreviewModel,
+} from "@/lib/ica/questions";
+import { cn } from "@/lib/utils";
 import { useQuestionCatalog } from "@/hooks/use-question-catalog";
 import { useUnsavedChangesWarning } from "@/hooks/use-unsaved-changes";
 import {
@@ -47,8 +56,16 @@ type FieldErrors = Partial<Record<QuestionField, string>>;
 interface QuestionFormProps {
   mode: "create" | "edit";
   question?: BankQuestion;
+  /** Tipo inicial na criação (ex.: vindo do construtor com `?tipo=dictation`). */
+  initialType?: BankQuestionType;
   onSaved?: (question: BankQuestion) => void;
 }
+
+const TYPE_DESCRIPTION: Record<BankQuestionType, string> = {
+  multipleChoice: "Múltipla escolha para prova em papel com cartão-resposta. O gabarito é calculado pela letra marcada.",
+  dictation: "Ditado: o aplicador lê a palavra em voz alta e o aluno escreve no cartão-resposta.",
+  text_production: "Produção escrita: comando de escrita (ex.: bilhete), sem gabarito.",
+};
 
 function FieldError({ message }: { message?: string }) {
   if (!message) return null;
@@ -59,14 +76,14 @@ function FieldError({ message }: { message?: string }) {
   );
 }
 
-export function QuestionForm({ mode, question, onSaved }: QuestionFormProps) {
+export function QuestionForm({ mode, question, initialType, onSaved }: QuestionFormProps) {
   const router = useRouter();
   const formRef = useRef<HTMLDivElement>(null);
   const statementFileRef = useRef<HTMLInputElement>(null);
   const { subjects, grades, stages, loading: catalogLoading } = useQuestionCatalog({ withStages: true });
 
   const [initial, setInitial] = useState<QuestionDraft>(() =>
-    question ? draftFromQuestion(question) : emptyQuestionDraft()
+    question ? draftFromQuestion(question) : emptyQuestionDraft(initialType)
   );
   const [draft, setDraft] = useState<QuestionDraft>(initial);
   const [errors, setErrors] = useState<FieldErrors>({});
@@ -210,11 +227,13 @@ export function QuestionForm({ mode, question, onSaved }: QuestionFormProps) {
     const skill = skillOptions.find((item) => item.id === draft.skillId);
     const value = Number(draft.value.replace(",", "."));
     return {
+      type: draft.type,
+      dictatedWord: draft.type === "dictation" ? draft.dictatedWord.trim() || null : null,
       text: draft.text,
       formattedText: buildQuestionHtml(draft.text, draft.statementImages),
       secondStatement: draft.secondStatement,
       formattedSolution: draft.solution.trim() ? buildQuestionHtml(draft.solution) : "",
-      options: draft.options.map((option, index) => ({
+      options: (draft.type === "multipleChoice" ? draft.options : []).map((option, index) => ({
         key: option.key,
         letter: optionLetter(index),
         text: option.text,
@@ -246,7 +265,7 @@ export function QuestionForm({ mode, question, onSaved }: QuestionFormProps) {
       <FormPage
         brand={ICA_BRAND}
         title={isCreate ? "Nova questão" : "Editar questão"}
-        description="Múltipla escolha para prova em papel com cartão-resposta. O gabarito é calculado pela letra marcada."
+        description={TYPE_DESCRIPTION[draft.type]}
         icon={isCreate ? FilePlus2 : Pencil}
         backHref={ROUTES.ica.questoes.root}
         onCancel={handleCancel}
@@ -279,9 +298,46 @@ export function QuestionForm({ mode, question, onSaved }: QuestionFormProps) {
           </Card>
         }
       >
+        <Card data-field="type">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Tipo de questão *</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div role="radiogroup" aria-label="Tipo de questão" className="grid gap-2 sm:grid-cols-3">
+              {ICA_QUESTION_TYPES.map((type) => {
+                const selected = draft.type === type;
+                return (
+                  <button
+                    key={type}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    disabled={busy}
+                    onClick={() => patch({ type }, ["type", "dictatedWord", "options"])}
+                    className={cn(
+                      "rounded-xl border p-3 text-left transition-colors duration-200",
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                      selected ? "border-brand-highlight bg-brand-highlight/5" : "hover:bg-muted/50"
+                    )}
+                  >
+                    <p className="text-sm font-semibold">{QUESTION_TYPE_LABEL[type]}</p>
+                    <p className="text-xs text-muted-foreground">{QUESTION_TYPE_HINT[type]}</p>
+                  </button>
+                );
+              })}
+            </div>
+            {!isCreate && question && draft.type !== initial.type ? (
+              <p className="mt-3 text-xs text-amber-800">
+                Ao salvar, o tipo muda de {QUESTION_TYPE_LABEL[initial.type].toLowerCase()} para{" "}
+                {QUESTION_TYPE_LABEL[draft.type].toLowerCase()}.
+              </p>
+            ) : null}
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">Enunciado</CardTitle>
+            <CardTitle className="text-base">{draft.type === "text_production" ? "Comando de produção" : "Enunciado"}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {question && hasRichFormatting(question.formattedText) ? (
@@ -299,7 +355,13 @@ export function QuestionForm({ mode, question, onSaved }: QuestionFormProps) {
                 id="questao-enunciado"
                 value={draft.text}
                 onChange={(event) => patch({ text: event.target.value }, ["text"])}
-                placeholder="Ex.: Qual palavra começa com a mesma letra de BOLA?"
+                placeholder={
+                  draft.type === "dictation"
+                    ? "Ex.: Escreva a palavra que a professora vai ditar."
+                    : draft.type === "text_production"
+                      ? "Ex.: Escreva um bilhete para um colega convidando-o para a festa da escola."
+                      : "Ex.: Qual palavra começa com a mesma letra de BOLA?"
+                }
                 className="min-h-[110px]"
                 aria-invalid={Boolean(errors.text)}
                 disabled={busy}
@@ -382,6 +444,39 @@ export function QuestionForm({ mode, question, onSaved }: QuestionFormProps) {
           </CardContent>
         </Card>
 
+        {draft.type === "dictation" ? (
+          <Card data-field="dictatedWord">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Palavra ditada *</CardTitle>
+              <CardDescription>É o gabarito do ditado. Uma única palavra, sem espaços.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <Input
+                id="questao-palavra"
+                aria-label="Palavra ditada"
+                value={draft.dictatedWord}
+                maxLength={DICTATED_WORD_MAX_LENGTH}
+                onChange={(event) => patch({ dictatedWord: event.target.value }, ["dictatedWord"])}
+                placeholder="Ex.: borboleta"
+                aria-invalid={Boolean(errors.dictatedWord)}
+                disabled={busy}
+                className="max-w-sm"
+              />
+              <FieldError message={errors.dictatedWord} />
+            </CardContent>
+          </Card>
+        ) : null}
+
+        {draft.type === "text_production" ? (
+          <Alert>
+            <Info className="h-4 w-4" />
+            <AlertDescription className="text-xs">
+              Produção escrita não tem alternativas nem gabarito. A correção é feita pelo professor.
+            </AlertDescription>
+          </Alert>
+        ) : null}
+
+        {draft.type === "multipleChoice" ? (
         <Card data-field="options">
           <CardHeader className="pb-3">
             <CardTitle className="text-base">Alternativas *</CardTitle>
@@ -406,6 +501,7 @@ export function QuestionForm({ mode, question, onSaved }: QuestionFormProps) {
             />
           </CardContent>
         </Card>
+        ) : null}
 
         <Card>
           <CardHeader className="pb-3">

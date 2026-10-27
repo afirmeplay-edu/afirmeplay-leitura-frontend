@@ -184,6 +184,11 @@ export function RelatorioFluenciaProvider({ children }: { children: ReactNode })
       if ("escolaId" in patch && patch.escolaId !== prev.escolaId) {
         next.turmaId = "";
       }
+      // O turno é derivado das turmas do recorte: mudou o recorte, o turno anterior pode não existir mais.
+      const recorteMudou = (["municipioId", "escolaId", "serieId"] as const).some(
+        (key) => key in patch && patch[key] !== prev[key]
+      );
+      if (recorteMudou && !("turno" in patch)) next.turno = "";
       return next;
     });
   };

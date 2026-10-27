@@ -19,12 +19,12 @@ export function DemoSelecao() {
   return (
     <PageShell>
       <PageHeader
-        title="Selecao Rapida (Demonstracao)"
+        title="Seleção rápida (demonstração)"
         description="Escolha um aluno e um texto para iniciar o fluxo de leitura guiada."
         icon={BookOpen}
       />
 
-      <SectionCard title="Alunos" description="Selecione um estudante para a demonstracao">
+      <SectionCard title="Alunos" description="Selecione um estudante para a demonstração">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {students.map((s) => (
             <div key={s.id} className="rounded-lg border p-4 transition hover:shadow-md">
@@ -35,7 +35,7 @@ export function DemoSelecao() {
         </div>
       </SectionCard>
 
-      <SectionCard title="Textos" description="Clique em um texto para iniciar a sessao">
+      <SectionCard title="Textos" description="Clique em um texto para iniciar a sessão">
         <div className="grid gap-4 md:grid-cols-2">
           {texts.map((t) => (
             <button
@@ -56,7 +56,7 @@ export function DemoSelecao() {
       </SectionCard>
 
       <Link href={ROUTES.leitura.pratica.root} className="text-sm text-primary hover:underline">
-        Voltar para selecao completa
+        Voltar para a seleção completa
       </Link>
     </PageShell>
   );

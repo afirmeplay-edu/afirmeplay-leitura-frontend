@@ -2,10 +2,70 @@ import type {
   BankQuestion,
   BankQuestionDifficulty,
   BankQuestionOrigin,
+  BankQuestionType,
   ScopeType,
 } from "@/lib/api/afirme-reading/types";
 import { canWriteIca, normalizeRole } from "@/lib/auth/roles";
 import { htmlToPlainText, resolveQuestionAssetUrl } from "@/lib/ica/question-html";
+
+export const ICA_QUESTION_TYPES: BankQuestionType[] = ["multipleChoice", "dictation", "text_production"];
+
+export const QUESTION_TYPE_LABEL: Record<BankQuestionType, string> = {
+  multipleChoice: "Múltipla escolha",
+  dictation: "Ditado",
+  text_production: "Produção escrita",
+};
+
+export const QUESTION_TYPE_HINT: Record<BankQuestionType, string> = {
+  multipleChoice: "2 a 8 alternativas, uma correta. O gabarito é a letra marcada.",
+  dictation: "O aplicador dita uma palavra e o aluno escreve no cartão-resposta.",
+  text_production: "Comando de produção (ex.: bilhete). Sem gabarito; a correção fica com o professor.",
+};
+
+/** Limite do contrato para `dictatedWord`. */
+export const DICTATED_WORD_MAX_LENGTH = 40;
+
+/** Aliases que o backend aceita (sem diferenciar maiúsculas); o resto não é tipo do Afirme Ler. */
+const TYPE_ALIASES: Record<string, BankQuestionType> = {
+  multiplechoice: "multipleChoice",
+  multiple_choice: "multipleChoice",
+  dictation: "dictation",
+  ditado: "dictation",
+  text_production: "text_production",
+  producao_textual: "text_production",
+  "produção_textual": "text_production",
+  bilhete: "text_production",
+};
+
+export function normalizeQuestionType(type: string | null | undefined): BankQuestionType | null {
+  if (!type) return null;
+  return TYPE_ALIASES[type.trim().toLowerCase().replace(/[\s-]+/g, "_")] ?? null;
+}
+
+export function isBankQuestionType(value: string | null | undefined): value is BankQuestionType {
+  return ICA_QUESTION_TYPES.includes(value as BankQuestionType);
+}
+
+export function questionTypeLabel(type: string | null | undefined) {
+  const normalized = normalizeQuestionType(type);
+  return normalized ? QUESTION_TYPE_LABEL[normalized] : type || "—";
+}
+
+/** Mesma validação do backend (`parse_dictated_word`), com mensagens de tela. */
+export function validateDictatedWord(raw: string): string | null {
+  const word = raw.trim();
+  if (!word) return "Informe a palavra que o aplicador vai ditar.";
+  if (/\s/.test(word)) return "A palavra ditada deve ser uma única palavra, sem espaços.";
+  if (word.length > DICTATED_WORD_MAX_LENGTH) {
+    return `A palavra ditada deve ter no máximo ${DICTATED_WORD_MAX_LENGTH} caracteres.`;
+  }
+  return null;
+}
+
+export function questionDictatedWord(question: Pick<BankQuestion, "type" | "dictatedWord" | "correct_answer">) {
+  if (normalizeQuestionType(question.type) !== "dictation") return "";
+  return (question.dictatedWord ?? question.correct_answer ?? "").trim();
+}
 
 export const QUESTION_OPTION_LETTERS = ["A", "B", "C", "D", "E", "F", "G", "H"] as const;
 export const MIN_QUESTION_OPTIONS = 2;
@@ -78,9 +138,10 @@ export function questionOptions(question: Pick<BankQuestion, "options" | "altern
  * não é confiável sozinho: o formatter do backend também marca alternativas cujo texto é igual ao gabarito.
  */
 export function questionCorrectFlags(
-  question: Pick<BankQuestion, "options" | "alternatives" | "correct_answer" | "solution">
+  question: Pick<BankQuestion, "options" | "alternatives" | "correct_answer" | "solution"> & { type?: string }
 ): boolean[] {
   const options = questionOptions(question);
+  if (question.type && normalizeQuestionType(question.type) !== "multipleChoice") return options.map(() => false);
   const letter = (question.correct_answer || question.solution || "").trim().toUpperCase();
   const index = QUESTION_OPTION_LETTERS.indexOf(letter as (typeof QUESTION_OPTION_LETTERS)[number]);
   if (index >= 0 && index < options.length) return options.map((_, current) => current === index);
@@ -88,9 +149,22 @@ export function questionCorrectFlags(
 }
 
 export function questionCorrectLetter(question: BankQuestion) {
+  if (normalizeQuestionType(question.type) !== "multipleChoice") return "";
   const index = questionCorrectFlags(question).indexOf(true);
   if (index >= 0) return optionLetter(index);
   return (question.correct_answer || question.solution || "").trim();
+}
+
+/** Texto curto do gabarito por tipo: "Gabarito B", "Palavra: casa" ou "Sem gabarito". */
+export function questionAnswerSummary(question: BankQuestion) {
+  const type = normalizeQuestionType(question.type);
+  if (type === "dictation") {
+    const word = questionDictatedWord(question);
+    return word ? `Palavra: ${word}` : "";
+  }
+  if (type === "text_production") return "Sem gabarito";
+  const letter = questionCorrectLetter(question);
+  return letter ? `Gabarito ${letter}` : "";
 }
 
 export interface QuestionPreviewOption {
@@ -102,6 +176,8 @@ export interface QuestionPreviewOption {
 }
 
 export interface QuestionPreviewModel {
+  type?: BankQuestionType;
+  dictatedWord?: string | null;
   text: string;
   formattedText?: string | null;
   secondStatement?: string | null;
@@ -116,12 +192,15 @@ export interface QuestionPreviewModel {
 
 export function toPreviewModel(question: BankQuestion, skillLabel?: string | null): QuestionPreviewModel {
   const correct = questionCorrectFlags(question);
+  const type = normalizeQuestionType(question.type) ?? "multipleChoice";
   return {
+    type,
+    dictatedWord: questionDictatedWord(question) || null,
     text: question.text,
     formattedText: question.formattedText,
     secondStatement: question.secondStatement,
     formattedSolution: question.formattedSolution,
-    options: questionOptions(question).map((option, index) => ({
+    options: (type === "multipleChoice" ? questionOptions(question) : []).map((option, index) => ({
       key: `${option.id}-${index}`,
       letter: optionLetter(index),
       text: option.text ?? "",

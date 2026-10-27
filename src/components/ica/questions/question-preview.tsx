@@ -1,7 +1,7 @@
 "use client";
 
-import { CheckCircle2 } from "lucide-react";
-import { formatQuestionValue, type QuestionPreviewModel } from "@/lib/ica/questions";
+import { CheckCircle2, Mic, PenLine } from "lucide-react";
+import { formatQuestionValue, QUESTION_TYPE_LABEL, type QuestionPreviewModel } from "@/lib/ica/questions";
 import { cn } from "@/lib/utils";
 import { QuestionHtml } from "@/components/ica/question-html";
 
@@ -13,7 +13,9 @@ interface QuestionPreviewProps {
 }
 
 export function QuestionPreview({ question, showAnswer = true, showMeta = true, className }: QuestionPreviewProps) {
+  const type = question.type ?? "multipleChoice";
   const meta = [
+    { label: "Tipo", value: QUESTION_TYPE_LABEL[type] },
     question.subjectName ? { label: "Disciplina", value: question.subjectName } : null,
     question.gradeName ? { label: "Série", value: question.gradeName } : null,
     question.difficulty ? { label: "Dificuldade", value: question.difficulty } : null,
@@ -36,7 +38,28 @@ export function QuestionPreview({ question, showAnswer = true, showMeta = true, 
         ) : null}
       </div>
 
-      <ol className="space-y-2" aria-label="Alternativas">
+      {type === "dictation" ? (
+        <div className="flex items-start gap-3 rounded-xl border border-dashed px-3 py-2.5 text-sm">
+          <Mic className="mt-0.5 h-4 w-4 shrink-0 text-brand-highlight" aria-hidden />
+          <div className="min-w-0 space-y-1">
+            <p className="text-muted-foreground">O aluno escreve a palavra ditada no cartão-resposta.</p>
+            {showAnswer ? (
+              <p className="font-semibold text-emerald-700">
+                {question.dictatedWord ? `Palavra ditada: ${question.dictatedWord}` : "Palavra ditada não informada"}
+              </p>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
+      {type === "text_production" ? (
+        <div className="flex items-start gap-3 rounded-xl border border-dashed px-3 py-2.5 text-sm text-muted-foreground">
+          <PenLine className="mt-0.5 h-4 w-4 shrink-0 text-brand-highlight" aria-hidden />
+          <p>Espaço de escrita no cartão-resposta. Sem gabarito: a correção é feita pelo professor.</p>
+        </div>
+      ) : null}
+
+      <ol className={cn("space-y-2", type !== "multipleChoice" && "hidden")} aria-label="Alternativas">
         {question.options.map((option) => {
           const correct = showAnswer && option.isCorrect;
           return (

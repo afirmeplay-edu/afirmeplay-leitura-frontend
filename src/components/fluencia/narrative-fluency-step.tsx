@@ -110,6 +110,7 @@ export function NarrativeFluencyStep({
   const onResultChangeRef = useRef(onResultChange);
   const onRunningChangeRef = useRef(onRunningChange);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const startingRef = useRef(false);
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const finishedRef = useRef(false);
@@ -245,6 +246,11 @@ export function NarrativeFluencyStep({
       onResultChangeRef.current(null);
       return;
     }
+    // Sem marcação, wordsRead=0 com skipped=false zeraria precisão e PLCM; o caminho certo é "Estudante não leu".
+    if (!payload.skipped && (payload.markings?.length ?? 0) === 0) {
+      onResultChangeRef.current(null);
+      return;
+    }
     onResultChangeRef.current(payload);
   }
 
@@ -280,9 +286,12 @@ export function NarrativeFluencyStep({
   }, []);
 
   async function startReading() {
-    if (isRunning || !content || tokens.length === 0) return;
+    // Clique duplo enquanto o navegador pede o microfone criaria um segundo gravador e deixaria o primeiro ligado.
+    if (isRunning || startingRef.current || !content || tokens.length === 0) return;
+    startingRef.current = true;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      startingRef.current = false;
       streamRef.current = stream;
       chunksRef.current = [];
       audioBlobRef.current = null;
@@ -296,6 +305,7 @@ export function NarrativeFluencyStep({
       mediaRecorderRef.current = recorder;
       recorder.start(1000);
     } catch {
+      startingRef.current = false;
       toast.error("Não foi possível acessar o microfone.");
       return;
     }
@@ -583,6 +593,11 @@ export function NarrativeFluencyStep({
               Não
             </label>
           </div>
+          {isFinished && !skipped && !readOnly && marks.every((mark) => !mark || mark === "unmarked") ? (
+            <p className="text-sm text-amber-800">
+              Marque ao menos a última palavra lida. Se o estudante não leu, informe o motivo abaixo.
+            </p>
+          ) : null}
         </div>
 
         <div className="space-y-2">

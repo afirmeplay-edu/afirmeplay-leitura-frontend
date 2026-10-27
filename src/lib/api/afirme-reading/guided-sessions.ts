@@ -78,7 +78,7 @@ export function toProxiedAudioUrl(audioUrl: string) {
 /** Fetch autenticado do áudio → object URL para `<audio src>`. */
 export async function fetchGuidedAudioObjectUrl(audioUrl: string) {
   const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
-  if (!token) throw new Error("Sessao sem token.");
+  if (!token) throw new Error("Sessão sem token.");
 
   const res = await fetch(toProxiedAudioUrl(audioUrl), {
     headers: {
@@ -92,9 +92,9 @@ export async function fetchGuidedAudioObjectUrl(audioUrl: string) {
     if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
       window.location.replace("/login");
     }
-    throw new Error("Sessao expirada.");
+    throw new Error("Sessão expirada.");
   }
-  if (!res.ok) throw new Error("Falha ao baixar audio.");
+  if (!res.ok) throw new Error("Falha ao baixar o áudio.");
   const blob = await res.blob();
   return URL.createObjectURL(blob);
 }

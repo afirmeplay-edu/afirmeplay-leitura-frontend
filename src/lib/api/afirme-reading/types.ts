@@ -619,6 +619,9 @@ export interface StudentApplicationResult {
 /** Banco de questões do ICA — `/afirme-reading/questions` (CONTRATO_QUESTOES.md). */
 export type BankQuestionOrigin = "afirme_ler" | "afirme_play";
 
+/** Tipos aceitos pelo Afirme Ler: múltipla escolha, ditado (gabarito = palavra) e produção escrita (sem gabarito). */
+export type BankQuestionType = "multipleChoice" | "dictation" | "text_production";
+
 /** Valores usados no Play; o formatter devolve "Médio" quando vazio, então a resposta é `string`. */
 export type BankQuestionDifficulty = "Abaixo do Básico" | "Básico" | "Adequado" | "Avançado";
 
@@ -673,6 +676,8 @@ export interface BankQuestion {
   lastModifiedBy: BankQuestionRef | null;
   origin: BankQuestionOrigin;
   scopeType: ScopeType;
+  /** Palavra ditada (= `correct_answer`) quando `type = "dictation"`; `null` nos outros tipos. */
+  dictatedWord?: string | null;
 }
 
 export interface BankQuestionPagination {
@@ -695,7 +700,7 @@ export interface ListBankQuestionsParams {
   page?: number;
   /** Máximo 100 (acima disso o backend usa 100). */
   per_page?: number;
-  type?: "multipleChoice";
+  type?: BankQuestionType;
   subject_id?: string;
   grade_id?: string;
   difficulty?: string;
@@ -713,12 +718,16 @@ export interface BankQuestionOptionPayload {
   isCorrect: boolean;
 }
 
-/** `solution`/`correct_answer` não são enviados: o backend calcula a letra. */
+/**
+ * `solution`/`correct_answer` não são enviados: o backend calcula a letra (múltipla escolha) ou usa
+ * `dictatedWord` (ditado). Ditado e produção escrita não levam `options`.
+ */
 export interface CreateBankQuestionPayload {
   text: string;
   formattedText?: string;
   secondStatement?: string;
-  type: "multipleChoice";
+  type: BankQuestionType;
+  dictatedWord?: string;
   subjectId: string;
   grade: string;
   educationStageId?: string | null;
@@ -726,7 +735,7 @@ export interface CreateBankQuestionPayload {
   skills?: string;
   value?: number;
   topics?: string[];
-  options: BankQuestionOptionPayload[];
+  options?: BankQuestionOptionPayload[];
   formattedSolution?: string;
 }
 
@@ -734,3 +743,247 @@ export interface CreateBankQuestionPayload {
 export type UpdateBankQuestionPayload = {
   [K in keyof CreateBankQuestionPayload]?: CreateBankQuestionPayload[K] | null;
 };
+
+/* ---------------------------------------------------------------------------------------------------------
+ * Avaliação escrita do ICA — `/afirme-reading/written-tests` (written_test_service.py).
+ * ------------------------------------------------------------------------------------------------------- */
+
+export type WrittenTestStatus = "rascunho" | "publicada";
+
+export interface WrittenTestNamedRef {
+  id: string;
+  name: string | null;
+}
+
+export interface WrittenTestClassRef extends WrittenTestNamedRef {
+  schoolId: string | null;
+  gradeId: string | null;
+}
+
+export interface WrittenTestSummary {
+  id: string;
+  title: string;
+  description: string | null;
+  status: WrittenTestStatus;
+  gradeIds: string[];
+  schoolIds: string[];
+  classIds: string[];
+  createdBy: { id: string | null; name: string | null } | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+  publishedAt: string | null;
+  totalQuestions: number;
+  totalScore: number;
+  questionsByType: Record<BankQuestionType, number>;
+  appliedClassesCount: number;
+  /** Data/hora local (sem fuso) do próximo início agendado. */
+  nextApplicationStart: string | null;
+}
+
+/** Questão excluída do banco depois de entrar na prova (o backend devolve só id/order). */
+export interface WrittenTestMissingQuestion {
+  id: string;
+  order: number;
+  missing: true;
+}
+
+export type WrittenTestQuestion = (BankQuestion & { order: number; missing?: false }) | WrittenTestMissingQuestion;
+
+export interface WrittenTestDetail extends WrittenTestSummary {
+  grades: WrittenTestNamedRef[];
+  schools: WrittenTestNamedRef[];
+  classes: WrittenTestClassRef[];
+  questions: WrittenTestQuestion[];
+}
+
+export interface WrittenTestList {
+  data: WrittenTestSummary[];
+  pagination: BankQuestionPagination;
+}
+
+export interface ListWrittenTestsParams {
+  page?: number;
+  per_page?: number;
+  status?: WrittenTestStatus;
+  grade_id?: string;
+  school_id?: string;
+  q?: string;
+}
+
+export interface WrittenTestQuestionRef {
+  id: string;
+  order: number;
+}
+
+export interface CreateWrittenTestPayload {
+  title: string;
+  description?: string | null;
+  gradeIds: string[];
+  schoolIds: string[];
+  classIds: string[];
+  questions?: WrittenTestQuestionRef[];
+}
+
+/** Só em rascunho. Enviar qualquer campo de escopo revalida o escopo inteiro. */
+export type UpdateWrittenTestPayload = Partial<Omit<CreateWrittenTestPayload, "questions">>;
+
+export type WrittenTestClassStatus = "agendada" | "em_andamento" | "encerrada";
+
+export interface WrittenTestClassApplication {
+  classId: string;
+  className: string | null;
+  school: { id: string; name: string } | null;
+  grade: { id: string; name: string } | null;
+  applied: boolean;
+  /** Data/hora local no fuso `timezone`, sem offset (ex.: `2026-11-03T08:00:00`). */
+  applicationStart: string | null;
+  applicationEnd: string | null;
+  timezone: string | null;
+  status: WrittenTestClassStatus | null;
+  studentCount: number;
+}
+
+export interface WrittenTestClassesResponse {
+  writtenTestId: string;
+  classes: WrittenTestClassApplication[];
+}
+
+export interface WrittenTestStudent {
+  id: string;
+  name: string;
+  registration: string | null;
+  subturma: { id: string; name: string } | null;
+}
+
+export interface WrittenTestClassStudents extends WrittenTestClassApplication {
+  writtenTestId: string;
+  students: WrittenTestStudent[];
+}
+
+export interface ApplyWrittenTestPayload {
+  classIds: string[];
+  /** ISO 8601 local (sem offset) no fuso `timezone`. */
+  applicationStart: string;
+  applicationEnd?: string | null;
+  timezone?: string;
+}
+
+export type AnswerSheetRunStatus = "pendente" | "processando" | "concluido" | "erro";
+
+export interface AnswerSheetRun {
+  id: string;
+  writtenTestId: string;
+  classId: string | null;
+  className: string | null;
+  allClasses: boolean;
+  status: AnswerSheetRunStatus;
+  taskId: string | null;
+  totalStudents: number;
+  generatedCount: number;
+  errorMessage: string | null;
+  createdBy: string | null;
+  createdAt: string | null;
+  startedAt: string | null;
+  finishedAt: string | null;
+  hasAnswerSheetMap: boolean;
+  zipAvailable: boolean;
+  downloadUrl: string | null;
+}
+
+export interface AnswerSheetRunList {
+  writtenTestId: string;
+  runs: AnswerSheetRun[];
+}
+
+/* ---------------------------------------------------------------------------------------------------------
+ * Leitura guiada automática — `/afirme-reading/guided-auto-sessions` (correção por transcrição no servidor).
+ * ------------------------------------------------------------------------------------------------------- */
+
+export type GuidedAutoPart = "words" | "uncommon" | "text";
+
+export type GuidedAutoStatus = "awaiting_audio" | "queued" | "processing" | "completed" | "failed";
+
+export type GuidedAutoMatchType = "correct" | "error" | "omitted" | "extra" | "repeat";
+
+export interface GuidedAutoPartResult {
+  wordsRead?: number | null;
+  errorsCount?: number | null;
+  omittedCount?: number | null;
+  extraCount?: number | null;
+  correctCount?: number | null;
+  accuracy?: number | null;
+  plcm?: number | null;
+  precisionLevel?: string | null;
+  fluencyLevel?: string | null;
+  durationSeconds?: number | null;
+  transcript?: string | null;
+  sttProvider?: string | null;
+  sttModel?: string | null;
+}
+
+export interface GuidedAutoSession {
+  id: string;
+  studentId: string;
+  studentName?: string | null;
+  classId: string | null;
+  readingTextId: string | null;
+  wordsWordListId: string | null;
+  uncommonWordListId: string | null;
+  status: GuidedAutoStatus;
+  wordsRead: number | null;
+  errorsCount: number | null;
+  omittedCount: number | null;
+  extraCount: number | null;
+  durationSeconds: number | null;
+  calculatedPlcm: number | null;
+  calculatedAccuracy: number | null;
+  precisionLevel: string | null;
+  fluencyLevel: string | null;
+  comprehensionCorrectCount: number | null;
+  comprehensionTotal: number | null;
+  comprehensionScore: number | null;
+  icaScore: number | null;
+  icaBreakdown: Record<string, unknown> | null;
+  partResults: Partial<Record<GuidedAutoPart, GuidedAutoPartResult>> | null;
+  transcriptRaw: string | null;
+  sttProvider: string | null;
+  sttModel: string | null;
+  errorMessage: string | null;
+  audioUrl: string | null;
+  hasAudio: boolean;
+  partAudios: Partial<Record<GuidedAutoPart, unknown>> | null;
+  appliedBy: string | null;
+  submittedAt: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+  answers?: GuidedSessionAnswer[];
+}
+
+export interface GuidedAutoWord {
+  id: string;
+  sessionId: string;
+  part: GuidedAutoPart;
+  position: number;
+  expectedToken: string | null;
+  recognizedToken: string | null;
+  similarity: number | null;
+  matchType: GuidedAutoMatchType;
+  startMs: number | null;
+  endMs: number | null;
+}
+
+/** O backend recusa métricas vindas do cliente: só ids e respostas de compreensão. */
+export interface CreateGuidedAutoSessionPayload {
+  studentId: string;
+  readingTextId?: string;
+  wordsWordListId?: string;
+  uncommonWordListId?: string;
+  answers?: SaveComprehensionAnswerItem[];
+}
+
+export interface ListGuidedAutoSessionsParams {
+  studentId?: string;
+  readingTextId?: string;
+  status?: GuidedAutoStatus;
+  limit?: number;
+}

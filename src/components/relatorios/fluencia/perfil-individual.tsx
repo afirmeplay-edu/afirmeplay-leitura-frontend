@@ -52,6 +52,7 @@ export function PerfilIndividual({
       return;
     }
     const ac = new AbortController();
+    setPerfil(null);
     setLoading(true);
     setError(null);
     void getPerfilEstudanteResultados(estudante.id, { ano, edicao, avaliacaoId, signal: ac.signal })

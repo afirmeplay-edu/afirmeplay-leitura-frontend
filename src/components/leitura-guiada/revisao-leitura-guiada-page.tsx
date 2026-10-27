@@ -82,7 +82,7 @@ export function RevisaoLeituraGuiadaPage() {
       const data = await listReadingTexts({ orderBy: "title" });
       setTexts(data);
     } catch (error) {
-      toast.error(getApiErrorMessage(error, "Nao foi possivel carregar os textos."));
+      toast.error(getApiErrorMessage(error, "Não foi possível carregar os textos."));
     }
   }, []);
 
@@ -97,7 +97,7 @@ export function RevisaoLeituraGuiadaPage() {
       });
       setSessions(data);
     } catch (error) {
-      toast.error(getApiErrorMessage(error, "Nao foi possivel carregar as sessoes."));
+      toast.error(getApiErrorMessage(error, "Não foi possível carregar as sessões."));
       setSessions([]);
     } finally {
       setLoadingList(false);
@@ -144,13 +144,13 @@ export function RevisaoLeituraGuiadaPage() {
           const objectUrl = await fetchGuidedAudioObjectUrl(audioUrl);
           setAudioObjectUrl(objectUrl);
         } catch (error) {
-          toast.error(getApiErrorMessage(error, "Nao foi possivel carregar o audio."));
+          toast.error(getApiErrorMessage(error, "Não foi possível carregar o áudio."));
         } finally {
           setLoadingAudio(false);
         }
       }
     } catch (error) {
-      toast.error(getApiErrorMessage(error, "Nao foi possivel carregar o detalhe."));
+      toast.error(getApiErrorMessage(error, "Não foi possível carregar o detalhe."));
       setSelectedId(null);
     } finally {
       setLoadingDetail(false);
@@ -358,12 +358,12 @@ export function RevisaoLeituraGuiadaPage() {
                     {loadingAudio ? (
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Loader2 className="h-4 w-4 animate-spin" />
-                        Carregando audio...
+                        Carregando áudio...
                       </div>
                     ) : audioObjectUrl ? (
                       <audio controls src={audioObjectUrl} className="w-full" />
                     ) : (
-                      <p className="text-sm text-muted-foreground">Sessao sem audio.</p>
+                      <p className="text-sm text-muted-foreground">Sessão sem áudio.</p>
                     )}
                   </div>
 
@@ -403,7 +403,7 @@ export function RevisaoLeituraGuiadaPage() {
                             <p className="mt-2">
                               Resposta:{" "}
                               <span className="font-medium">
-                                {selected ?? `Opcao ${answer.selectedOption}`}
+                                {selected ?? `Opção ${answer.selectedOption}`}
                               </span>
                             </p>
                             {correct ? (

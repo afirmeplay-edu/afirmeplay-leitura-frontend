@@ -1,10 +1,5 @@
-import { Suspense } from "react";
-import { RelatoriosHub } from "@/components/relatorios/relatorios-hub";
+import { ResultadosDashboard } from "@/components/relatorios/resultados-dashboard";
 
 export default function RelatoriosPage() {
-  return (
-    <Suspense fallback={<div className="p-6">Carregando...</div>}>
-      <RelatoriosHub />
-    </Suspense>
-  );
+  return <ResultadosDashboard />;
 }

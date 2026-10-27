@@ -29,7 +29,7 @@ async function proxyToBackend(request: NextRequest) {
     });
   } catch {
     return NextResponse.json(
-      { erro: "Backend indisponivel. Inicie o afirmeplay_backend ou ative MOCK_AUTH=true no .env." },
+      { erro: "Backend indisponível. Inicie o afirmeplay_backend ou ative MOCK_AUTH=true no .env." },
       { status: 503 }
     );
   }
@@ -45,11 +45,11 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     registration = String(body.registration ?? body.email ?? "").trim();
   } catch {
-    return NextResponse.json({ erro: "Corpo da requisicao invalido." }, { status: 400 });
+    return NextResponse.json({ erro: "Corpo da requisição inválido." }, { status: 400 });
   }
 
   if (!registration) {
-    return NextResponse.json({ erro: "Informe usuario e senha." }, { status: 400 });
+    return NextResponse.json({ erro: "Informe usuário e senha." }, { status: 400 });
   }
 
   const slug = request.headers.get("x-city-slug") ?? undefined;

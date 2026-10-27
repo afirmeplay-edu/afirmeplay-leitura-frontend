@@ -21,7 +21,7 @@ function unwrapCities(data: unknown): CatalogCity[] {
     const row = item as Record<string, unknown>;
     return {
       id: String(row.id),
-      name: String(row.name ?? "Municipio"),
+      name: String(row.name ?? "Município"),
       state: typeof row.state === "string" ? row.state : null,
       slug: typeof row.slug === "string" ? row.slug.trim().toLowerCase() : null,
       created_at: typeof row.created_at === "string" ? row.created_at : null,

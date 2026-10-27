@@ -18,17 +18,17 @@ const STEPS = [
   {
     icon: Library,
     title: "Cadastre ou reutilize questões",
-    text: "Questões de múltipla escolha (2 a 8 alternativas). As do Afirme Play aparecem como somente leitura.",
+    text: "Múltipla escolha, ditado e produção escrita. As do Afirme Play aparecem como somente leitura.",
   },
   {
     icon: ClipboardCheck,
-    title: "Monte a avaliação",
-    text: "20 itens: 16 de múltipla escolha, 3 abertas e 1 produção textual.",
+    title: "Monte e publique a avaliação",
+    text: "20 itens: 16 de múltipla escolha, 3 de ditado e 1 de produção escrita. Publicada, a prova sai em PDF.",
   },
   {
     icon: ScanLine,
-    title: "Aplique e corrija",
-    text: "Cartão-resposta e correção automática — em breve.",
+    title: "Aplique às turmas",
+    text: "Agende por turma e gere os cartões-resposta. A correção automática chega em breve.",
   },
 ];
 
@@ -42,7 +42,7 @@ export function IcaHome() {
       <PageHeader
         brand={ICA_BRAND}
         title={ICA_TITLE}
-        description="Banco de questões e montagem das avaliações aplicadas no papel e corrigidas por cartão-resposta."
+        description="Banco de questões, montagem e aplicação das avaliações no papel com cartão-resposta."
         icon={ClipboardCheck}
       >
         {canWrite ? (
@@ -55,7 +55,7 @@ export function IcaHome() {
         ) : null}
       </PageHeader>
 
-      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" aria-label="Atalhos do Sistema ICA">
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4" aria-label="Atalhos do Sistema ICA">
         {DASHBOARD_SHORTCUTS.ica.map((card) => (
           <ShortcutTile
             key={card.href}
@@ -72,7 +72,7 @@ export function IcaHome() {
 
       <SectionCard
         title="Primeiros passos"
-        description="Ainda não há avaliações do ICA. O caminho é este:"
+        description="O caminho da prova escrita do ICA:"
         icon={ClipboardCheck}
       >
         <ol className="grid gap-4 sm:grid-cols-3">
@@ -98,9 +98,12 @@ export function IcaHome() {
           <Button asChild variant="outline" className="w-full sm:w-auto">
             <Link href={ROUTES.ica.questoes.root}>Ver banco de questões</Link>
           </Button>
+          <Button asChild variant="outline" className="w-full sm:w-auto">
+            <Link href={ROUTES.ica.avaliacoes.root}>Ver avaliações</Link>
+          </Button>
           {canWrite ? (
             <Button asChild className="w-full sm:w-auto">
-              <Link href={ROUTES.ica.questoes.nova}>Criar a primeira questão</Link>
+              <Link href={ROUTES.ica.avaliacoes.nova}>Montar uma avaliação</Link>
             </Button>
           ) : null}
         </div>

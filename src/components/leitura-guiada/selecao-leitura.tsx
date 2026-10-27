@@ -30,12 +30,12 @@ export function SelecaoLeitura() {
   return (
     <div className="space-y-6 pb-8">
       <PageHeader
-        title="Nova Avaliacao de Leitura"
+        title="Nova avaliação de leitura"
         description="Selecione escola, turma, aluno e texto para iniciar a leitura guiada."
         icon={BookOpen}
       >
         <Button variant="outline" asChild className="w-full sm:w-auto">
-          <Link href={ROUTES.leitura.pratica.demo}>Modo demonstracao</Link>
+          <Link href={ROUTES.leitura.pratica.demo}>Modo demonstração</Link>
         </Button>
       </PageHeader>
 
@@ -99,7 +99,7 @@ export function SelecaoLeitura() {
         disabled={!canStart}
         onClick={() => router.push(`${ROUTES.leitura.pratica.sessao}?aluno=${studentId}&texto=${textId}`)}
       >
-        Iniciar Avaliacao de Leitura
+        Iniciar avaliação de leitura
       </Button>
     </div>
   );

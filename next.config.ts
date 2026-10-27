@@ -16,6 +16,8 @@ const LEGACY_LEITURA_SEGMENTS = [
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  // Com outro package-lock.json em pasta acima, o Next inferiria a raiz errada para o tracing do standalone.
+  outputFileTracingRoot: process.cwd(),
   // Gera .next/standalone — servidor Node mínimo para Docker (sem node_modules completo)
   output: "standalone",
   // pptxgenjs/xlsx usam APIs Node; no browser o Webpack precisa ignorá-las.

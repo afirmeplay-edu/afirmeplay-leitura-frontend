@@ -93,7 +93,7 @@ export function GuidedSessionFlow({ selection, onRestart }: GuidedSessionFlowPro
         });
         setAnswers(initial);
       } catch (error) {
-        toast.error(getApiErrorMessage(error, "Nao foi possivel carregar o texto."));
+        toast.error(getApiErrorMessage(error, "Não foi possível carregar o texto."));
       } finally {
         if (!cancelled) setLoadingText(false);
       }
@@ -156,7 +156,7 @@ export function GuidedSessionFlow({ selection, onRestart }: GuidedSessionFlowPro
       setIsReading(true);
       setStep(2);
     } catch {
-      toast.error("Nao foi possivel acessar o microfone. Verifique a permissao do navegador.");
+      toast.error("Não foi possível acessar o microfone. Verifique a permissão do navegador.");
     }
   }
 
@@ -185,19 +185,19 @@ export function GuidedSessionFlow({ selection, onRestart }: GuidedSessionFlowPro
     if (!text) return;
 
     if (!audioBlob) {
-      toast.error("Grave o audio da leitura antes de enviar.");
+      toast.error("Grave o áudio da leitura antes de enviar.");
       return;
     }
 
     const unanswered = questions.filter((q) => answers[q.id] === null || answers[q.id] === undefined);
     if (questions.length > 0 && unanswered.length > 0) {
-      toast.error("Responda todas as perguntas de compreensao.");
+      toast.error("Responda todas as perguntas de compreensão.");
       return;
     }
 
     const errorsCount = selectedWordIndexes.length;
     if (errorsCount > wordsRead) {
-      toast.error("Quantidade de erros nao pode ser maior que as palavras lidas.");
+      toast.error("Quantidade de erros não pode ser maior que as palavras lidas.");
       return;
     }
 
@@ -223,7 +223,7 @@ export function GuidedSessionFlow({ selection, onRestart }: GuidedSessionFlowPro
         toast.error(
           getApiErrorMessage(
             error,
-            "Sessao salva, mas o upload do audio falhou. Tente novamente depois."
+            "Sessão salva, mas o envio do áudio falhou. Tente novamente depois."
           )
         );
       }
@@ -232,7 +232,7 @@ export function GuidedSessionFlow({ selection, onRestart }: GuidedSessionFlowPro
       setStep(5);
       toast.success("Leitura guiada registrada com sucesso.");
     } catch (error) {
-      toast.error(getApiErrorMessage(error, "Falha ao salvar a sessao."));
+      toast.error(getApiErrorMessage(error, "Falha ao salvar a sessão."));
     } finally {
       setSubmitting(false);
     }
@@ -250,9 +250,9 @@ export function GuidedSessionFlow({ selection, onRestart }: GuidedSessionFlowPro
   if (!text) {
     return (
       <div className="rounded-xl border bg-white p-6">
-        <p className="text-sm text-red-600">Texto nao encontrado.</p>
+        <p className="text-sm text-red-600">Texto não encontrado.</p>
         <Button className="mt-4" variant="outline" onClick={onRestart}>
-          Voltar a selecao
+          Voltar à seleção
         </Button>
       </div>
     );
@@ -269,16 +269,16 @@ export function GuidedSessionFlow({ selection, onRestart }: GuidedSessionFlowPro
             </p>
           </div>
           <Button variant="outline" onClick={onRestart} disabled={isReading || submitting}>
-            Nova selecao
+            Nova seleção
           </Button>
         </div>
 
         <ol className="mt-4 flex flex-wrap gap-2 text-xs">
           {[
-            { id: 1, label: "Preparacao" },
+            { id: 1, label: "Preparação" },
             { id: 2, label: "Leitura" },
-            { id: 3, label: "Correcao" },
-            { id: 4, label: "Compreensao" },
+            { id: 3, label: "Correção" },
+            { id: 4, label: "Compreensão" },
             { id: 5, label: "Resultado" },
           ].map((item) => (
             <li
@@ -300,10 +300,10 @@ export function GuidedSessionFlow({ selection, onRestart }: GuidedSessionFlowPro
 
       {step === 1 ? (
         <section className="space-y-4 rounded-xl border bg-white p-6 shadow-sm">
-          <h3 className="text-lg font-semibold text-bluebrand-deep">Preparacao</h3>
+          <h3 className="text-lg font-semibold text-bluebrand-deep">Preparação</h3>
           <p className="text-sm text-muted-foreground">
-            O aluno lera o texto em voz alta. O microfone sera solicitado ao iniciar. O professor
-            corrige os erros ouvindo a gravacao.
+            O aluno lerá o texto em voz alta. O microfone será solicitado ao iniciar. O professor
+            corrige os erros ouvindo a gravação.
           </p>
           <div className="rounded-lg border bg-slate-50 p-4 text-sm leading-relaxed text-slate-800 whitespace-pre-wrap">
             {text.content}
@@ -329,7 +329,7 @@ export function GuidedSessionFlow({ selection, onRestart }: GuidedSessionFlowPro
           </div>
           <div className="flex items-center gap-2 text-sm text-red-600">
             <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-red-600" />
-            Gravando audio...
+            Gravando áudio...
           </div>
           <Button onClick={stopReading} className="bg-red-600 text-white hover:bg-red-700">
             <Square className="h-4 w-4" />
@@ -340,15 +340,15 @@ export function GuidedSessionFlow({ selection, onRestart }: GuidedSessionFlowPro
 
       {step === 3 ? (
         <section className="space-y-4 rounded-xl border bg-white p-6 shadow-sm">
-          <h3 className="text-lg font-semibold text-bluebrand-deep">Correcao do professor</h3>
+          <h3 className="text-lg font-semibold text-bluebrand-deep">Correção do professor</h3>
           <p className="text-sm text-muted-foreground">
-            Ouça a gravacao e clique nas palavras lidas incorretamente.
+            Ouça a gravação e clique nas palavras lidas incorretamente.
           </p>
 
           {localAudioUrl ? (
             <audio controls src={localAudioUrl} className="w-full" />
           ) : (
-            <p className="text-sm text-amber-700">Processando audio...</p>
+            <p className="text-sm text-amber-700">Processando áudio...</p>
           )}
 
           <div className="rounded-lg border bg-slate-50 p-4 leading-8">
@@ -382,7 +382,7 @@ export function GuidedSessionFlow({ selection, onRestart }: GuidedSessionFlowPro
           </div>
 
           <div className="space-y-2 max-w-sm">
-            <Label>Prosodia (1–5)</Label>
+            <Label>Prosódia (1–5)</Label>
             <Select
               value={String(prosodyLevel)}
               onValueChange={(value) => setProsodyLevel(Number(value))}
@@ -405,18 +405,18 @@ export function GuidedSessionFlow({ selection, onRestart }: GuidedSessionFlowPro
             disabled={!localAudioUrl}
             className="bg-bluebrand-deep text-white"
           >
-            Continuar para compreensao
+            Continuar para compreensão
           </Button>
         </section>
       ) : null}
 
       {step === 4 ? (
         <section className="space-y-4 rounded-xl border bg-white p-6 shadow-sm">
-          <h3 className="text-lg font-semibold text-bluebrand-deep">Compreensao</h3>
+          <h3 className="text-lg font-semibold text-bluebrand-deep">Compreensão</h3>
 
           {questions.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              Este texto nao possui perguntas cadastradas. Voce pode enviar a sessao mesmo assim.
+              Este texto não possui perguntas cadastradas. Você pode enviar a sessão mesmo assim.
             </p>
           ) : (
             <div className="space-y-5">
@@ -477,22 +477,22 @@ export function GuidedSessionFlow({ selection, onRestart }: GuidedSessionFlowPro
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <Metric label="PLCM" value={result.calculatedPlcm ?? "—"} />
             <Metric
-              label="Precisao"
+              label="Precisão"
               value={
                 result.calculatedAccuracy != null ? `${result.calculatedAccuracy}%` : "—"
               }
             />
             <Metric label="Erros" value={result.errorsCount} />
-            <Metric label="Prosodia" value={result.prosodyLevel} />
+            <Metric label="Prosódia" value={result.prosodyLevel} />
             <Metric
-              label="Compreensao"
+              label="Compreensão"
               value={
                 result.comprehensionScore != null ? `${result.comprehensionScore}%` : "—"
               }
             />
             <Metric
-              label="Audio"
-              value={result.hasAudio ? "Enviado" : "Nao enviado"}
+              label="Áudio"
+              value={result.hasAudio ? "Enviado" : "Não enviado"}
             />
           </div>
 

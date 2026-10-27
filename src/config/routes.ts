@@ -23,6 +23,11 @@ export const ROUTES = {
       sessao: `${LEITURA}/avaliacao-leitura-guiada/sessao`,
     },
     revisao: `${LEITURA}/revisao-leitura-guiada`,
+    automatica: {
+      root: `${LEITURA}/leitura-automatica`,
+      nova: `${LEITURA}/leitura-automatica/nova`,
+      detalhe: (id: string) => `${LEITURA}/leitura-automatica/${id}`,
+    },
     avaliacoes: {
       root: `${LEITURA}/avaliacoes`,
       detalhe: (id: string) => `${LEITURA}/avaliacoes/${id}`,
@@ -48,7 +53,11 @@ export const ROUTES = {
     avaliacoes: {
       root: `${ICA}/avaliacoes`,
       nova: `${ICA}/avaliacoes/nova`,
+      detalhe: (id: string) => `${ICA}/avaliacoes/${id}`,
+      aplicacao: (id: string) => `${ICA}/avaliacoes/${id}/aplicacao`,
     },
+    aplicacao: `${ICA}/aplicacao`,
+    acompanhamento: `${ICA}/acompanhamento`,
   },
 } as const;
 

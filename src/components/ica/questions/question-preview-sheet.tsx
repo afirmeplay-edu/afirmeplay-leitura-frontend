@@ -6,9 +6,9 @@ import { Pencil } from "lucide-react";
 import type { BankQuestion } from "@/lib/api/afirme-reading/types";
 import { ROUTES } from "@/config/routes";
 import { useSkillLabel } from "@/hooks/use-skill-label";
-import { questionCorrectLetter, readOnlyReason, toPreviewModel } from "@/lib/ica/questions";
+import { questionAnswerSummary, readOnlyReason, toPreviewModel } from "@/lib/ica/questions";
 import { useAuthStore } from "@/stores/auth-store";
-import { OriginBadge, ScopeBadge } from "@/components/ica/questions/question-badges";
+import { OriginBadge, QuestionTypeBadge, ScopeBadge } from "@/components/ica/questions/question-badges";
 import { QuestionPreview } from "@/components/ica/questions/question-preview";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -23,7 +23,7 @@ export function QuestionPreviewSheet({ question, onOpenChange, footer }: Questio
   const user = useAuthStore((state) => state.user);
   const skillLabel = useSkillLabel(question);
   const reason = question ? readOnlyReason(question, user) : null;
-  const letter = question ? questionCorrectLetter(question) : "";
+  const answer = question ? questionAnswerSummary(question) : "";
 
   return (
     <Sheet open={Boolean(question)} onOpenChange={onOpenChange}>
@@ -32,12 +32,13 @@ export function QuestionPreviewSheet({ question, onOpenChange, footer }: Questio
           <>
             <SheetHeader className="space-y-2 border-b p-6 pr-12 text-left">
               <div className="flex flex-wrap gap-1.5">
+                <QuestionTypeBadge type={question.type} />
                 <OriginBadge origin={question.origin} />
                 <ScopeBadge scope={question.scopeType} />
               </div>
               <SheetTitle>Pré-visualização da questão</SheetTitle>
               <SheetDescription>
-                {letter ? `Gabarito: ${letter}` : "Sem gabarito definido"}
+                {answer || "Sem gabarito definido"}
                 {question.createdBy?.name ? ` · Criada por ${question.createdBy.name}` : ""}
                 {question.version ? ` · Versão ${question.version}` : ""}
               </SheetDescription>

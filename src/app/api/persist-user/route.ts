@@ -25,7 +25,7 @@ async function proxyToBackend(request: NextRequest) {
       headers: { "Content-Type": "application/json" },
     });
   } catch {
-    return NextResponse.json({ erro: "Backend indisponivel." }, { status: 503 });
+    return NextResponse.json({ erro: "Backend indisponível." }, { status: 503 });
   }
 }
 
@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
   }
 
   if (!isMockAuthToken(token)) {
-    return NextResponse.json({ erro: "Nao autenticado." }, { status: 401 });
+    return NextResponse.json({ erro: "Não autenticado." }, { status: 401 });
   }
 
   const slug = request.headers.get("x-city-slug") ?? localStorageSlugFromOrigin(request);

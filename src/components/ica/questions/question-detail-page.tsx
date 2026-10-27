@@ -8,12 +8,12 @@ import type { BankQuestion } from "@/lib/api/afirme-reading/types";
 import { normalizeApiError } from "@/lib/api/errors";
 import { ROUTES } from "@/config/routes";
 import { ICA_BRAND } from "@/lib/ica/brand";
-import { questionCorrectLetter, readOnlyReason, toPreviewModel } from "@/lib/ica/questions";
+import { questionAnswerSummary, readOnlyReason, toPreviewModel } from "@/lib/ica/questions";
 import { useAuthStore } from "@/stores/auth-store";
 import { PageHeader } from "@/components/layout/page-header";
 import { PageShell } from "@/components/shared/page-shell";
 import { IcaCityScope } from "@/components/ica/ica-city-scope";
-import { OriginBadge, ScopeBadge } from "@/components/ica/questions/question-badges";
+import { OriginBadge, QuestionTypeBadge, ScopeBadge } from "@/components/ica/questions/question-badges";
 import { QuestionForm } from "@/components/ica/questions/question-form";
 import { QuestionPreview } from "@/components/ica/questions/question-preview";
 import { useSkillLabel } from "@/hooks/use-skill-label";
@@ -35,10 +35,10 @@ function BackButton() {
 
 function QuestionReadOnlyView({ question, reason }: { question: BankQuestion; reason: string }) {
   const skillLabel = useSkillLabel(question);
-  const letter = questionCorrectLetter(question);
+  const answer = questionAnswerSummary(question);
   return (
     <PageShell>
-      <PageHeader brand={ICA_BRAND} title="Questão" description={letter ? `Gabarito: ${letter}` : undefined} icon={FileQuestion}>
+      <PageHeader brand={ICA_BRAND} title="Questão" description={answer || undefined} icon={FileQuestion}>
         <BackButton />
       </PageHeader>
       <Alert>
@@ -47,6 +47,7 @@ function QuestionReadOnlyView({ question, reason }: { question: BankQuestion; re
         <AlertDescription>{reason}</AlertDescription>
       </Alert>
       <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+        <QuestionTypeBadge type={question.type} />
         <OriginBadge origin={question.origin} />
         <ScopeBadge scope={question.scopeType} />
         {question.createdBy?.name ? <span>Criada por {question.createdBy.name}</span> : null}

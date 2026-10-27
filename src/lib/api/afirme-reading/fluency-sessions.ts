@@ -18,6 +18,12 @@ export async function createFluencySession(payload: CreateFluencySessionPayload)
   return data;
 }
 
+/** POST /fluency-sessions/:id/absent — marca o aluno como ausente nesta aplicação (pode ser aplicado de novo). */
+export async function markFluencySessionAbsent(id: string) {
+  const { data } = await afirmeReadingApi.post<FluencySession>(`/fluency-sessions/${id}/absent`);
+  return data;
+}
+
 /** GET /fluency-sessions/:id */
 export async function getFluencySession(id: string) {
   const { data } = await afirmeReadingApi.get<FluencySession>(`/fluency-sessions/${id}`);
