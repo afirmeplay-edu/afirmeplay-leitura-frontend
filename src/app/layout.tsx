@@ -6,8 +6,8 @@ import { AppProviders } from "@/components/providers/app-providers";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Afirmeplay Leitura",
-  description: "Sistema de leitura da Afirmeplay",
+  title: "Afirme Educacional",
+  description: "Plataforma Afirme Educacional: Leitura e ICA",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

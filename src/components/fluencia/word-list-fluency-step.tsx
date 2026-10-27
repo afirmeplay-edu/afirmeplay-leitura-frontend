@@ -311,7 +311,6 @@ export function WordListFluencyStep({
       onRunningChangeRef.current?.(false);
       void stopRecorder();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {

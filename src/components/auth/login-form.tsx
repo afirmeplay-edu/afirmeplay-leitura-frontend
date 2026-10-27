@@ -208,10 +208,10 @@ export function LoginForm() {
         </div>
         <div className="relative z-10 text-center">
           <Image
-            src="/AFIRME-LER-LOGO.png"
-            alt="Afirme Ler"
-            width={537}
-            height={249}
+            src="/Afirme-edu-logo.png"
+            alt="Afirme Educacional"
+            width={688}
+            height={363}
             style={{ width: 560, height: "auto" }}
             className="mx-auto max-w-full object-contain"
             unoptimized
@@ -225,7 +225,7 @@ export function LoginForm() {
         <div className="w-full max-w-md rounded-2xl border border-blue-200/20 bg-gradient-to-br from-[#11306B] to-[#0B2A63] p-8 shadow-2xl">
           <div className="mb-6 space-y-2 text-center">
             <h1 className="text-3xl font-bold text-white">Bem-vindo</h1>
-            <p className="text-sm text-blue-100">Sistema de Leitura Afirme Play</p>
+            <p className="text-sm text-blue-100">Plataforma Afirme Educacional</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">

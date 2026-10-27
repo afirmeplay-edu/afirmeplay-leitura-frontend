@@ -6,12 +6,18 @@ import { BarChart3, CalendarClock, ClipboardCheck, Library, RefreshCw, ScanLine,
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { listBankQuestions } from "@/lib/api/afirme-reading/questions";
 import { listAnswerSheets, listWrittenTestClasses, listWrittenTests } from "@/lib/api/afirme-reading/written-tests";
-import type { BankQuestionType, WrittenTestClassStatus, WrittenTestSummary } from "@/lib/api/afirme-reading/types";
+import type {
+  AnswerSheetRun,
+  BankQuestionType,
+  WrittenTestClassApplication,
+  WrittenTestClassStatus,
+  WrittenTestSummary,
+} from "@/lib/api/afirme-reading/types";
 import { normalizeApiError } from "@/lib/api/errors";
 import { ROUTES } from "@/config/routes";
 import { CLASS_STATUS_LABEL, formatLocalDateTime } from "@/lib/ica/application";
 import { ICA_BRAND } from "@/lib/ica/brand";
-import { ICA_QUESTION_TYPES, QUESTION_TYPE_LABEL } from "@/lib/ica/questions";
+import { ICA_QUESTION_TYPES, QUESTION_ORIGIN_LABEL, QUESTION_TYPE_LABEL } from "@/lib/ica/questions";
 import { IcaCityScope } from "@/components/ica/ica-city-scope";
 import { PageHeader } from "@/components/layout/page-header";
 import { PageShell } from "@/components/shared/page-shell";
@@ -34,15 +40,68 @@ interface MonitoringData {
   bank: Record<BankQuestionType, number>;
   bankLer: number;
   classes: ClassCounts;
+  /** Turmas distintas com aplicação, sem repetir a mesma turma em avaliações diferentes. */
+  appliedClassCount: number;
   expectedStudents: number;
   cardsGenerated: number;
   runsFailed: number;
+  /** Avaliações cujo detalhe de turmas ou de cartões falhou; os números abaixo não as incluem por completo. */
+  failedDetails: number;
   upcoming: WrittenTestSummary[];
   publishedTests: WrittenTestSummary[];
   detailedTests: number;
 }
 
 const EMPTY_COUNTS: ClassCounts = { nao_aplicada: 0, agendada: 0, em_andamento: 0, encerrada: 0 };
+
+function runCoversClass(run: AnswerSheetRun, classId: string) {
+  return run.allClasses || run.classId === classId;
+}
+
+/**
+ * Por avaliação, cada turma fica com a geração concluída mais recente que a cobre.
+ * Uma geração "todas as turmas" e outra de uma turma só não entram as duas inteiras:
+ * a mais nova leva as turmas que cobre e a mais antiga só entra na parte que sobrou,
+ * na proporção dos alunos.
+ */
+function cardsFromRuns(applied: WrittenTestClassApplication[], runs: AnswerSheetRun[]) {
+  const newestFirst = [...runs].sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""));
+  const winner = new Map<string, AnswerSheetRun>();
+  const latest = new Map<string, AnswerSheetRun>();
+  for (const item of applied) {
+    const covering = newestFirst.filter((run) => runCoversClass(run, item.classId));
+    if (covering[0]) latest.set(item.classId, covering[0]);
+    const done = covering.find((run) => run.status === "concluido");
+    if (done) winner.set(item.classId, done);
+  }
+
+  const failed = new Set<string>();
+  latest.forEach((run) => {
+    if (run.status === "erro") failed.add(run.id);
+  });
+
+  const students = new Map(applied.map((item) => [item.classId, item.studentCount]));
+  const wonByRun = new Map<string, { run: AnswerSheetRun; classIds: string[] }>();
+  winner.forEach((run, classId) => {
+    const entry = wonByRun.get(run.id) ?? { run, classIds: [] };
+    entry.classIds.push(classId);
+    wonByRun.set(run.id, entry);
+  });
+
+  let generated = 0;
+  wonByRun.forEach(({ run, classIds }) => {
+    const scope = applied.filter((item) => runCoversClass(run, item.classId));
+    const scopeStudents = scope.reduce((sum, item) => sum + item.studentCount, 0);
+    const wonStudents = classIds.reduce((sum, classId) => sum + (students.get(classId) ?? 0), 0);
+    if (scopeStudents > 0 && wonStudents < scopeStudents) {
+      generated += Math.round((run.generatedCount * wonStudents) / scopeStudents);
+      return;
+    }
+    generated += run.generatedCount;
+  });
+
+  return { generated, failed: failed.size };
+}
 
 async function loadMonitoring(signal: AbortSignal): Promise<MonitoringData> {
   const totalOf = (promise: Promise<{ pagination: { total: number } }>) => promise.then((result) => result.pagination.total);
@@ -57,34 +116,35 @@ async function loadMonitoring(signal: AbortSignal): Promise<MonitoringData> {
   const detailed = publishedTests.slice(0, DETAIL_LIMIT);
   const perTest = await Promise.all(
     detailed.map(async (test) => {
-      const [classes, runs] = await Promise.all([
-        listWrittenTestClasses(test.id).then((data) => data.classes ?? []).catch(() => []),
-        listAnswerSheets(test.id).catch(() => []),
+      const [classesResult, runsResult] = await Promise.allSettled([
+        listWrittenTestClasses(test.id).then((data) => data.classes ?? []),
+        listAnswerSheets(test.id),
       ]);
-      return { classes, runs };
+      return {
+        failed: classesResult.status === "rejected" || runsResult.status === "rejected",
+        classes: classesResult.status === "fulfilled" ? classesResult.value : [],
+        runs: runsResult.status === "fulfilled" ? runsResult.value : [],
+      };
     })
   );
 
   const classes = { ...EMPTY_COUNTS };
-  let expectedStudents = 0;
+  const studentsByClass = new Map<string, number>();
   let cardsGenerated = 0;
   let runsFailed = 0;
-  for (const { classes: list, runs } of perTest) {
+  let failedDetails = 0;
+  for (const { classes: list, runs, failed } of perTest) {
+    if (failed) failedDetails += 1;
+    const applied = list.filter((item) => item.applied);
     for (const item of list) {
       classes[item.status ?? "nao_aplicada"] += 1;
-      if (item.applied) expectedStudents += item.studentCount;
+      if (item.applied && !studentsByClass.has(item.classId)) studentsByClass.set(item.classId, item.studentCount);
     }
-    // A geração mais recente de cada recorte é a que vale; somar todas contaria a mesma turma duas vezes.
-    const latestByScope = new Map<string, (typeof runs)[number]>();
-    for (const run of runs) {
-      const key = run.classId ?? "todas";
-      if (!latestByScope.has(key)) latestByScope.set(key, run);
-    }
-    latestByScope.forEach((run) => {
-      if (run.status === "concluido") cardsGenerated += run.generatedCount;
-      if (run.status === "erro") runsFailed += 1;
-    });
+    const cards = cardsFromRuns(applied, runs);
+    cardsGenerated += cards.generated;
+    runsFailed += cards.failed;
   }
+  const expectedStudents = [...studentsByClass.values()].reduce((sum, count) => sum + count, 0);
 
   const upcoming = publishedTests
     .filter((test) => test.nextApplicationStart)
@@ -100,9 +160,11 @@ async function loadMonitoring(signal: AbortSignal): Promise<MonitoringData> {
     >,
     bankLer,
     classes,
+    appliedClassCount: studentsByClass.size,
     expectedStudents,
     cardsGenerated,
     runsFailed,
+    failedDetails,
     upcoming,
     publishedTests,
     detailedTests: detailed.length,
@@ -144,7 +206,7 @@ function IcaMonitoring() {
       }))
     : [];
   const bankChart = data ? ICA_QUESTION_TYPES.map((type) => ({ tipo: QUESTION_TYPE_LABEL[type], questoes: data.bank[type] })) : [];
-  const appliedClasses = data ? data.classes.agendada + data.classes.em_andamento + data.classes.encerrada : 0;
+  const appliedClasses = data?.appliedClassCount ?? 0;
 
   return (
     <PageShell>
@@ -185,7 +247,7 @@ function IcaMonitoring() {
               variant="metric"
               label="Questões no banco"
               value={data ? ICA_QUESTION_TYPES.reduce((sum, type) => sum + data.bank[type], 0) : 0}
-              trend={data ? `${data.bankLer} criadas no Afirme Ler` : undefined}
+              trend={data ? `${data.bankLer} criadas no ${QUESTION_ORIGIN_LABEL.afirme_ler}` : undefined}
               icon={Library}
               loading={loading}
             />
@@ -215,14 +277,28 @@ function IcaMonitoring() {
             />
           </section>
 
-          {data && data.publishedTests.length > data.detailedTests ? (
+          {data && (data.publishedTests.length > data.detailedTests || data.published > data.publishedTests.length || data.failedDetails > 0) ? (
             <p className="text-xs text-muted-foreground">
-              Turmas, alunos e cartões consideram as {data.detailedTests} avaliações publicadas mais recentes.
+              {data.publishedTests.length > data.detailedTests
+                ? `Turmas, alunos e cartões consideram as ${data.detailedTests} avaliações publicadas criadas mais recentemente. `
+                : null}
+              {data.published > data.publishedTests.length
+                ? `A lista trouxe ${data.publishedTests.length} de ${data.published} avaliações publicadas. `
+                : null}
+              {data.failedDetails > 0
+                ? data.failedDetails === 1
+                  ? "1 avaliação não pôde ser consultada."
+                  : `${data.failedDetails} avaliações não puderam ser consultadas.`
+                : null}
             </p>
           ) : null}
 
           <div className="grid min-w-0 gap-4 sm:gap-6 lg:grid-cols-2">
-            <SectionCard title="Turmas por situação" description="Público das avaliações publicadas." icon={Users}>
+            <SectionCard
+              title="Aplicações por situação"
+              description="Cada turma conta uma vez por avaliação publicada."
+              icon={Users}
+            >
               <div className="h-[220px] w-full min-w-0 sm:h-[250px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={classChart}>

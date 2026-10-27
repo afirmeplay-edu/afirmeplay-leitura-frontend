@@ -29,6 +29,7 @@ export function ApplicationHubPage() {
 
 function ApplicationHub() {
   const [items, setItems] = useState<WrittenTestSummary[]>([]);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
@@ -38,10 +39,14 @@ function ApplicationHub() {
     setLoading(true);
     setError(null);
     listWrittenTests({ status: "publicada", per_page: 100 }, { signal: controller.signal })
-      .then((result) => setItems(result.data))
+      .then((result) => {
+        setItems(result.data);
+        setTotal(result.pagination.total);
+      })
       .catch((err) => {
         if (controller.signal.aborted) return;
         setItems([]);
+        setTotal(0);
         setError(normalizeApiError(err, "Não foi possível carregar as avaliações publicadas.").message);
       })
       .finally(() => !controller.signal.aborted && setLoading(false));
@@ -137,6 +142,11 @@ function ApplicationHub() {
                   ))}
                 </TableBody>
               </Table>
+              {total > items.length ? (
+                <p className="mt-3 text-xs text-muted-foreground">
+                  Mostrando as {items.length} avaliações publicadas criadas mais recentemente, de {total}.
+                </p>
+              ) : null}
             </div>
           )}
         </CardContent>

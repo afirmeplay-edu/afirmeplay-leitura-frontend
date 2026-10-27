@@ -17,7 +17,7 @@ export function PageHeader({
   description,
   icon: Icon,
   eyebrow,
-  brand = "Afirme Ler · Painel institucional",
+  brand = "Afirme Educacional · Leitura",
   className,
   children,
 }: PageHeaderProps) {

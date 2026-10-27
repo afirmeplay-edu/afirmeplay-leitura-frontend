@@ -480,3 +480,35 @@ Páginas de demonstração e configuração ainda importam `src/lib/mock`. Essas
 | `npx tsc --noEmit -p .` | 0 erros |
 | `npx eslint src` | 0 erros, 8 warnings legados (imports e deps de hooks já existentes; antes eram 9) |
 | Tela | Não exercitada aqui; a conferência visual fica com quem usa o sistema. |
+
+---
+
+## Acompanhamento, barra lateral e marca (sem commit)
+
+### Erro de hidratação
+
+O `StatCard` colocava o `Skeleton` (uma `div`) dentro de um `p` enquanto carregava. O valor passou a ser uma `div` nas três variantes. O mesmo erro saía do Acompanhamento, do painel de resultados, das avaliações aplicadas e da lista de avaliações de fluência.
+
+### Números do Acompanhamento
+
+Conferido com `written_test_service.py`, `written_test_answer_sheet_service.py` e `question_bank_service.py`.
+
+- O card de turmas conta cada turma uma vez. O gráfico "Aplicações por situação" continua contando o par avaliação × turma.
+- Os cartões usam, por turma, a geração concluída mais recente que a cobre. Se uma geração antiga ainda cobre outras turmas, entra só a parte proporcional aos alunos.
+- Falha ao consultar turmas ou cartões de uma avaliação aparece no aviso, em vez de sumir na soma.
+- O aviso deixa claro que o recorte segue as avaliações criadas mais recentemente (`created_at`), e que a lista do servidor traz no máximo 100.
+- A aplicação de avaliações publicadas avisa quando há mais de 100. O painel de resultados da Leitura já dizia que a prática automática usa as últimas 100 sessões; o texto bate com o `limit` da rota.
+
+### Marca e menu
+
+- Barra aberta: o botão mostra "Recolher menu" ao lado da seta. Recolhida, só a seta.
+- Logo `Afirme-edu-logo.png` no cabeçalho e no login. Título da página, rodapé, marca padrão das telas da Leitura, painel, dica do seletor, capas do PowerPoint e o rótulo da origem `afirme_ler` passam a "Afirme Educacional".
+- Os nomes Leitura e ICA, o caminho `/afirme-reading`, o valor `afirme_ler` e o domínio `@afirmeplay.com.br` ficam como estão. "Afirme Play" continua nomeando o outro produto.
+
+### Verificação
+
+| Verificação | Resultado |
+|---|---|
+| `npx tsc --noEmit -p .` | 0 erros |
+| `npx eslint src` | 0 erros, 4 warnings legados (`_markings`, `wordMsLeft`, duas deps de hooks) |
+| Tela | Não exercitada aqui. |

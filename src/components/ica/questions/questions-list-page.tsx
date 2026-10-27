@@ -314,7 +314,7 @@ function QuestionsList() {
       <DataListPage
         brand={ICA_BRAND}
         title="Banco de questões"
-        description="Questões de múltipla escolha, ditado e produção escrita do Afirme Ler e do Afirme Play visíveis para o seu perfil."
+        description="Questões de múltipla escolha, ditado e produção escrita do Afirme Educacional e do Afirme Play visíveis para o seu perfil."
         icon={Library}
         items={items}
         columns={columns}

@@ -29,7 +29,7 @@ export function DashboardHero({ distribuicao, className }: DashboardHeroProps) {
             Sistema de leitura
           </p>
           <div className="space-y-2">
-            <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">Painel Afirme Ler</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">Painel da Leitura</h1>
             <p className="max-w-2xl text-sm text-white/85 sm:text-base">
               Acompanhe fluência, precisão e compreensão da rede — de PL1 a leitor fluente.
             </p>

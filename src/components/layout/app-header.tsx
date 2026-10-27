@@ -77,10 +77,10 @@ export function AppHeader({ system, isMobile, isMenuOpen, onToggleMenu }: AppHea
             aria-label="Ir para o início"
           >
             <Image
-              src="/AFIRME-LER-LOGO.png"
-              alt="Afirme Ler"
-              width={537}
-              height={249}
+              src="/Afirme-edu-logo.png"
+              alt="Afirme Educacional"
+              width={688}
+              height={363}
               className="h-10 w-auto max-w-[120px] object-contain sm:h-12 sm:max-w-[180px]"
               unoptimized
               priority

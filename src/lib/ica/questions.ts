@@ -79,7 +79,7 @@ export const QUESTION_DIFFICULTIES: BankQuestionDifficulty[] = [
 ];
 
 export const QUESTION_ORIGIN_LABEL: Record<BankQuestionOrigin, string> = {
-  afirme_ler: "Afirme Ler",
+  afirme_ler: "Afirme Educacional",
   afirme_play: "Afirme Play · somente leitura",
 };
 
@@ -111,7 +111,7 @@ export function readOnlyReason(
   question: Pick<BankQuestion, "origin" | "scopeType" | "createdBy"> | null,
   user: { id?: string | null; role?: string | null } | null | undefined
 ): string | null {
-  if (question && isPlayQuestion(question)) return "Questões do Afirme Play são somente leitura no Afirme Ler.";
+  if (question && isPlayQuestion(question)) return "Questões do Afirme Play são somente leitura no Afirme Educacional.";
   const role = normalizeRole(user?.role);
   if (!canWriteIca(role)) return "Seu perfil pode visualizar, mas não cadastrar ou editar questões.";
   if (!question || role === "admin") return null;

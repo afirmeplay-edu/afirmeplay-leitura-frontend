@@ -13,7 +13,7 @@ const SYSTEM_ICON: Record<AppSystem, LucideIcon> = {
 };
 
 const SYSTEM_HINT: Record<AppSystem, string> = {
-  leitura: "Afirme Ler — fluência leitora (Alt+1)",
+  leitura: "Leitura — fluência leitora (Alt+1)",
   ica: "Sistema ICA — Índice Criança Alfabetizada (Alt+2)",
 };
 

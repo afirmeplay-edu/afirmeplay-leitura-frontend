@@ -273,7 +273,6 @@ export function NarrativeFluencyStep({
       timerRef.current = null;
     }
     void stopRecorder();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [content, tokens, lines]);
 
   useEffect(() => {
@@ -282,7 +281,6 @@ export function NarrativeFluencyStep({
       onRunningChangeRef.current?.(false);
       void stopRecorder();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function startReading() {
