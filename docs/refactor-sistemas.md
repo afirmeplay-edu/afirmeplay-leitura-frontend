@@ -512,3 +512,69 @@ Conferido com `written_test_service.py`, `written_test_answer_sheet_service.py` 
 | `npx tsc --noEmit -p .` | 0 erros |
 | `npx eslint src` | 0 erros, 4 warnings legados (`_markings`, `wordMsLeft`, duas deps de hooks) |
 | Tela | Não exercitada aqui. |
+
+---
+
+## Remoção do mock de login e blindagem da sessão (sem commit)
+
+### Diagnóstico
+
+- O `mock-dev-token`, o nome `Usuário usuário` e o 422 `Not enough segments` em `/api/city` vinham do mesmo ponto: `MOCK_AUTH=true` acionava o ramo mock de `src/app/api/login/route.ts` e `src/app/api/persist-user/route.ts`.
+- Esse mock era legado do commit inicial (`44c45a1`) e não parte da arquitetura real. A lógica correta já existia no mesmo arquivo: proxy para o backend em `/login/` e `/persist-user/`.
+- O backend atual foi conferido em `login.py`, `persistUser_routes.py`, `city_routes.py` e `tenant_middleware.py`: o JWT real traz `sub`, `city_id`, `tenant_id`, `role` e `exp`. Nenhuma mudança de backend foi necessária.
+- `/api/city` é protegido e estava recebendo `Authorization: Bearer mock-dev-token`; como o token não é JWT, o Flask devolvia 422 antes de executar a rota.
+
+### Correções no front
+
+- `login/route.ts` e `persist-user/route.ts` ficaram sem ramo mock e sempre fazem proxy para o backend.
+- O proxy de login repassa `X-City-Slug`; o proxy de `persist-user` repassa `X-City-ID` e `X-City-Slug`.
+- `src/lib/mock/auth.ts`, `serverEnv.mockAuth` e `MOCK_AUTH=true` do `.env.example` foram removidos.
+- `isJwtShape` rejeita tokens sem formato JWT. O store limpa automaticamente sessões antigas com token inválido na hidratação e no `persist-user`.
+- O interceptor de API trata 422 de decodificação JWT (`Not enough segments` etc.) como sessão inválida e redireciona ao login.
+- `listCatalogCities` só tenta `/city/` como fallback quando o erro é de rota; 401/422 agora sobem corretamente.
+
+### PDF, cartões e relatórios
+
+- O PDF da prova já existe no backend: `GET /afirme-reading/written-tests/:id/pdf`, via `WrittenTestPdfService.generate_pdf`.
+- Os cartões-resposta também existem, mas como fluxo separado: `POST/GET /written-tests/:id/answer-sheets` e download ZIP. A geração depende do worker.
+- No front, `downloadWrittenTestPdf` e `downloadAnswerSheets` já são usados no construtor/detalhe da avaliação e na tela de aplicação.
+- Não foi alterado o fluxo de PDF/cartões porque a liderança descartou mexer nessa implementação nesta rodada.
+- Resultados da Leitura e relatórios de fluência já usam `/resultados`. Resultados do ICA continuam bloqueados: falta correção/agregação de cartão no backend.
+
+### Verificação
+
+| Verificação | Resultado |
+|---|---|
+| `npx tsc --noEmit -p .` | 0 erros |
+| `npx eslint src` | 0 erros, 4 warnings legados |
+| `ReadLints` nos arquivos alterados | 0 erros |
+| Busca por `MOCK_AUTH`, `mock-dev-token`, `lib/mock/auth` fora de `docs/` | sem resultados |
+| Tela | Não exercitada aqui. |
+
+---
+
+## Correção Jaru: ID do catálogo mobile divergente (sem commit)
+
+### Diagnóstico
+
+- O banco local do backend tem Jaru como `9a2f95ed-9f70-4863-a5f1-1b6c6c262b0d`.
+- O catálogo remoto mobile devolve Jaru com `id = a3eeb1f7-58d7-48e0-ab18-0a1146557580`, mas `tenant_code = 9A2F95ED`.
+- No login web, o backend prioriza `X-City-ID` sobre `X-City-Slug`. Quando o front enviava os dois, o ID divergente bloqueava a resolução por slug e gerava `Município não encontrado para o id`.
+
+### Correções no front
+
+- O login não envia mais `X-City-ID`; usa `citySlug` no body e `X-City-Slug` no header.
+- A tela de login limpa `selected_city_id` ao selecionar município ou restaurar slug pré-selecionado. Antes do login, o contexto fica só com slug.
+- `syncCityContext` agora respeita `loginCityId: null`, evitando reaproveitar um `selected_city_id` antigo durante login de admin.
+- `mergeCitySources` não deixa a fonte mobile sobrescrever uma cidade já resolvida por banco/API autenticada com o mesmo slug.
+
+### Verificação
+
+| Verificação | Resultado |
+|---|---|
+| Consulta read-only no banco | Jaru existe com id `9a2f95ed-9f70-4863-a5f1-1b6c6c262b0d`; o id `a3eeb1f7-58d7-48e0-ab18-0a1146557580` não existe |
+| Consulta ao catálogo mobile | Jaru vinha com o id divergente `a3eeb1f7-58d7-48e0-ab18-0a1146557580` |
+| `npx tsc --noEmit -p .` | 0 erros |
+| `npx eslint src` | 0 erros, 4 warnings legados |
+| `ReadLints` nos arquivos alterados | 0 erros |
+| Tela | Não exercitada aqui. |

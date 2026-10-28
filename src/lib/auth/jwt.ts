@@ -12,7 +12,7 @@ export interface JwtPayload {
 export function decodeJwtPayload(token: string): JwtPayload | null {
   try {
     const parts = token.split(".");
-    if (parts.length < 2) return null;
+    if (parts.length !== 3) return null;
     const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
     const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), "=");
     const json = atob(padded);
@@ -22,9 +22,15 @@ export function decodeJwtPayload(token: string): JwtPayload | null {
   }
 }
 
+/** Tokens reais do backend são JWTs com header, payload e assinatura. */
+export function isJwtShape(token: string | null | undefined): token is string {
+  if (!token || token.split(".").length !== 3) return false;
+  return decodeJwtPayload(token) !== null;
+}
+
 /**
  * Verifica expiração pelo claim `exp` (client-side).
- * Tokens opacos/mock sem `exp` retornam false — a validade fica a cargo da API.
+ * Tokens sem `exp` ainda podem existir; a validade final fica a cargo da API.
  */
 export function isJwtExpired(token: string, skewSeconds = 30): boolean {
   const payload = decodeJwtPayload(token);
