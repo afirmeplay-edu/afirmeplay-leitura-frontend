@@ -78,6 +78,8 @@ export {
   listAnswerSheets,
   downloadWrittenTestPdf,
   downloadAnswerSheets,
+  correctAnswerSheets,
+  listAnswerSheetCorrections,
 } from "@/lib/api/afirme-reading/written-tests";
 export {
   createGuidedAutoSession,
@@ -188,6 +190,11 @@ export type {
   ApplyWrittenTestPayload,
   AnswerSheetRun,
   AnswerSheetRunStatus,
+  AnswerSheetCorrectionResult,
+  AnswerSheetCorrectionStudent,
+  AnswerSheetCorrectionIssue,
+  AnswerSheetCorrectionsList,
+  AnswerSheetSavedStudent,
   GuidedAutoPart,
   GuidedAutoStatus,
   GuidedAutoMatchType,

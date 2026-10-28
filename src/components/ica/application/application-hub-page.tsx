@@ -3,19 +3,20 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ClipboardCheck, Eye, RefreshCw, ScanLine } from "lucide-react";
-import { listWrittenTests } from "@/lib/api/afirme-reading/written-tests";
-import type { WrittenTestSummary } from "@/lib/api/afirme-reading/types";
+import { listAnswerSheetCorrections, listWrittenTests } from "@/lib/api/afirme-reading/written-tests";
+import type { AnswerSheetCorrectionsList, WrittenTestSummary } from "@/lib/api/afirme-reading/types";
 import { normalizeApiError } from "@/lib/api/errors";
 import { ROUTES } from "@/config/routes";
 import { formatLocalDateTime } from "@/lib/ica/application";
 import { ICA_BRAND } from "@/lib/ica/brand";
 import { formatDateTime } from "@/lib/ica/written-tests";
+import { AnswerSheetSavedResultList } from "@/components/ica/application/answer-sheet-saved-results";
 import { IcaCityScope } from "@/components/ica/ica-city-scope";
 import { PageHeader } from "@/components/layout/page-header";
 import { PageShell } from "@/components/shared/page-shell";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
@@ -33,6 +34,8 @@ function ApplicationHub() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+  const [savedById, setSavedById] = useState<Record<string, AnswerSheetCorrectionsList | "error">>({});
+  const [viewingId, setViewingId] = useState<string | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -53,22 +56,61 @@ function ApplicationHub() {
     return () => controller.abort();
   }, [reloadKey]);
 
+  const viewing = items.find((test) => test.id === viewingId) ?? null;
+  const viewingSaved = viewingId ? savedById[viewingId] : undefined;
+  const viewingStudents = viewingSaved && viewingSaved !== "error" ? viewingSaved.students : [];
+
+  useEffect(() => {
+    if (!items.length) {
+      setSavedById({});
+      return;
+    }
+    const controller = new AbortController();
+    setSavedById({});
+    void Promise.all(
+      items.map(async (test) => {
+        try {
+          const list = await listAnswerSheetCorrections(test.id, { signal: controller.signal });
+          return [test.id, list] as const;
+        } catch {
+          if (controller.signal.aborted) return null;
+          return [test.id, "error"] as const;
+        }
+      })
+    ).then((rows) => {
+      if (controller.signal.aborted) return;
+      const next: Record<string, AnswerSheetCorrectionsList | "error"> = {};
+      for (const row of rows) {
+        if (!row) continue;
+        next[row[0]] = row[1];
+      }
+      setSavedById(next);
+    });
+    return () => controller.abort();
+  }, [items]);
+
+  async function retryCorrection(testId: string) {
+    setSavedById((current) => {
+      const next = { ...current };
+      delete next[testId];
+      return next;
+    });
+    try {
+      const list = await listAnswerSheetCorrections(testId);
+      setSavedById((current) => ({ ...current, [testId]: list }));
+    } catch {
+      setSavedById((current) => ({ ...current, [testId]: "error" }));
+    }
+  }
+
   return (
     <PageShell>
       <PageHeader
         brand={ICA_BRAND}
         title="Aplicação e correção"
-        description="Aplique as avaliações publicadas às turmas e gere os cartões-resposta."
+        description="Agende as turmas, gere os cartões-resposta e envie as folhas digitalizadas para correção."
         icon={ScanLine}
       />
-
-      <Alert>
-        <ScanLine className="h-4 w-4" />
-        <AlertDescription>
-          A leitura dos cartões-resposta e a correção automática ainda não existem no servidor. Por enquanto, a tela cobre
-          o agendamento por turma e a geração dos cartões.
-        </AlertDescription>
-      </Alert>
 
       <Card>
         <CardContent className="pt-6">
@@ -123,7 +165,13 @@ function ApplicationHub() {
                       <TableCell className="whitespace-nowrap">{formatLocalDateTime(test.nextApplicationStart) ?? "—"}</TableCell>
                       <TableCell className="whitespace-nowrap">{formatDateTime(test.publishedAt) ?? "—"}</TableCell>
                       <TableCell className="text-right">
-                        <div className="flex justify-end gap-1">
+                        <div className="flex flex-wrap justify-end gap-1">
+                          <CorrectionStatusButton
+                            testId={test.id}
+                            saved={savedById[test.id]}
+                            onView={() => setViewingId(test.id)}
+                            onRetry={() => void retryCorrection(test.id)}
+                          />
                           <Button variant="ghost" size="sm" className="h-9" asChild>
                             <Link href={ROUTES.ica.avaliacoes.detalhe(test.id)}>
                               <Eye className="h-4 w-4" />
@@ -151,6 +199,62 @@ function ApplicationHub() {
           )}
         </CardContent>
       </Card>
+
+      <Sheet open={viewing != null} onOpenChange={(open) => !open && setViewingId(null)}>
+        <SheetContent side="right" className="flex w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl">
+          <SheetHeader className="space-y-1 border-b p-6 pr-12 text-left">
+            <SheetTitle>{viewing?.title ?? "Correção"}</SheetTitle>
+            <SheetDescription>
+              {viewingStudents.length
+                ? `${viewingStudents.length} aluno(s) com correção gravada, em ordem de nome.`
+                : "Correções gravadas desta avaliação."}
+            </SheetDescription>
+          </SheetHeader>
+          <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto p-6">
+            <AnswerSheetSavedResultList students={viewingStudents} />
+          </div>
+        </SheetContent>
+      </Sheet>
     </PageShell>
+  );
+}
+
+function CorrectionStatusButton({
+  testId,
+  saved,
+  onView,
+  onRetry,
+}: {
+  testId: string;
+  saved: AnswerSheetCorrectionsList | "error" | undefined;
+  onView: () => void;
+  onRetry: () => void;
+}) {
+  if (!saved) {
+    return (
+      <Button variant="outline" size="sm" className="h-9" disabled>
+        Verificando…
+      </Button>
+    );
+  }
+  if (saved === "error") {
+    return (
+      <Button variant="outline" size="sm" className="h-9" onClick={onRetry}>
+        Não foi possível verificar
+      </Button>
+    );
+  }
+  if (saved.students.length === 0) {
+    return (
+      <Button variant="outline" size="sm" className="h-9" asChild>
+        <Link href={`${ROUTES.ica.avaliacoes.aplicacao(testId)}#correcao`}>Ainda não corrigida</Link>
+      </Button>
+    );
+  }
+  return (
+    <Button size="sm" className="h-9" onClick={onView} title="Ver o que foi corrigido">
+      <ClipboardCheck className="h-4 w-4" />
+      Já corrigida
+    </Button>
   );
 }

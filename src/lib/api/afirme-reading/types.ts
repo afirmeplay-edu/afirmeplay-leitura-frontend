@@ -895,6 +895,150 @@ export interface AnswerSheetRunList {
   runs: AnswerSheetRun[];
 }
 
+/** POST /written-tests/{id}/answer-sheet-corrections. O lote é síncrono; `qr` vem em snake_case. */
+export interface AnswerSheetMarkedAnswer {
+  number: number;
+  questionId: string;
+  letter: string;
+}
+
+export interface AnswerSheetOpenAnswer {
+  number: number;
+  questionId: string;
+}
+
+export interface AnswerSheetCrop {
+  number: number;
+  questionId: string;
+  saved: boolean;
+}
+
+export interface AnswerSheetCorrectionStudent {
+  studentPrefix: string | null;
+  studentId: string | null;
+  studentName: string | null;
+  saved: boolean;
+  reason: string | null;
+  correctionId?: string | null;
+  answers: AnswerSheetMarkedAnswer[];
+  blank: AnswerSheetOpenAnswer[];
+  invalid: AnswerSheetOpenAnswer[];
+  crops: AnswerSheetCrop[];
+  pages: number[];
+  missingPages: number[];
+}
+
+export interface AnswerSheetCorrectionQr {
+  student_id?: string | null;
+  written_test_id?: string | null;
+  page?: number | null;
+  page_count?: number | null;
+}
+
+export interface AnswerSheetCorrectionIssue {
+  fileIndex: number;
+  pageIndex: number;
+  filename: string;
+  reason: string;
+  qr?: AnswerSheetCorrectionQr | null;
+}
+
+export interface AnswerSheetCorrectionResult {
+  writtenTestId: string;
+  pageCount: number;
+  fileCount: number;
+  students: AnswerSheetCorrectionStudent[];
+  skipped: AnswerSheetCorrectionIssue[];
+  errors: AnswerSheetCorrectionIssue[];
+}
+
+export type AnswerSheetObjectiveStatus = "CORRETA" | "INCORRETA" | "EM_BRANCO" | "INVALIDA" | "PENDENTE";
+
+export interface AnswerSheetObjectiveItem {
+  number: number;
+  questionId: string;
+  letter: string | null;
+  answerKey: string | null;
+  points: number;
+  status: AnswerSheetObjectiveStatus | string;
+}
+
+/** `points` fica `null` enquanto alguma objetiva ainda está `PENDENTE`. */
+export interface AnswerSheetObjectiveScore {
+  points: number | null;
+  maxPoints: number;
+  items: AnswerSheetObjectiveItem[];
+}
+
+export type AnswerSheetWritingSource = "ia" | "manual";
+export type AnswerSheetWritingStatus = "CONCLUIDA" | "PENDENTE_REVISAO" | "ERRO";
+
+export interface AnswerSheetWritingWord {
+  number: number;
+  questionId: string;
+  stimulus: string;
+  expected: string;
+  transcription: string;
+  points: number | null;
+  classification: string;
+  justification: string;
+  confidence: string;
+  needsReview: boolean;
+  status: string;
+}
+
+export interface AnswerSheetWritingProduction {
+  number: number;
+  questionId: string;
+  genre: string;
+  transcription: string;
+  criteria: Record<string, number | null>;
+  justifications: Record<string, string>;
+  points: number | null;
+  confidence: string;
+  needsReview: boolean;
+  status: string;
+}
+
+export interface AnswerSheetWritingFeedback {
+  demonstrated: string[];
+  difficulties: string[];
+  interventions: string[];
+  notes: string;
+}
+
+/** `null` quando o ditado e o bilhete ainda não foram corrigidos. Em `ERRO`, a nota da escrita não fecha. */
+export interface AnswerSheetWritingScore {
+  source: AnswerSheetWritingSource | string;
+  status: AnswerSheetWritingStatus | string;
+  model: string | null;
+  message: string | null;
+  wordPoints: number | null;
+  textPoints: number | null;
+  words: AnswerSheetWritingWord[];
+  production: AnswerSheetWritingProduction | null;
+  feedback: AnswerSheetWritingFeedback;
+}
+
+/** GET /written-tests/{id}/answer-sheet-corrections — um item por aluno já gravado. */
+export interface AnswerSheetSavedStudent {
+  correctionId: string | null;
+  studentId: string | null;
+  studentName: string | null;
+  answers: AnswerSheetMarkedAnswer[];
+  blank: AnswerSheetOpenAnswer[];
+  invalid: AnswerSheetOpenAnswer[];
+  crops: AnswerSheetCrop[];
+  pages: number[];
+  objective: AnswerSheetObjectiveScore | null;
+  writing: AnswerSheetWritingScore | null;
+}
+
+export interface AnswerSheetCorrectionsList {
+  writtenTestId: string;
+  students: AnswerSheetSavedStudent[];
+}
+
 /* ---------------------------------------------------------------------------------------------------------
  * Leitura guiada automática — `/afirme-reading/guided-auto-sessions` (correção por transcrição no servidor).
  * ------------------------------------------------------------------------------------------------------- */

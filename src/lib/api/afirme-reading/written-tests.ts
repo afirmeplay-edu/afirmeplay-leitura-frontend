@@ -1,7 +1,17 @@
 import axios from "axios";
 import { afirmeReadingApi } from "@/lib/api/afirme-reading/client";
 import type {
+  AnswerSheetCorrectionIssue,
+  AnswerSheetCorrectionResult,
+  AnswerSheetCorrectionStudent,
+  AnswerSheetCorrectionsList,
+  AnswerSheetObjectiveItem,
+  AnswerSheetObjectiveScore,
   AnswerSheetRun,
+  AnswerSheetSavedStudent,
+  AnswerSheetWritingProduction,
+  AnswerSheetWritingScore,
+  AnswerSheetWritingWord,
   AnswerSheetRunList,
   ApplyWrittenTestPayload,
   BankQuestionPagination,
@@ -178,4 +188,178 @@ export async function downloadWrittenTestPdf(id: string, fallbackName = "avaliac
 /** ZIP dos cartões-resposta de uma geração concluída. */
 export async function downloadAnswerSheets(id: string, runId: string, fallbackName = "cartoes-resposta.zip") {
   await downloadFile(`/written-tests/${id}/answer-sheets/${runId}/download`, fallbackName);
+}
+
+function asArray<T>(value: T[] | null | undefined): T[] {
+  return Array.isArray(value) ? value : [];
+}
+
+function normalizeCorrectionStudent(student: Partial<AnswerSheetCorrectionStudent>): AnswerSheetCorrectionStudent {
+  return {
+    studentPrefix: student.studentPrefix ?? null,
+    studentId: student.studentId ?? null,
+    studentName: student.studentName ?? null,
+    saved: Boolean(student.saved),
+    reason: student.reason ?? null,
+    correctionId: student.correctionId ?? null,
+    answers: asArray(student.answers),
+    blank: asArray(student.blank),
+    invalid: asArray(student.invalid),
+    crops: asArray(student.crops),
+    pages: asArray(student.pages),
+    missingPages: asArray(student.missingPages),
+  };
+}
+
+function normalizeCorrectionIssue(issue: Partial<AnswerSheetCorrectionIssue>): AnswerSheetCorrectionIssue {
+  return {
+    fileIndex: issue.fileIndex ?? 0,
+    pageIndex: issue.pageIndex ?? 0,
+    filename: issue.filename ?? "",
+    reason: issue.reason ?? "Falha de leitura",
+    qr: issue.qr ?? null,
+  };
+}
+
+function asStringList(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+}
+
+function asScoreRecord(value: unknown): Record<string, number | null> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return Object.fromEntries(
+    Object.entries(value).map(([key, score]) => [key, typeof score === "number" ? score : null])
+  );
+}
+
+function asTextRecord(value: unknown): Record<string, string> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return Object.fromEntries(
+    Object.entries(value).map(([key, text]) => [key, typeof text === "string" ? text : ""])
+  );
+}
+
+function normalizeObjectiveItem(item: Partial<AnswerSheetObjectiveItem>): AnswerSheetObjectiveItem {
+  return {
+    number: item.number ?? 0,
+    questionId: item.questionId ?? "",
+    letter: item.letter ?? null,
+    answerKey: item.answerKey ?? null,
+    points: item.points ?? 0,
+    status: item.status ?? "PENDENTE",
+  };
+}
+
+function normalizeObjective(value: Partial<AnswerSheetObjectiveScore> | null | undefined): AnswerSheetObjectiveScore | null {
+  if (!value || typeof value !== "object") return null;
+  return {
+    points: value.points ?? null,
+    maxPoints: value.maxPoints ?? 16,
+    items: asArray(value.items).map(normalizeObjectiveItem),
+  };
+}
+
+function normalizeWritingWord(word: Partial<AnswerSheetWritingWord>): AnswerSheetWritingWord {
+  return {
+    number: word.number ?? 0,
+    questionId: word.questionId ?? "",
+    stimulus: word.stimulus ?? "",
+    expected: word.expected ?? "",
+    transcription: word.transcription ?? "",
+    points: word.points ?? null,
+    classification: word.classification ?? "",
+    justification: word.justification ?? "",
+    confidence: word.confidence ?? "",
+    needsReview: Boolean(word.needsReview),
+    status: word.status ?? "",
+  };
+}
+
+function normalizeProduction(
+  value: Partial<AnswerSheetWritingProduction> | null | undefined
+): AnswerSheetWritingProduction | null {
+  if (!value || typeof value !== "object") return null;
+  return {
+    number: value.number ?? 0,
+    questionId: value.questionId ?? "",
+    genre: value.genre ?? "",
+    transcription: value.transcription ?? "",
+    criteria: asScoreRecord(value.criteria),
+    justifications: asTextRecord(value.justifications),
+    points: value.points ?? null,
+    confidence: value.confidence ?? "",
+    needsReview: Boolean(value.needsReview),
+    status: value.status ?? "",
+  };
+}
+
+function normalizeWriting(value: Partial<AnswerSheetWritingScore> | null | undefined): AnswerSheetWritingScore | null {
+  if (!value || typeof value !== "object") return null;
+  const feedback = value.feedback;
+  return {
+    source: value.source ?? "",
+    status: value.status ?? "",
+    model: value.model ?? null,
+    message: value.message ?? null,
+    wordPoints: value.wordPoints ?? null,
+    textPoints: value.textPoints ?? null,
+    words: asArray(value.words).map(normalizeWritingWord),
+    production: normalizeProduction(value.production),
+    feedback: {
+      demonstrated: asStringList(feedback?.demonstrated),
+      difficulties: asStringList(feedback?.difficulties),
+      interventions: asStringList(feedback?.interventions),
+      notes: feedback?.notes ?? "",
+    },
+  };
+}
+
+function normalizeSavedStudent(student: Partial<AnswerSheetSavedStudent>): AnswerSheetSavedStudent {
+  return {
+    correctionId: student.correctionId ?? null,
+    studentId: student.studentId ?? null,
+    studentName: student.studentName ?? null,
+    answers: asArray(student.answers),
+    blank: asArray(student.blank),
+    invalid: asArray(student.invalid),
+    crops: asArray(student.crops),
+    pages: asArray(student.pages),
+    objective: normalizeObjective(student.objective),
+    writing: normalizeWriting(student.writing),
+  };
+}
+
+/** Correções já gravadas da prova, um item por aluno, em ordem de nome. */
+export async function listAnswerSheetCorrections(
+  id: string,
+  config?: { signal?: AbortSignal }
+): Promise<AnswerSheetCorrectionsList> {
+  const { data } = await afirmeReadingApi.get<AnswerSheetCorrectionsList>(
+    `/written-tests/${id}/answer-sheet-corrections`,
+    config
+  );
+  const students = asArray(data?.students).map(normalizeSavedStudent);
+  students.sort((a, b) => (a.studentName ?? "").localeCompare(b.studentName ?? "", "pt-BR", { sensitivity: "base" }));
+  return { writtenTestId: data?.writtenTestId ?? id, students };
+}
+
+/**
+ * Correção síncrona das folhas digitalizadas. PDF vira uma imagem por página.
+ * Um item em `skipped` ou `errors` não invalida o restante do lote (resposta 200).
+ */
+export async function correctAnswerSheets(id: string, files: File[]): Promise<AnswerSheetCorrectionResult> {
+  const form = new FormData();
+  for (const file of files) form.append("files", file);
+  const { data } = await afirmeReadingApi.postForm<AnswerSheetCorrectionResult>(
+    `/written-tests/${id}/answer-sheet-corrections`,
+    form
+  );
+  return {
+    writtenTestId: data?.writtenTestId ?? id,
+    pageCount: data?.pageCount ?? 0,
+    fileCount: data?.fileCount ?? files.length,
+    students: asArray(data?.students).map(normalizeCorrectionStudent),
+    skipped: asArray(data?.skipped).map(normalizeCorrectionIssue),
+    errors: asArray(data?.errors).map(normalizeCorrectionIssue),
+  };
 }

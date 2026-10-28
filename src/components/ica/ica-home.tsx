@@ -28,7 +28,7 @@ const STEPS = [
   {
     icon: ScanLine,
     title: "Aplique às turmas",
-    text: "Agende por turma e gere os cartões-resposta. A correção automática chega em breve.",
+    text: "Agende por turma, gere os cartões-resposta e envie as folhas digitalizadas para correção.",
   },
 ];
 

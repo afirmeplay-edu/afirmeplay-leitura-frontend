@@ -158,7 +158,7 @@ export const NAV_ICA: NavCategory[] = [
       {
         href: I.aplicacao,
         label: "Aplicação e correção",
-        description: "Turmas e cartões-resposta",
+        description: "Turmas, cartões-resposta e correção",
         icon: ScanLine,
       },
       {
@@ -237,7 +237,7 @@ export const DASHBOARD_SHORTCUTS: Record<AppSystem, DashboardShortcut[]> = {
     {
       href: I.aplicacao,
       label: "Aplicação e correção",
-      description: "Turmas e cartões-resposta · correção em breve",
+      description: "Turmas, cartões-resposta e correção",
       accent: "teal",
       icon: ScanLine,
     },

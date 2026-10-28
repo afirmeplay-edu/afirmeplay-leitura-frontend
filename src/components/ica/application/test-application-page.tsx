@@ -47,8 +47,11 @@ import {
   toLocalIso,
 } from "@/lib/ica/application";
 import { ICA_BRAND } from "@/lib/ica/brand";
+import { canCorrectAnswerSheets } from "@/lib/auth/roles";
 import { canManageWrittenTest } from "@/lib/ica/written-tests";
 import { useAuthStore } from "@/stores/auth-store";
+import { AnswerSheetCorrection } from "@/components/ica/application/answer-sheet-correction";
+import { AnswerSheetSavedResults } from "@/components/ica/application/answer-sheet-saved-results";
 import { IcaCityScope } from "@/components/ica/ica-city-scope";
 import { PageHeader } from "@/components/layout/page-header";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
@@ -111,10 +114,12 @@ function TestApplication({ id }: { id: string }) {
   const [students, setStudents] = useState<WrittenTestClassStudents | null>(null);
   const [loadingStudents, setLoadingStudents] = useState(false);
   const [removing, setRemoving] = useState<WrittenTestClassApplication | null>(null);
+  const [resultsToken, setResultsToken] = useState(0);
 
   const previousStatus = useRef<Map<string, AnswerSheetRun["status"]>>(new Map());
 
   const canManage = canManageWrittenTest(detail, user);
+  const canCorrect = canCorrectAnswerSheets(user?.role);
   const published = detail?.status === "publicada";
 
   const reloadClasses = useCallback(async () => {
@@ -195,6 +200,15 @@ function TestApplication({ id }: { id: string }) {
 
   const schedulable = useMemo(() => classes.filter(canSchedule), [classes]);
   const appliedClasses = useMemo(() => classes.filter((item) => item.applied), [classes]);
+  const latestCompletedRun = useMemo(() => {
+    return runs.reduce<AnswerSheetRun | null>((latest, run) => {
+      if (run.status !== "concluido") return latest;
+      if (!latest) return run;
+      const latestAt = latest.finishedAt ?? latest.createdAt ?? "";
+      const runAt = run.finishedAt ?? run.createdAt ?? "";
+      return runAt > latestAt ? run : latest;
+    }, null);
+  }, [runs]);
   const allSelected = schedulable.length > 0 && schedulable.every((item) => selected.includes(item.classId));
 
   function toggle(classId: string, checked: boolean) {
@@ -320,7 +334,7 @@ function TestApplication({ id }: { id: string }) {
     <PageShell>
       <PageHeader
         brand={ICA_BRAND}
-        eyebrow="Aplicação e cartões-resposta"
+        eyebrow="Aplicação e correção"
         title={detail.title}
         description={`${detail.appliedClassesCount} de ${detail.classIds.length} turmas com aplicação.`}
         icon={ScanLine}
@@ -536,7 +550,7 @@ function TestApplication({ id }: { id: string }) {
                   <li key={run.id} className="rounded-xl border p-3">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <div className="min-w-0 space-y-1">
-                        <p className="flex flex-wrap items-center gap-2 text-sm font-medium">
+                        <div className="flex flex-wrap items-center gap-2 text-sm font-medium">
                           {run.allClasses ? "Todas as turmas" : run.className || "Turma"}
                           <Badge
                             variant={
@@ -545,7 +559,7 @@ function TestApplication({ id }: { id: string }) {
                           >
                             {ANSWER_SHEET_STATUS_LABEL[run.status]}
                           </Badge>
-                        </p>
+                        </div>
                         <p className="text-xs text-muted-foreground">
                           {run.generatedCount}/{run.totalStudents} cartões
                           {formatUtcDateTime(run.createdAt) ? ` · pedida em ${formatUtcDateTime(run.createdAt)}` : ""}
@@ -578,6 +592,19 @@ function TestApplication({ id }: { id: string }) {
           )}
         </div>
       </SectionCard>
+
+      {published && canCorrect ? (
+        <div id="correcao" className="scroll-mt-24">
+          <AnswerSheetCorrection
+            writtenTestId={id}
+            hasGeneratedCards={latestCompletedRun != null}
+            mapReady={latestCompletedRun?.hasAnswerSheetMap === true}
+            onCorrected={() => setResultsToken((token) => token + 1)}
+          />
+        </div>
+      ) : null}
+
+      {published ? <AnswerSheetSavedResults writtenTestId={id} reloadToken={resultsToken} /> : null}
 
       <Sheet open={studentsOf != null} onOpenChange={(open) => !open && setStudentsOf(null)}>
         <SheetContent side="right" className="flex w-full flex-col gap-0 p-0 sm:max-w-md">
