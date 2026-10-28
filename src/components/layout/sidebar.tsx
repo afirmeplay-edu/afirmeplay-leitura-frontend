@@ -418,7 +418,12 @@ export function Sidebar({ categories, system, onNavigate, isMobile, onCollapsedC
         aria-label="Menu principal"
       >
         {!isMobile && (
-          <div className={cn("flex shrink-0 px-2 pt-2", collapsed ? "justify-center" : "justify-end md:px-3")}>
+          <div className={cn("flex shrink-0 px-2 pt-2", collapsed ? "justify-center" : "items-center justify-between md:px-3")}>
+            {collapsed ? null : (
+              <span className="px-2 text-[11px] font-bold uppercase tracking-[0.18em] text-muted-foreground/80">
+                Navegação
+              </span>
+            )}
             <button
               type="button"
               onClick={toggleCollapsed}
@@ -430,7 +435,7 @@ export function Sidebar({ categories, system, onNavigate, isMobile, onCollapsedC
               )}
             >
               {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-              {collapsed ? null : <span>Recolher menu</span>}
+              {collapsed ? null : <span>Recolher</span>}
             </button>
           </div>
         )}

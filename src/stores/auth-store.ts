@@ -107,8 +107,8 @@ function syncCityContext(options: {
   }
 
   // Admin: contexto tenant = escolha do login (ou picker), persistida no localStorage.
-  const adminCityId = loginCityId || getSelectedCityId();
-  const adminSlug = loginSlug || getSelectedCitySlug();
+  const adminCityId = loginCityId !== undefined ? loginCityId : getSelectedCityId();
+  const adminSlug = loginSlug !== undefined ? loginSlug : getSelectedCitySlug();
   if (adminCityId || adminSlug) {
     setCityContext({
       cityId: adminCityId,
@@ -175,7 +175,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const cityApi = createCityApi();
       const normalizedSlug = slug?.trim() ? slug.trim().toLowerCase() : null;
-      const loginCityId = getSelectedCityId();
 
       const body: {
         registration: string;
@@ -191,7 +190,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       const headers: Record<string, string> = {};
       if (normalizedSlug) headers["X-City-Slug"] = normalizedSlug;
-      if (loginCityId) headers["X-City-ID"] = loginCityId;
 
       const { data } = await cityApi.post("/login/", body, {
         headers: Object.keys(headers).length ? headers : undefined,
@@ -208,7 +206,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         token,
         user: enrichedUser,
         loginSlug: normalizedSlug || enrichedUser.city_slug,
-        loginCityId,
+        loginCityId: null,
       });
 
       localStorage.setItem("token", token);

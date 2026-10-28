@@ -79,13 +79,12 @@ export function LoginForm() {
         setCities(data);
 
         if (preselected && data.some((city) => city.slug === preselected)) {
-          const city = data.find((item) => item.slug === preselected);
           setSelectedSlug(preselected);
-          setCityContext({ slug: preselected, cityId: city?.id ?? null });
+          setCityContext({ slug: preselected, cityId: null });
         } else if (data.length === 1) {
           const city = data[0];
           setSelectedSlug(city.slug);
-          setCityContext({ slug: city.slug, cityId: city.id });
+          setCityContext({ slug: city.slug, cityId: null });
         } else if (data.length === 0) {
           setCitiesError("Nenhum município disponível no momento.");
         }
@@ -122,10 +121,9 @@ export function LoginForm() {
       return;
     }
 
-    const selectedCity = cities.find((city) => city.slug === selectedSlug);
     setCityContext({
       slug: selectedSlug,
-      cityId: selectedCity?.id ?? null,
+      cityId: null,
     });
 
     const raw = registration.trim();
@@ -179,10 +177,9 @@ export function LoginForm() {
 
   function handleSlugChange(slug: string) {
     setSelectedSlug(slug);
-    const city = cities.find((item) => item.slug === slug);
     setCityContext({
       slug,
-      cityId: city?.id ?? null,
+      cityId: null,
     });
   }
 

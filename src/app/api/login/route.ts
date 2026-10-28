@@ -12,7 +12,6 @@ async function proxyToBackend(request: NextRequest) {
         "Content-Type": "application/json",
         Accept: "application/json",
         Origin: request.headers.get("origin") ?? "",
-        "X-City-ID": request.headers.get("x-city-id") ?? "",
         "X-City-Slug": request.headers.get("x-city-slug") ?? "",
       },
       body,

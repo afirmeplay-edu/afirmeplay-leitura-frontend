@@ -527,7 +527,7 @@ Conferido com `written_test_service.py`, `written_test_answer_sheet_service.py` 
 ### Correções no front
 
 - `login/route.ts` e `persist-user/route.ts` ficaram sem ramo mock e sempre fazem proxy para o backend.
-- O proxy de login agora repassa `X-City-ID` além de `X-City-Slug`; o proxy de `persist-user` repassa os dois.
+- O proxy de login repassa `X-City-Slug`; o proxy de `persist-user` repassa `X-City-ID` e `X-City-Slug`.
 - `src/lib/mock/auth.ts`, `serverEnv.mockAuth` e `MOCK_AUTH=true` do `.env.example` foram removidos.
 - `isJwtShape` rejeita tokens sem formato JWT. O store limpa automaticamente sessões antigas com token inválido na hidratação e no `persist-user`.
 - O interceptor de API trata 422 de decodificação JWT (`Not enough segments` etc.) como sessão inválida e redireciona ao login.
@@ -549,4 +549,32 @@ Conferido com `written_test_service.py`, `written_test_answer_sheet_service.py` 
 | `npx eslint src` | 0 erros, 4 warnings legados |
 | `ReadLints` nos arquivos alterados | 0 erros |
 | Busca por `MOCK_AUTH`, `mock-dev-token`, `lib/mock/auth` fora de `docs/` | sem resultados |
+| Tela | Não exercitada aqui. |
+
+---
+
+## Correção Jaru: ID do catálogo mobile divergente (sem commit)
+
+### Diagnóstico
+
+- O banco local do backend tem Jaru como `9a2f95ed-9f70-4863-a5f1-1b6c6c262b0d`.
+- O catálogo remoto mobile devolve Jaru com `id = a3eeb1f7-58d7-48e0-ab18-0a1146557580`, mas `tenant_code = 9A2F95ED`.
+- No login web, o backend prioriza `X-City-ID` sobre `X-City-Slug`. Quando o front enviava os dois, o ID divergente bloqueava a resolução por slug e gerava `Município não encontrado para o id`.
+
+### Correções no front
+
+- O login não envia mais `X-City-ID`; usa `citySlug` no body e `X-City-Slug` no header.
+- A tela de login limpa `selected_city_id` ao selecionar município ou restaurar slug pré-selecionado. Antes do login, o contexto fica só com slug.
+- `syncCityContext` agora respeita `loginCityId: null`, evitando reaproveitar um `selected_city_id` antigo durante login de admin.
+- `mergeCitySources` não deixa a fonte mobile sobrescrever uma cidade já resolvida por banco/API autenticada com o mesmo slug.
+
+### Verificação
+
+| Verificação | Resultado |
+|---|---|
+| Consulta read-only no banco | Jaru existe com id `9a2f95ed-9f70-4863-a5f1-1b6c6c262b0d`; o id `a3eeb1f7-58d7-48e0-ab18-0a1146557580` não existe |
+| Consulta ao catálogo mobile | Jaru vinha com o id divergente `a3eeb1f7-58d7-48e0-ab18-0a1146557580` |
+| `npx tsc --noEmit -p .` | 0 erros |
+| `npx eslint src` | 0 erros, 4 warnings legados |
+| `ReadLints` nos arquivos alterados | 0 erros |
 | Tela | Não exercitada aqui. |
