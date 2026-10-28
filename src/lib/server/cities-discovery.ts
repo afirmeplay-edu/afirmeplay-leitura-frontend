@@ -136,7 +136,9 @@ function mergeCitySources(dbCities: DiscoveryCity[], mobileCities: DiscoveryCity
     if (city.slug === META_VPS_SLUG) {
       continue;
     }
-    bySlug.set(city.slug, city);
+    if (!bySlug.has(city.slug)) {
+      bySlug.set(city.slug, city);
+    }
   }
 
   return Array.from(bySlug.values()).sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));

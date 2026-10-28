@@ -16,5 +16,4 @@ export const serverEnv = {
   ).trim(),
   appEnv: process.env.APP_ENV ?? "development",
   debugMode: process.env.NEXT_PUBLIC_DEBUG_MODE === "true",
-  mockAuth: process.env.MOCK_AUTH === "true",
 } as const;
