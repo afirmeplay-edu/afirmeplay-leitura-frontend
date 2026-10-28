@@ -220,7 +220,7 @@ function AssessmentsList() {
       <DataListPage
         brand={ICA_BRAND}
         title="Avaliações"
-        description="Provas do ICA com 20 itens: 16 de múltipla escolha, 3 de ditado e 1 de produção escrita."
+        description="Provas do ICA com 19 itens: 16 de múltipla escolha, 2 de ditado e 1 bilhete."
         icon={ClipboardCheck}
         items={items}
         columns={columns}

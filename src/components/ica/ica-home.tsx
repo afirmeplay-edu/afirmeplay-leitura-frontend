@@ -23,7 +23,7 @@ const STEPS = [
   {
     icon: ClipboardCheck,
     title: "Monte e publique a avaliação",
-    text: "20 itens: 16 de múltipla escolha, 3 de ditado e 1 de produção escrita. Publicada, a prova sai em PDF.",
+    text: "19 itens: 16 de múltipla escolha, 2 de ditado e 1 bilhete. Publicada, a prova sai em PDF.",
   },
   {
     icon: ScanLine,

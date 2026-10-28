@@ -89,7 +89,7 @@ export async function setWrittenTestQuestions(id: string, questions: WrittenTest
   return data;
 }
 
-/** Publicar exige exatamente 20 questões; depois disso dados e questões ficam travados. */
+/** Publicar exige exatamente 19 questões; depois disso dados e questões ficam travados. */
 export async function publishWrittenTest(id: string) {
   const { data } = await afirmeReadingApi.post<WrittenTestDetail>(`/written-tests/${id}/publish`);
   return data;

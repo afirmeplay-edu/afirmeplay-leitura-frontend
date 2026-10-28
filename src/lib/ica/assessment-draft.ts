@@ -8,12 +8,12 @@ import type {
 import { normalizeQuestionType, questionAnswerSummary, questionStatement } from "@/lib/ica/questions";
 
 /**
- * Composição da prova escrita do ICA (decisão do produto): 16 múltipla escolha, 3 ditado e 1 produção escrita.
- * O backend só exige 20 questões para publicar; a divisão por tipo é regra do frontend.
+ * Composição da prova escrita do ICA, igual ao cartão-resposta: 16 múltipla escolha (1–16),
+ * 2 ditados (17 e 18) e 1 bilhete (19).
  */
 export const SLOT_LAYOUT: Array<{ type: BankQuestionType; count: number }> = [
   { type: "multipleChoice", count: 16 },
-  { type: "dictation", count: 3 },
+  { type: "dictation", count: 2 },
   { type: "text_production", count: 1 },
 ];
 

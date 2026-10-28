@@ -489,10 +489,10 @@ function AssessmentBuilder({ id }: { id?: string }) {
         title={isNew ? "Nova avaliação" : draft.title || "Avaliação"}
         description={
           isNew
-            ? "Monte a prova com 20 itens. Até o primeiro salvamento, a montagem fica como rascunho neste navegador."
+            ? "Monte a prova com 19 itens. Até o primeiro salvamento, a montagem fica como rascunho neste navegador."
             : published
               ? `Publicada${formatDateTime(detail?.publishedAt) ? ` em ${formatDateTime(detail?.publishedAt)}` : ""}.`
-              : "Rascunho salvo no servidor. Publique quando as 20 questões estiverem prontas."
+              : "Rascunho salvo no servidor. Publique quando as 19 questões estiverem prontas."
         }
         icon={ClipboardCheck}
       >
@@ -579,7 +579,7 @@ function AssessmentBuilder({ id }: { id?: string }) {
           <AlertTriangle className="h-4 w-4" />
           <AlertTitle>Questões fora da composição</AlertTitle>
           <AlertDescription>
-            {overflow.length} questão(ões) não cabem em 16 de múltipla escolha, 3 de ditado e 1 de produção escrita. Elas
+            {overflow.length} questão(ões) não cabem em 16 de múltipla escolha, 2 de ditado e 1 bilhete. Elas
             continuam salvas no fim da prova; remova-as para poder publicar.
             {!readOnly ? (
               <Button variant="link" className="h-auto px-1 py-0" onClick={() => setOverflow([])}>

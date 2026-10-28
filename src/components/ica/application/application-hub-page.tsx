@@ -135,7 +135,7 @@ function ApplicationHub() {
               </span>
               <p className="font-medium">Nenhuma avaliação publicada.</p>
               <p className="max-w-md text-sm text-muted-foreground">
-                Monte a prova com as 20 questões e publique para poder aplicá-la.
+                Monte a prova com as 19 questões e publique para poder aplicá-la.
               </p>
               <Button asChild>
                 <Link href={ROUTES.ica.avaliacoes.root}>Ver avaliações</Link>

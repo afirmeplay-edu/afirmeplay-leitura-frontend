@@ -230,7 +230,7 @@ export const DASHBOARD_SHORTCUTS: Record<AppSystem, DashboardShortcut[]> = {
     {
       href: I.avaliacoes.root,
       label: "Avaliações",
-      description: "Monte a prova com 20 itens",
+      description: "Monte a prova com 19 itens",
       accent: "blue",
       icon: ClipboardCheck,
     },
