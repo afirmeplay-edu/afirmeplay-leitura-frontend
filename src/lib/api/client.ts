@@ -12,6 +12,23 @@ function isLoginRequest(error: AxiosError) {
   return url.includes("/login/");
 }
 
+function responseMessage(data: unknown) {
+  if (!data || typeof data !== "object") return "";
+  const record = data as Record<string, unknown>;
+  return String(record.msg ?? record.erro ?? record.error ?? record.mensagem ?? "");
+}
+
+function isJwtDecodeError(error: AxiosError) {
+  if (error.response?.status !== 422) return false;
+  const msg = responseMessage(error.response.data).toLowerCase();
+  return (
+    msg.includes("not enough segments") ||
+    msg.includes("invalid header") ||
+    msg.includes("invalid token") ||
+    msg.includes("token is invalid")
+  );
+}
+
 /** Limpa sessão e redireciona ao login (import dinâmico evita ciclo com o store). */
 async function handleUnauthorized() {
   if (typeof window === "undefined" || handlingUnauthorized) return;
@@ -67,7 +84,7 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
-    if (error.response?.status === 401 && !isLoginRequest(error)) {
+    if ((error.response?.status === 401 || isJwtDecodeError(error)) && !isLoginRequest(error)) {
       void handleUnauthorized();
     }
     return Promise.reject(error);

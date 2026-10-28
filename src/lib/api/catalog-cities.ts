@@ -1,3 +1,4 @@
+import axios from "axios";
 import { api } from "@/lib/api/client";
 
 export interface CatalogCity {
@@ -34,7 +35,9 @@ export async function listCatalogCities() {
   try {
     const { data } = await api.get("/city");
     return unwrapCities(data);
-  } catch {
+  } catch (error) {
+    const status = axios.isAxiosError(error) ? error.response?.status : undefined;
+    if (status !== 404 && status !== 308) throw error;
     const { data } = await api.get("/city/");
     return unwrapCities(data);
   }

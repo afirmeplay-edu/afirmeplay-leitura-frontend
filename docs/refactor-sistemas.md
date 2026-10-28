@@ -512,3 +512,41 @@ Conferido com `written_test_service.py`, `written_test_answer_sheet_service.py` 
 | `npx tsc --noEmit -p .` | 0 erros |
 | `npx eslint src` | 0 erros, 4 warnings legados (`_markings`, `wordMsLeft`, duas deps de hooks) |
 | Tela | Não exercitada aqui. |
+
+---
+
+## Remoção do mock de login e blindagem da sessão (sem commit)
+
+### Diagnóstico
+
+- O `mock-dev-token`, o nome `Usuário usuário` e o 422 `Not enough segments` em `/api/city` vinham do mesmo ponto: `MOCK_AUTH=true` acionava o ramo mock de `src/app/api/login/route.ts` e `src/app/api/persist-user/route.ts`.
+- Esse mock era legado do commit inicial (`44c45a1`) e não parte da arquitetura real. A lógica correta já existia no mesmo arquivo: proxy para o backend em `/login/` e `/persist-user/`.
+- O backend atual foi conferido em `login.py`, `persistUser_routes.py`, `city_routes.py` e `tenant_middleware.py`: o JWT real traz `sub`, `city_id`, `tenant_id`, `role` e `exp`. Nenhuma mudança de backend foi necessária.
+- `/api/city` é protegido e estava recebendo `Authorization: Bearer mock-dev-token`; como o token não é JWT, o Flask devolvia 422 antes de executar a rota.
+
+### Correções no front
+
+- `login/route.ts` e `persist-user/route.ts` ficaram sem ramo mock e sempre fazem proxy para o backend.
+- O proxy de login agora repassa `X-City-ID` além de `X-City-Slug`; o proxy de `persist-user` repassa os dois.
+- `src/lib/mock/auth.ts`, `serverEnv.mockAuth` e `MOCK_AUTH=true` do `.env.example` foram removidos.
+- `isJwtShape` rejeita tokens sem formato JWT. O store limpa automaticamente sessões antigas com token inválido na hidratação e no `persist-user`.
+- O interceptor de API trata 422 de decodificação JWT (`Not enough segments` etc.) como sessão inválida e redireciona ao login.
+- `listCatalogCities` só tenta `/city/` como fallback quando o erro é de rota; 401/422 agora sobem corretamente.
+
+### PDF, cartões e relatórios
+
+- O PDF da prova já existe no backend: `GET /afirme-reading/written-tests/:id/pdf`, via `WrittenTestPdfService.generate_pdf`.
+- Os cartões-resposta também existem, mas como fluxo separado: `POST/GET /written-tests/:id/answer-sheets` e download ZIP. A geração depende do worker.
+- No front, `downloadWrittenTestPdf` e `downloadAnswerSheets` já são usados no construtor/detalhe da avaliação e na tela de aplicação.
+- Não foi alterado o fluxo de PDF/cartões porque a liderança descartou mexer nessa implementação nesta rodada.
+- Resultados da Leitura e relatórios de fluência já usam `/resultados`. Resultados do ICA continuam bloqueados: falta correção/agregação de cartão no backend.
+
+### Verificação
+
+| Verificação | Resultado |
+|---|---|
+| `npx tsc --noEmit -p .` | 0 erros |
+| `npx eslint src` | 0 erros, 4 warnings legados |
+| `ReadLints` nos arquivos alterados | 0 erros |
+| Busca por `MOCK_AUTH`, `mock-dev-token`, `lib/mock/auth` fora de `docs/` | sem resultados |
+| Tela | Não exercitada aqui. |

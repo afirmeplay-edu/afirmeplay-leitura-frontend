@@ -3,7 +3,7 @@
 import { create } from "zustand";
 import axios from "axios";
 import { createCityApi } from "@/lib/api/client";
-import { decodeJwtPayload, isJwtExpired, roleUsesJwtCity } from "@/lib/auth/jwt";
+import { decodeJwtPayload, isJwtExpired, isJwtShape, roleUsesJwtCity } from "@/lib/auth/jwt";
 import {
   clearCityContext,
   getSelectedCityId,
@@ -134,6 +134,20 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const token = localStorage.getItem("token");
     const user = parseStorage<User>(localStorage.getItem("user"));
 
+    if (token && !isJwtShape(token)) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      clearCityContext();
+      set({
+        token: null,
+        user: null,
+        selectedSlug: null,
+        selectedCityId: null,
+        initialized: true,
+      });
+      return;
+    }
+
     if (token && user) {
       const enriched = enrichUserFromToken(user, token);
       const ctx = syncCityContext({ token, user: enriched });
@@ -185,7 +199,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       const token = data?.token as string;
       const user = data?.user as User;
-      if (!token || !user?.id) {
+      if (!isJwtShape(token) || !user?.id) {
         throw new Error("Resposta de login inválida.");
       }
 
@@ -215,6 +229,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const token = get().token ?? localStorage.getItem("token");
     if (!token) return false;
 
+    if (!isJwtShape(token)) {
+      get().logout();
+      return false;
+    }
+
     if (isJwtExpired(token)) {
       get().logout();
       return false;
@@ -233,6 +252,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const { data } = await cityApi.get("/persist-user/");
       // O backend emite um JWT novo (3 h) a cada persist-user; sem guardá-lo, a sessão vence no prazo do login.
       const renewed = typeof data?.token === "string" && data.token ? (data.token as string) : token;
+      if (!isJwtShape(renewed)) {
+        get().logout();
+        return false;
+      }
       const persistedUser = enrichUserFromToken((data?.user ?? data) as User, renewed);
       if (!persistedUser?.id) {
         get().logout();
