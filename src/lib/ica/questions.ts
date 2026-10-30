@@ -3,6 +3,7 @@ import type {
   BankQuestionDifficulty,
   BankQuestionOrigin,
   BankQuestionType,
+  DictationStimulus,
   ScopeType,
 } from "@/lib/api/afirme-reading/types";
 import { canWriteIca, normalizeRole } from "@/lib/auth/roles";
@@ -18,7 +19,7 @@ export const QUESTION_TYPE_LABEL: Record<BankQuestionType, string> = {
 
 export const QUESTION_TYPE_HINT: Record<BankQuestionType, string> = {
   multipleChoice: "2 a 8 alternativas, uma correta. O gabarito é a letra marcada.",
-  dictation: "O aplicador dita uma palavra e o aluno escreve no cartão-resposta.",
+  dictation: "Palavra falada ou figura. A palavra e a descrição da figura não saem na prova.",
   text_production: "Comando de produção (ex.: bilhete). Sem gabarito; a correção fica com o professor.",
 };
 
@@ -62,9 +63,23 @@ export function validateDictatedWord(raw: string): string | null {
   return null;
 }
 
-export function questionDictatedWord(question: Pick<BankQuestion, "type" | "dictatedWord" | "correct_answer">) {
-  if (normalizeQuestionType(question.type) !== "dictation") return "";
+export function questionStimulus(
+  question: Pick<BankQuestion, "type" | "stimulus">
+): DictationStimulus | null {
+  if (normalizeQuestionType(question.type) !== "dictation") return null;
+  return question.stimulus === "image" ? "image" : "word";
+}
+
+export function questionDictatedWord(
+  question: Pick<BankQuestion, "type" | "stimulus" | "dictatedWord" | "correct_answer">
+) {
+  if (questionStimulus(question) !== "word") return "";
   return (question.dictatedWord ?? question.correct_answer ?? "").trim();
+}
+
+export function questionImageDescription(question: Pick<BankQuestion, "type" | "stimulus" | "imageDescription">) {
+  if (questionStimulus(question) !== "image") return "";
+  return (question.imageDescription ?? "").trim();
 }
 
 export const QUESTION_OPTION_LETTERS = ["A", "B", "C", "D", "E", "F", "G", "H"] as const;
@@ -159,6 +174,10 @@ export function questionCorrectLetter(question: BankQuestion) {
 export function questionAnswerSummary(question: BankQuestion) {
   const type = normalizeQuestionType(question.type);
   if (type === "dictation") {
+    if (questionStimulus(question) === "image") {
+      const description = questionImageDescription(question);
+      return description ? `Figura: ${description}` : "Figura sem descrição";
+    }
     const word = questionDictatedWord(question);
     return word ? `Palavra: ${word}` : "";
   }
@@ -177,7 +196,9 @@ export interface QuestionPreviewOption {
 
 export interface QuestionPreviewModel {
   type?: BankQuestionType;
+  stimulus?: DictationStimulus | null;
   dictatedWord?: string | null;
+  imageDescription?: string | null;
   text: string;
   formattedText?: string | null;
   secondStatement?: string | null;
@@ -195,7 +216,9 @@ export function toPreviewModel(question: BankQuestion, skillLabel?: string | nul
   const type = normalizeQuestionType(question.type) ?? "multipleChoice";
   return {
     type,
+    stimulus: questionStimulus(question),
     dictatedWord: questionDictatedWord(question) || null,
+    imageDescription: questionImageDescription(question) || null,
     text: question.text,
     formattedText: question.formattedText,
     secondStatement: question.secondStatement,

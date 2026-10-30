@@ -65,3 +65,17 @@ export async function updateBankQuestion(id: string, payload: UpdateBankQuestion
   const { data } = await afirmeReadingApi.put<BankQuestion>(`/questions/${id}`, payload);
   return data;
 }
+
+/** Prévia. Não cria questão. Só lê `data:image/...;base64` dentro do `formattedText`. */
+export async function previewQuestionImage(formattedText: string) {
+  const { data } = await afirmeReadingApi.post<{ imageDescription: string }>("/questions/image-description", {
+    formattedText,
+  });
+  return data;
+}
+
+/** Foto já gravada na questão. Descreve, grava e devolve a questão inteira. */
+export async function describeQuestionImage(id: string) {
+  const { data } = await afirmeReadingApi.post<BankQuestion>(`/questions/${id}/image-description`);
+  return data;
+}

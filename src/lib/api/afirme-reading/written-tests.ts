@@ -1,15 +1,22 @@
 import axios from "axios";
+import { api } from "@/lib/api/client";
 import { afirmeReadingApi } from "@/lib/api/afirme-reading/client";
 import type {
   AnswerSheetCorrectionIssue,
   AnswerSheetCorrectionResult,
   AnswerSheetCorrectionStudent,
   AnswerSheetCorrectionsList,
+  AnswerSheetCrop,
   AnswerSheetObjectiveItem,
   AnswerSheetObjectiveScore,
   AnswerSheetRun,
   AnswerSheetSavedStudent,
+  AnswerSheetWritingAuditEntry,
+  AnswerSheetWritingAuditItem,
   AnswerSheetWritingProduction,
+  AnswerSheetWritingPromptVersions,
+  AnswerSheetWritingReading,
+  AnswerSheetWritingReview,
   AnswerSheetWritingScore,
   AnswerSheetWritingWord,
   AnswerSheetRunList,
@@ -17,7 +24,10 @@ import type {
   BankQuestionPagination,
   CreateWrittenTestPayload,
   ListWrittenTestsParams,
+  ManualWritingPayload,
   UpdateWrittenTestPayload,
+  WritingReleasePayload,
+  WritingReviewPayload,
   WrittenTestClassesResponse,
   WrittenTestClassStudents,
   WrittenTestDetail,
@@ -205,7 +215,7 @@ function normalizeCorrectionStudent(student: Partial<AnswerSheetCorrectionStuden
     answers: asArray(student.answers),
     blank: asArray(student.blank),
     invalid: asArray(student.invalid),
-    crops: asArray(student.crops),
+    crops: asArray(student.crops).map(normalizeCrop),
     pages: asArray(student.pages),
     missingPages: asArray(student.missingPages),
   };
@@ -259,6 +269,27 @@ function normalizeObjective(value: Partial<AnswerSheetObjectiveScore> | null | u
   };
 }
 
+function normalizeCrop(crop: Partial<AnswerSheetCrop>): AnswerSheetCrop {
+  const saved = Boolean(crop.saved);
+  const imageUrl = typeof crop.imageUrl === "string" && crop.imageUrl.trim() ? crop.imageUrl.trim() : null;
+  return {
+    number: crop.number ?? 0,
+    questionId: crop.questionId ?? "",
+    saved,
+    imageUrl: saved ? imageUrl : null,
+  };
+}
+
+function normalizeReading(value: Partial<AnswerSheetWritingReading> | null | undefined): AnswerSheetWritingReading | null {
+  if (!value || typeof value !== "object") return null;
+  return {
+    model: value.model ?? "",
+    transcription: value.transcription ?? "",
+    situation: value.situation ?? "",
+    uncertain: asStringList(value.uncertain),
+  };
+}
+
 function normalizeWritingWord(word: Partial<AnswerSheetWritingWord>): AnswerSheetWritingWord {
   return {
     number: word.number ?? 0,
@@ -266,7 +297,9 @@ function normalizeWritingWord(word: Partial<AnswerSheetWritingWord>): AnswerShee
     stimulus: word.stimulus ?? "",
     expected: word.expected ?? "",
     transcription: word.transcription ?? "",
-    points: word.points ?? null,
+    secondTranscription: word.secondTranscription ?? "",
+    readings: asArray(word.readings).map(normalizeReading).filter((item): item is AnswerSheetWritingReading => item !== null),
+    points: typeof word.points === "number" ? word.points : null,
     classification: word.classification ?? "",
     justification: word.justification ?? "",
     confidence: word.confidence ?? "",
@@ -284,6 +317,8 @@ function normalizeProduction(
     questionId: value.questionId ?? "",
     genre: value.genre ?? "",
     transcription: value.transcription ?? "",
+    secondTranscription: value.secondTranscription ?? "",
+    readings: asArray(value.readings).map(normalizeReading).filter((item): item is AnswerSheetWritingReading => item !== null),
     criteria: asScoreRecord(value.criteria),
     justifications: asTextRecord(value.justifications),
     points: value.points ?? null,
@@ -293,12 +328,59 @@ function normalizeProduction(
   };
 }
 
+function normalizeReview(value: Partial<AnswerSheetWritingReview> | null | undefined): AnswerSheetWritingReview | null {
+  if (!value || typeof value !== "object") return null;
+  const reviewerId = value.reviewerId ?? null;
+  const reviewedAt = value.reviewedAt ?? null;
+  const decision = value.decision ?? null;
+  if (!reviewerId && !reviewedAt && !decision) return null;
+  return { reviewerId, reviewedAt, decision };
+}
+
+function normalizePromptVersions(value: unknown): AnswerSheetWritingPromptVersions | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const record = value as Record<string, unknown>;
+  const leitura = typeof record.leitura === "string" ? record.leitura : "";
+  const avaliacao = typeof record.avaliacao === "string" ? record.avaliacao : "";
+  if (!leitura && !avaliacao) return null;
+  return { leitura, avaliacao };
+}
+
+function asText(value: unknown) {
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  if (Array.isArray(value)) return value.filter((item): item is string => typeof item === "string").join(", ");
+  return "";
+}
+
+function normalizeAuditItem(item: Partial<AnswerSheetWritingAuditItem>): AnswerSheetWritingAuditItem {
+  return {
+    number: item.number ?? 0,
+    transcription: asText(item.transcription),
+    points: typeof item.points === "number" ? item.points : null,
+    status: asText(item.status),
+    evidence: asText(item.evidence),
+  };
+}
+
+function normalizeAudit(entry: Partial<AnswerSheetWritingAuditEntry>): AnswerSheetWritingAuditEntry {
+  return {
+    at: entry.at ?? "",
+    action: entry.action ?? "",
+    actorId: entry.actorId ?? null,
+    decision: entry.decision ?? null,
+    promptVersions: normalizePromptVersions(entry.promptVersions),
+    items: asArray(entry.items).map(normalizeAuditItem),
+  };
+}
+
 function normalizeWriting(value: Partial<AnswerSheetWritingScore> | null | undefined): AnswerSheetWritingScore | null {
   if (!value || typeof value !== "object") return null;
   const feedback = value.feedback;
   return {
     source: value.source ?? "",
     status: value.status ?? "",
+    published: value.published === true,
     model: value.model ?? null,
     message: value.message ?? null,
     wordPoints: value.wordPoints ?? null,
@@ -311,6 +393,8 @@ function normalizeWriting(value: Partial<AnswerSheetWritingScore> | null | undef
       interventions: asStringList(feedback?.interventions),
       notes: feedback?.notes ?? "",
     },
+    review: normalizeReview(value.review),
+    audit: asArray(value.audit).map(normalizeAudit),
   };
 }
 
@@ -322,7 +406,7 @@ function normalizeSavedStudent(student: Partial<AnswerSheetSavedStudent>): Answe
     answers: asArray(student.answers),
     blank: asArray(student.blank),
     invalid: asArray(student.invalid),
-    crops: asArray(student.crops),
+    crops: asArray(student.crops).map(normalizeCrop),
     pages: asArray(student.pages),
     objective: normalizeObjective(student.objective),
     writing: normalizeWriting(student.writing),
@@ -362,4 +446,38 @@ export async function correctAnswerSheets(id: string, files: File[]): Promise<An
     skipped: asArray(data?.skipped).map(normalizeCorrectionIssue),
     errors: asArray(data?.errors).map(normalizeCorrectionIssue),
   };
+}
+
+/** PNG do recorte. `imageUrl` já traz `/afirme-reading`, então não passa pelo prefixo de novo. */
+export async function fetchCropObjectUrl(imageUrl: string) {
+  const path = imageUrl.trim();
+  if (!path.startsWith("/")) throw new Error("Endereço do recorte inválido.");
+  try {
+    const response = await api.get<Blob>(path, { responseType: "blob" });
+    const blob = response.data;
+    if (blob.type.includes("json") || blob.type.startsWith("text/")) {
+      throw new Error("A foto do recorte não veio como imagem.");
+    }
+    return URL.createObjectURL(blob);
+  } catch (error) {
+    throw await blobErrorToJson(error);
+  }
+}
+
+/** O professor informa o texto da folha. A nota daquele item é recalculada e `published` volta a false. */
+export async function reviewWriting(id: string, payload: WritingReviewPayload) {
+  const { data } = await afirmeReadingApi.post(`/written-tests/${id}/writing-reviews`, payload);
+  return data;
+}
+
+/** Só quando as questões 17, 18 e 19 têm nota. Item pendente responde 400. */
+export async function releaseWriting(id: string, payload: WritingReleasePayload) {
+  const { data } = await afirmeReadingApi.post(`/written-tests/${id}/writing-release`, payload);
+  return data;
+}
+
+/** Sem cartão. As duas palavras e os sete critérios são obrigatórios. A resposta já vem publicada. */
+export async function createManualWriting(id: string, payload: ManualWritingPayload) {
+  const { data } = await afirmeReadingApi.post(`/written-tests/${id}/writing-corrections`, payload);
+  return data;
 }

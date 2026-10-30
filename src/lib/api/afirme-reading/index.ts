@@ -23,6 +23,8 @@ export {
   getBankQuestion,
   createBankQuestion,
   updateBankQuestion,
+  describeQuestionImage,
+  previewQuestionImage,
 } from "@/lib/api/afirme-reading/questions";
 export {
   createGuidedSession,
@@ -80,6 +82,10 @@ export {
   downloadAnswerSheets,
   correctAnswerSheets,
   listAnswerSheetCorrections,
+  fetchCropObjectUrl,
+  reviewWriting,
+  releaseWriting,
+  createManualWriting,
 } from "@/lib/api/afirme-reading/written-tests";
 export {
   createGuidedAutoSession,

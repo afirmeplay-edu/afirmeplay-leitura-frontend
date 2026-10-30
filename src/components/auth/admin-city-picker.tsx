@@ -179,11 +179,14 @@ export function AdminCityPicker({ onCityReadyChange }: AdminCityPickerProps) {
     return null;
   }
 
+  // String vazia mantém o Select controlado. `undefined` o deixa não controlado até o catálogo chegar.
+  const cityValue = cityIdInCatalog(selectedCityId, cities) ? (selectedCityId ?? "") : "";
+
   return (
     <div className="surface-panel space-y-2 p-4">
       <Label>Município</Label>
       <Select
-        value={cityIdInCatalog(selectedCityId, cities) ? selectedCityId ?? undefined : undefined}
+        value={cityValue}
         onValueChange={(value) => {
           const slug = slugById.get(value) || getSelectedCitySlug();
           setAdminCityContext({ cityId: value, slug });

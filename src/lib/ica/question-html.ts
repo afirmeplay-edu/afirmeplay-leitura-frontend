@@ -4,10 +4,14 @@ import DOMPurify from "dompurify";
  * `GET /questions/<id>/images/<imageId>` (rota do Play) é pública no backend, então basta
  * apontar para `/api/...` — o rewrite do Next encaminha ao backend. `<img>` não envia Bearer.
  */
+export function isDataImageUrl(src: string | null | undefined) {
+  return /^data:image\/(png|jpe?g|gif|webp);base64,/i.test(src?.trim() ?? "");
+}
+
 export function resolveQuestionAssetUrl(src: string | null | undefined): string | null {
   const value = src?.trim();
   if (!value) return null;
-  if (/^data:image\/(png|jpe?g|gif|webp);base64,/i.test(value)) return value;
+  if (isDataImageUrl(value)) return value;
   if (value.startsWith("/api/questions/")) return value;
   if (value.startsWith("/questions/")) return `/api${value}`;
   if (/^https:\/\//i.test(value)) return value;

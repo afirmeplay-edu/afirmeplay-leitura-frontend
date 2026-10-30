@@ -5,6 +5,7 @@ import type {
   BankQuestionOptionPayload,
   BankQuestionType,
   CreateBankQuestionPayload,
+  DictationStimulus,
   UpdateBankQuestionPayload,
 } from "@/lib/api/afirme-reading/types";
 import { buildQuestionHtml, extractImageSources, htmlToPlainText, resolveQuestionAssetUrl } from "@/lib/ica/question-html";
@@ -16,7 +17,9 @@ import {
   QUESTION_DIFFICULTIES,
   questionCorrectFlags,
   questionDictatedWord,
+  questionImageDescription,
   questionOptions,
+  questionStimulus,
   validateDictatedWord,
 } from "@/lib/ica/questions";
 
@@ -30,8 +33,12 @@ export interface OptionDraft {
 
 export interface QuestionDraft {
   type: BankQuestionType;
-  /** Só no ditado. */
+  /** Só no ditado. O padrão é palavra falada. */
+  stimulus: DictationStimulus;
+  /** Só no ditado por palavra. */
   dictatedWord: string;
+  /** Descrição devolvida pela IA. Só leitura: trocar o enunciado apaga no servidor. */
+  imageDescription: string;
   text: string;
   statementImages: string[];
   secondStatement: string;
@@ -48,7 +55,9 @@ export interface QuestionDraft {
 
 export type QuestionField =
   | "type"
+  | "stimulus"
   | "dictatedWord"
+  | "statementImages"
   | "text"
   | "subjectId"
   | "gradeId"
@@ -74,7 +83,9 @@ export function emptyOption(): OptionDraft {
 export function emptyQuestionDraft(type: BankQuestionType = "multipleChoice"): QuestionDraft {
   return {
     type,
+    stimulus: "word",
     dictatedWord: "",
+    imageDescription: "",
     text: "",
     statementImages: [],
     secondStatement: "",
@@ -101,7 +112,9 @@ export function draftFromQuestion(question: BankQuestion): QuestionDraft {
   }));
   return {
     type,
+    stimulus: questionStimulus(question) ?? "word",
     dictatedWord: questionDictatedWord(question),
+    imageDescription: questionImageDescription(question),
     text: question.text?.trim() || htmlToPlainText(question.formattedText),
     statementImages: extractImageSources(question.formattedText),
     secondStatement: question.secondStatement ?? "",
@@ -148,6 +161,12 @@ export function validateQuestionDraft(draft: QuestionDraft): QuestionValidationE
   }
 
   if (draft.type === "dictation") {
+    if (draft.stimulus === "image") {
+      if (!draft.statementImages.length) {
+        errors.push({ field: "statementImages", message: "Anexe a figura que o aluno vai nomear." });
+      }
+      return errors;
+    }
     const message = validateDictatedWord(draft.dictatedWord);
     if (message) errors.push({ field: "dictatedWord", message });
     return errors;
@@ -205,7 +224,13 @@ export function buildCreatePayload(draft: QuestionDraft): CreateBankQuestionPayl
     value: parseValue(draft.value),
   };
   if (draft.type === "multipleChoice") payload.options = draft.options.map(toOptionPayload);
-  if (draft.type === "dictation") payload.dictatedWord = draft.dictatedWord.trim();
+  if (draft.type === "dictation") {
+    payload.stimulus = draft.stimulus;
+    if (draft.stimulus === "word") payload.dictatedWord = draft.dictatedWord.trim();
+    if (draft.stimulus === "image" && draft.imageDescription.trim()) {
+      payload.imageDescription = draft.imageDescription.trim();
+    }
+  }
   if (draft.secondStatement.trim()) payload.secondStatement = draft.secondStatement.trim();
   if (draft.educationStageId) payload.educationStageId = draft.educationStageId;
   if (QUESTION_DIFFICULTIES.includes(draft.difficulty as BankQuestionDifficulty)) {
@@ -247,7 +272,8 @@ export function buildUpdatePayload(initial: QuestionDraft, current: QuestionDraf
   }
 
   // O backend revalida o tipo final: vindo de ditado/produção, múltipla escolha exige `options`;
-  // vindo de outro tipo, ditado exige `dictatedWord`. Ditado e produção nunca levam `options`.
+  // vindo de outro tipo, ditado falado exige `dictatedWord`. Figura omite a palavra. Ditado e
+  // produção nunca levam `options`.
   const typeChanged = current.type !== initial.type;
   if (typeChanged) payload.type = current.type;
 
@@ -256,8 +282,21 @@ export function buildUpdatePayload(initial: QuestionDraft, current: QuestionDraf
   if (current.type === "multipleChoice" && (typeChanged || !same(strip(current.options), strip(initial.options)))) {
     payload.options = current.options.map(toOptionPayload);
   }
-  if (current.type === "dictation" && (typeChanged || current.dictatedWord.trim() !== initial.dictatedWord.trim())) {
-    payload.dictatedWord = current.dictatedWord.trim();
+  if (current.type === "dictation") {
+    const stimulusChanged = typeChanged || current.stimulus !== initial.stimulus;
+    const wordChanged = current.dictatedWord.trim() !== initial.dictatedWord.trim();
+    if (stimulusChanged || (current.stimulus === "word" && wordChanged)) {
+      payload.stimulus = current.stimulus;
+      payload.dictatedWord = current.stimulus === "word" ? current.dictatedWord.trim() : null;
+    }
+    if (current.stimulus === "image") {
+      const description = current.imageDescription.trim();
+      const descriptionChanged = description !== initial.imageDescription.trim();
+      // formattedText sem imageDescription apaga a descrição. Reenvia o texto visível quando a foto não mudou.
+      if (description && (payload.formattedText !== undefined || descriptionChanged)) {
+        payload.imageDescription = description;
+      }
+    }
   }
 
   return payload;

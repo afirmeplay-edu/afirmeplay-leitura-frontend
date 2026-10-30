@@ -2,16 +2,16 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
-import { FilePlus2, ImagePlus, Info, Pencil, X } from "lucide-react";
+import { FilePlus2, ImagePlus, Info, Loader2, Pencil, X } from "lucide-react";
 import { toast } from "sonner";
-import { createBankQuestion, updateBankQuestion } from "@/lib/api/afirme-reading/questions";
+import { createBankQuestion, describeQuestionImage, previewQuestionImage, updateBankQuestion } from "@/lib/api/afirme-reading/questions";
 import type { BankQuestion, BankQuestionType } from "@/lib/api/afirme-reading/types";
 import { normalizeApiError } from "@/lib/api/errors";
 import { formatSkillLabel, listSkills, type CatalogSkill } from "@/lib/api/question-catalog";
 import { ROUTES } from "@/config/routes";
 import { ICA_BRAND } from "@/lib/ica/brand";
 import { QUESTION_IMAGE_ACCEPT, QuestionImageError, readQuestionImage } from "@/lib/ica/image-file";
-import { buildQuestionHtml, resolveQuestionAssetUrl } from "@/lib/ica/question-html";
+import { buildQuestionHtml, isDataImageUrl, resolveQuestionAssetUrl } from "@/lib/ica/question-html";
 import {
   DICTATED_WORD_MAX_LENGTH,
   ICA_QUESTION_TYPES,
@@ -19,6 +19,7 @@ import {
   QUESTION_TYPE_HINT,
   QUESTION_TYPE_LABEL,
   optionLetter,
+  questionImageDescription,
   type QuestionPreviewModel,
 } from "@/lib/ica/questions";
 import { cn } from "@/lib/utils";
@@ -63,7 +64,7 @@ interface QuestionFormProps {
 
 const TYPE_DESCRIPTION: Record<BankQuestionType, string> = {
   multipleChoice: "Múltipla escolha para prova em papel com cartão-resposta. O gabarito é calculado pela letra marcada.",
-  dictation: "Ditado: o aplicador lê a palavra em voz alta e o aluno escreve no cartão-resposta.",
+  dictation: "Ditado por palavra falada ou por figura. A palavra e a descrição não saem na prova.",
   text_production: "Produção escrita: comando de escrita (ex.: bilhete), sem gabarito.",
 };
 
@@ -88,6 +89,7 @@ export function QuestionForm({ mode, question, initialType, onSaved }: QuestionF
   const [draft, setDraft] = useState<QuestionDraft>(initial);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [saving, setSaving] = useState(false);
+  const [describing, setDescribing] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const [skills, setSkills] = useState<CatalogSkill[]>([]);
   const [skillsLoading, setSkillsLoading] = useState(false);
@@ -140,7 +142,7 @@ export function QuestionForm({ mode, question, initialType, onSaved }: QuestionF
     }
     try {
       const dataUrl = await readQuestionImage(file);
-      patch({ statementImages: [...draft.statementImages, dataUrl] });
+      patch({ statementImages: [...draft.statementImages, dataUrl], imageDescription: "" });
     } catch (error) {
       toast.error(error instanceof QuestionImageError ? error.message : "Não foi possível anexar a imagem.");
     }
@@ -212,6 +214,36 @@ export function QuestionForm({ mode, question, initialType, onSaved }: QuestionF
     }
   }
 
+  async function describeImage() {
+    if (describing || saving) return;
+    const unsavedImage = draft.statementImages.some((src) => isDataImageUrl(src));
+    setDescribing(true);
+    try {
+      if (unsavedImage) {
+        const formattedText = buildQuestionHtml(draft.text, draft.statementImages, "Imagem do enunciado");
+        const preview = await previewQuestionImage(formattedText);
+        patch({ imageDescription: preview.imageDescription?.trim() ?? "" });
+        toast.success(
+          preview.imageDescription?.trim()
+            ? `Descrição: ${preview.imageDescription.trim()}. Salve a questão para gravar.`
+            : "Descrição gerada. Salve a questão para gravar."
+        );
+        return;
+      }
+      if (!question) return;
+      const saved = await describeQuestionImage(question.id);
+      const described = questionImageDescription(saved);
+      setInitial((current) => ({ ...current, imageDescription: described }));
+      setDraft((current) => ({ ...current, imageDescription: described }));
+      onSaved?.(saved);
+      toast.success(described ? `Descrição gravada: ${described}` : "Descrição gravada.");
+    } catch (error) {
+      toast.error(normalizeApiError(error, "Não foi possível descrever a figura.").message);
+    } finally {
+      setDescribing(false);
+    }
+  }
+
   function handleCancel() {
     if (dirty && !window.confirm("Há alterações não salvas. Deseja sair mesmo assim?")) return;
     setLeaving(true);
@@ -228,7 +260,9 @@ export function QuestionForm({ mode, question, initialType, onSaved }: QuestionF
     const value = Number(draft.value.replace(",", "."));
     return {
       type: draft.type,
-      dictatedWord: draft.type === "dictation" ? draft.dictatedWord.trim() || null : null,
+      stimulus: draft.type === "dictation" ? draft.stimulus : null,
+      dictatedWord: draft.type === "dictation" && draft.stimulus === "word" ? draft.dictatedWord.trim() || null : null,
+      imageDescription: draft.type === "dictation" && draft.stimulus === "image" ? draft.imageDescription.trim() || null : null,
       text: draft.text,
       formattedText: buildQuestionHtml(draft.text, draft.statementImages),
       secondStatement: draft.secondStatement,
@@ -258,7 +292,9 @@ export function QuestionForm({ mode, question, initialType, onSaved }: QuestionF
   }, [errors]);
 
   const isCreate = mode === "create";
-  const busy = saving;
+  const busy = saving || describing;
+  const imageDictation = draft.type === "dictation" && draft.stimulus === "image";
+  const hasUnsavedImage = draft.statementImages.some((src) => isDataImageUrl(src));
 
   return (
     <div ref={formRef}>
@@ -313,7 +349,7 @@ export function QuestionForm({ mode, question, initialType, onSaved }: QuestionF
                     role="radio"
                     aria-checked={selected}
                     disabled={busy}
-                    onClick={() => patch({ type }, ["type", "dictatedWord", "options"])}
+                    onClick={() => patch({ type }, ["type", "stimulus", "dictatedWord", "statementImages", "options"])}
                     className={cn(
                       "rounded-xl border p-3 text-left transition-colors duration-200",
                       "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
@@ -369,9 +405,9 @@ export function QuestionForm({ mode, question, initialType, onSaved }: QuestionF
               <FieldError message={errors.text} />
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-2" data-field="statementImages">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <Label>Imagens do enunciado</Label>
+                <Label>{imageDictation ? "Figura do enunciado *" : "Imagens do enunciado"}</Label>
                 <input
                   ref={statementFileRef}
                   type="file"
@@ -412,7 +448,10 @@ export function QuestionForm({ mode, question, initialType, onSaved }: QuestionF
                           variant="outline"
                           className="absolute -right-2 -top-2 h-7 w-7 rounded-full bg-background"
                           onClick={() =>
-                            patch({ statementImages: draft.statementImages.filter((_, current) => current !== index) })
+                            patch({
+                              statementImages: draft.statementImages.filter((_, current) => current !== index),
+                              imageDescription: "",
+                            })
                           }
                           disabled={busy}
                           aria-label={`Remover imagem ${index + 1} do enunciado`}
@@ -425,9 +464,12 @@ export function QuestionForm({ mode, question, initialType, onSaved }: QuestionF
                 </ul>
               ) : (
                 <p className="text-xs text-muted-foreground">
-                  Opcional. PNG, JPG, GIF ou WEBP até 1 MB (até {MAX_STATEMENT_IMAGES}).
+                  {imageDictation
+                    ? "A foto sai na prova. PNG, JPG, GIF ou WEBP até 1 MB."
+                    : `Opcional. PNG, JPG, GIF ou WEBP até 1 MB (até ${MAX_STATEMENT_IMAGES}).`}
                 </p>
               )}
+              <FieldError message={errors.statementImages} />
             </div>
 
             <div className="space-y-2">
@@ -445,10 +487,47 @@ export function QuestionForm({ mode, question, initialType, onSaved }: QuestionF
         </Card>
 
         {draft.type === "dictation" ? (
+          <Card data-field="stimulus">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Como o aluno escreve *</CardTitle>
+              <CardDescription>A palavra falada e a descrição da figura ficam fora da prova impressa.</CardDescription>
+            </CardHeader>
+            <CardContent role="radiogroup" aria-label="Como o aluno escreve" className="grid gap-2 sm:grid-cols-2">
+              {(
+                [
+                  { value: "word" as const, title: "Palavra falada", hint: "O aplicador dita. O aluno escreve no cartão." },
+                  { value: "image" as const, title: "Figura", hint: "O aluno nomeia a foto. A descrição é gerada depois." },
+                ]
+              ).map((option) => {
+                const selected = draft.stimulus === option.value;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    disabled={busy}
+                    onClick={() => patch({ stimulus: option.value }, ["stimulus", "dictatedWord", "statementImages"])}
+                    className={cn(
+                      "rounded-xl border p-3 text-left transition-colors duration-200",
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                      selected ? "border-brand-highlight bg-brand-highlight/5" : "hover:bg-muted/50"
+                    )}
+                  >
+                    <p className="text-sm font-semibold">{option.title}</p>
+                    <p className="text-xs text-muted-foreground">{option.hint}</p>
+                  </button>
+                );
+              })}
+            </CardContent>
+          </Card>
+        ) : null}
+
+        {draft.type === "dictation" && draft.stimulus === "word" ? (
           <Card data-field="dictatedWord">
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Palavra ditada *</CardTitle>
-              <CardDescription>É o gabarito do ditado. Uma única palavra, sem espaços.</CardDescription>
+              <CardDescription>É o que o aplicador lê em voz alta. Uma única palavra, sem espaços. Não sai na prova.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-2">
               <Input
@@ -463,6 +542,40 @@ export function QuestionForm({ mode, question, initialType, onSaved }: QuestionF
                 className="max-w-sm"
               />
               <FieldError message={errors.dictatedWord} />
+            </CardContent>
+          </Card>
+        ) : null}
+
+        {imageDictation ? (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Descrição da figura</CardTitle>
+              <CardDescription>
+                A descrição entra na nota e não é impressa. Na foto nova, ela fica no formulário até você salvar. Na foto
+                já gravada, gerar de novo já grava na questão.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {draft.imageDescription ? (
+                <p className="text-sm font-medium">{draft.imageDescription}</p>
+              ) : (
+                <p className="text-sm text-muted-foreground">Ainda sem descrição. A prova não publica esta figura sem ela.</p>
+              )}
+              {hasUnsavedImage && !draft.imageDescription ? (
+                <p className="text-xs text-amber-800">Descreva a foto nova antes de salvar. Sem isso, a questão fica sem descrição.</p>
+              ) : null}
+              {hasUnsavedImage && draft.imageDescription ? (
+                <p className="text-xs text-muted-foreground">Essa descrição ainda não está na questão. Salve para gravar.</p>
+              ) : null}
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => void describeImage()}
+                disabled={busy || draft.statementImages.length === 0}
+              >
+                {describing ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
+                {draft.imageDescription ? "Gerar de novo" : "Descrever a figura"}
+              </Button>
             </CardContent>
           </Card>
         ) : null}

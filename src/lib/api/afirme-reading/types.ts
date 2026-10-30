@@ -619,8 +619,11 @@ export interface StudentApplicationResult {
 /** Banco de questões do ICA — `/afirme-reading/questions` (CONTRATO_QUESTOES.md). */
 export type BankQuestionOrigin = "afirme_ler" | "afirme_play";
 
-/** Tipos aceitos pelo Afirme Ler: múltipla escolha, ditado (gabarito = palavra) e produção escrita (sem gabarito). */
+/** Tipos aceitos pelo Afirme Ler: múltipla escolha, ditado e produção escrita (sem gabarito). */
 export type BankQuestionType = "multipleChoice" | "dictation" | "text_production";
+
+/** Ditado por palavra falada (`word`, padrão) ou por figura (`image`). */
+export type DictationStimulus = "word" | "image";
 
 /** Valores usados no Play; o formatter devolve "Médio" quando vazio, então a resposta é `string`. */
 export type BankQuestionDifficulty = "Abaixo do Básico" | "Básico" | "Adequado" | "Avançado";
@@ -676,7 +679,11 @@ export interface BankQuestion {
   lastModifiedBy: BankQuestionRef | null;
   origin: BankQuestionOrigin;
   scopeType: ScopeType;
-  /** Palavra ditada (= `correct_answer`) quando `type = "dictation"`; `null` nos outros tipos. */
+  /** `word` quando omitido. `image` quando o aluno nomeia a figura do enunciado. */
+  stimulus?: DictationStimulus | string | null;
+  /** Descrição da figura, gerada depois que a imagem já está salva. Não entra no PDF. */
+  imageDescription?: string | null;
+  /** Palavra ditada quando `stimulus` é `word`; `null` na figura e nos outros tipos. */
   dictatedWord?: string | null;
 }
 
@@ -720,14 +727,18 @@ export interface BankQuestionOptionPayload {
 
 /**
  * `solution`/`correct_answer` não são enviados: o backend calcula a letra (múltipla escolha) ou usa
- * `dictatedWord` (ditado). Ditado e produção escrita não levam `options`.
+ * `dictatedWord` (ditado falado). Ditado por figura omite `dictatedWord`. Ditado e produção escrita
+ * não levam `options`.
  */
 export interface CreateBankQuestionPayload {
   text: string;
   formattedText?: string;
   secondStatement?: string;
   type: BankQuestionType;
+  stimulus?: DictationStimulus;
   dictatedWord?: string;
+  /** Só no ditado por figura. A prévia devolve o texto; o salvamento é que grava. */
+  imageDescription?: string;
   subjectId: string;
   grade: string;
   educationStageId?: string | null;
@@ -911,6 +922,8 @@ export interface AnswerSheetCrop {
   number: number;
   questionId: string;
   saved: boolean;
+  /** PNG autenticado. `null` quando `saved` é false. Já inclui `/afirme-reading`. */
+  imageUrl?: string | null;
 }
 
 export interface AnswerSheetCorrectionStudent {
@@ -973,12 +986,23 @@ export interface AnswerSheetObjectiveScore {
 export type AnswerSheetWritingSource = "ia" | "manual";
 export type AnswerSheetWritingStatus = "CONCLUIDA" | "PENDENTE_REVISAO" | "ERRO";
 
+/** Uma das duas leituras da letra. No lançamento manual a lista vem vazia. */
+export interface AnswerSheetWritingReading {
+  model: string;
+  transcription: string;
+  situation: string;
+  uncertain: string[];
+}
+
 export interface AnswerSheetWritingWord {
   number: number;
   questionId: string;
   stimulus: string;
   expected: string;
+  /** Texto usado na nota: primeira leitura, se as duas coincidiram, ou o texto conferido. */
   transcription: string;
+  secondTranscription: string;
+  readings: AnswerSheetWritingReading[];
   points: number | null;
   classification: string;
   justification: string;
@@ -992,12 +1016,43 @@ export interface AnswerSheetWritingProduction {
   questionId: string;
   genre: string;
   transcription: string;
+  secondTranscription: string;
+  readings: AnswerSheetWritingReading[];
   criteria: Record<string, number | null>;
   justifications: Record<string, string>;
   points: number | null;
   confidence: string;
   needsReview: boolean;
   status: string;
+}
+
+export interface AnswerSheetWritingReview {
+  reviewerId: string | null;
+  reviewedAt: string | null;
+  decision: string | null;
+}
+
+export interface AnswerSheetWritingAuditItem {
+  number: number;
+  transcription: string;
+  points: number | null;
+  status: string;
+  evidence: string;
+}
+
+export interface AnswerSheetWritingPromptVersions {
+  leitura: string;
+  avaliacao: string;
+}
+
+/** Uma transcrição por evento. Não substitui `readings`. */
+export interface AnswerSheetWritingAuditEntry {
+  at: string;
+  action: string;
+  actorId: string | null;
+  decision: string | null;
+  promptVersions: AnswerSheetWritingPromptVersions | null;
+  items: AnswerSheetWritingAuditItem[];
 }
 
 export interface AnswerSheetWritingFeedback {
@@ -1011,6 +1066,7 @@ export interface AnswerSheetWritingFeedback {
 export interface AnswerSheetWritingScore {
   source: AnswerSheetWritingSource | string;
   status: AnswerSheetWritingStatus | string;
+  published: boolean;
   model: string | null;
   message: string | null;
   wordPoints: number | null;
@@ -1018,6 +1074,52 @@ export interface AnswerSheetWritingScore {
   words: AnswerSheetWritingWord[];
   production: AnswerSheetWritingProduction | null;
   feedback: AnswerSheetWritingFeedback;
+  review: AnswerSheetWritingReview | null;
+  audit: AnswerSheetWritingAuditEntry[];
+}
+
+export interface WritingReviewWord {
+  number: number;
+  transcription: string;
+}
+
+/** POST /written-tests/{id}/writing-reviews. Transcrição vazia conta como em branco. */
+export interface WritingReviewPayload {
+  studentId: string;
+  words?: WritingReviewWord[];
+  production?: { transcription: string };
+}
+
+export interface WritingReleasePayload {
+  studentId: string;
+}
+
+export interface ManualWritingWord {
+  number: number;
+  transcription: string;
+  points: number;
+  justification: string;
+}
+
+/** Os sete critérios saem em camelCase (`usoPagina`). Cada nota é um inteiro de 0 a 2. */
+export interface ManualWritingCriteria {
+  adequacao: number;
+  tipologia: number;
+  usoPagina: number;
+  ortografia: number;
+  pontuacao: number;
+  coesao: number;
+  segmentacao: number;
+}
+
+/** POST /written-tests/{id}/writing-corrections. A resposta já nasce publicada. */
+export interface ManualWritingPayload {
+  studentId: string;
+  words: ManualWritingWord[];
+  production: {
+    transcription: string;
+    criteria: ManualWritingCriteria;
+  };
 }
 
 /** GET /written-tests/{id}/answer-sheet-corrections — um item por aluno já gravado. */

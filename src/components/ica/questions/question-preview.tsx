@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, Mic, PenLine } from "lucide-react";
+import { CheckCircle2, ImageIcon, Mic, PenLine } from "lucide-react";
 import { formatQuestionValue, QUESTION_TYPE_LABEL, type QuestionPreviewModel } from "@/lib/ica/questions";
 import { cn } from "@/lib/utils";
 import { QuestionHtml } from "@/components/ica/question-html";
@@ -38,11 +38,25 @@ export function QuestionPreview({ question, showAnswer = true, showMeta = true, 
         ) : null}
       </div>
 
-      {type === "dictation" ? (
+      {type === "dictation" && question.stimulus === "image" ? (
+        <div className="flex items-start gap-3 rounded-xl border border-dashed px-3 py-2.5 text-sm">
+          <ImageIcon className="mt-0.5 h-4 w-4 shrink-0 text-brand-highlight" aria-hidden />
+          <div className="min-w-0 space-y-1">
+            <p className="text-muted-foreground">O aluno escreve o nome da figura. A foto sai na prova. A descrição não sai.</p>
+            {showAnswer ? (
+              <p className="font-semibold text-emerald-700">
+                {question.imageDescription ? `Descrição: ${question.imageDescription}` : "Descrição ainda não gerada"}
+              </p>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
+      {type === "dictation" && question.stimulus !== "image" ? (
         <div className="flex items-start gap-3 rounded-xl border border-dashed px-3 py-2.5 text-sm">
           <Mic className="mt-0.5 h-4 w-4 shrink-0 text-brand-highlight" aria-hidden />
           <div className="min-w-0 space-y-1">
-            <p className="text-muted-foreground">O aluno escreve a palavra ditada no cartão-resposta.</p>
+            <p className="text-muted-foreground">O aluno escreve a palavra ditada no cartão-resposta. A palavra não sai na prova.</p>
             {showAnswer ? (
               <p className="font-semibold text-emerald-700">
                 {question.dictatedWord ? `Palavra ditada: ${question.dictatedWord}` : "Palavra ditada não informada"}

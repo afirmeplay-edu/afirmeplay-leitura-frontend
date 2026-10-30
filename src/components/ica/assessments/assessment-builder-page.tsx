@@ -48,6 +48,7 @@ import {
   draftFromDetail,
   emptyAssessmentDraft,
   hasMissingQuestions,
+  imageDictationWithoutDescription,
   isDraftEmpty,
   metaFingerprint,
   questionsFingerprint,
@@ -257,6 +258,7 @@ function AssessmentBuilder({ id }: { id?: string }) {
   const filled = countAllFilled(draft);
   const complete = filled === TOTAL_SLOTS;
   const missingQuestions = hasMissingQuestions(draft);
+  const imageDescriptionMissing = imageDictationWithoutDescription(draft);
   const selectedIds = useMemo(() => {
     const ids = selectedQuestionIds(draft);
     overflow.forEach((item) => ids.add(item.questionId));
@@ -467,7 +469,8 @@ function AssessmentBuilder({ id }: { id?: string }) {
     );
   }
 
-  const canPublish = !isNew && !readOnly && !dirty && complete && overflow.length === 0 && !missingQuestions;
+  const canPublish =
+    !isNew && !readOnly && !dirty && complete && overflow.length === 0 && !missingQuestions && !imageDescriptionMissing;
   const publishHint = isNew
     ? "Salve a avaliação antes de publicar."
     : dirty
@@ -476,9 +479,11 @@ function AssessmentBuilder({ id }: { id?: string }) {
         ? "Troque as questões excluídas do banco."
         : overflow.length
           ? "Há questões fora da composição 16 + 3 + 1."
-          : !complete
-            ? `Faltam ${TOTAL_SLOTS - filled} questões.`
-            : null;
+          : imageDescriptionMissing
+            ? "Gere a descrição da figura antes de publicar."
+            : !complete
+              ? `Faltam ${TOTAL_SLOTS - filled} questões.`
+              : null;
   const progress = Math.round((filled / TOTAL_SLOTS) * 100);
 
   return (
@@ -782,7 +787,17 @@ function AssessmentBuilder({ id }: { id?: string }) {
                                     {slot.subjectName ? <span>{slot.subjectName}</span> : null}
                                     {slot.gradeName ? <span>· {slot.gradeName}</span> : null}
                                     {slot.difficulty ? <span>· {slot.difficulty}</span> : null}
-                                    {slot.answer ? <span>· {slot.answer}</span> : null}
+                                    {slot.answer ? (
+                                      <span
+                                        className={
+                                          slot.stimulus === "image" && !slot.imageDescription?.trim()
+                                            ? "font-medium text-amber-800"
+                                            : undefined
+                                        }
+                                      >
+                                        · {slot.answer}
+                                      </span>
+                                    ) : null}
                                     <span>· {formatQuestionValue(slot.value)}</span>
                                   </div>
                                 ) : null}

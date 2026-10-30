@@ -52,6 +52,7 @@ import { canManageWrittenTest } from "@/lib/ica/written-tests";
 import { useAuthStore } from "@/stores/auth-store";
 import { AnswerSheetCorrection } from "@/components/ica/application/answer-sheet-correction";
 import { AnswerSheetSavedResults } from "@/components/ica/application/answer-sheet-saved-results";
+import { WritingManualEntry } from "@/components/ica/application/writing-manual-entry";
 import { IcaCityScope } from "@/components/ica/ica-city-scope";
 import { PageHeader } from "@/components/layout/page-header";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
@@ -602,6 +603,10 @@ function TestApplication({ id }: { id: string }) {
             onCorrected={() => setResultsToken((token) => token + 1)}
           />
         </div>
+      ) : null}
+
+      {published && canCorrect ? (
+        <WritingManualEntry writtenTestId={id} onSaved={() => setResultsToken((token) => token + 1)} />
       ) : null}
 
       {published ? <AnswerSheetSavedResults writtenTestId={id} reloadToken={resultsToken} /> : null}

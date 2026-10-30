@@ -1,22 +1,34 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, ClipboardCheck, RefreshCw } from "lucide-react";
-import { listAnswerSheetCorrections } from "@/lib/api/afirme-reading/written-tests";
+import { ChevronDown, ClipboardCheck, Loader2, RefreshCw } from "lucide-react";
+import { toast } from "sonner";
+import {
+  fetchCropObjectUrl,
+  listAnswerSheetCorrections,
+  releaseWriting,
+  reviewWriting,
+} from "@/lib/api/afirme-reading/written-tests";
 import type {
   AnswerSheetCorrectionsList,
+  AnswerSheetCrop,
   AnswerSheetObjectiveItem,
   AnswerSheetSavedStudent,
   AnswerSheetWritingProduction,
+  AnswerSheetWritingReading,
   AnswerSheetWritingScore,
   AnswerSheetWritingWord,
 } from "@/lib/api/afirme-reading/types";
 import { normalizeApiError } from "@/lib/api/errors";
+import { formatDateTime } from "@/lib/ica/written-tests";
+import { canReleaseWriting, criterionScore, WRITING_CRITERIA } from "@/lib/ica/writing";
 import { SectionCard } from "@/components/shared/section-card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
 
 const WORD_MAX = 4;
 const TEXT_MAX = 14;
@@ -53,15 +65,37 @@ const SOURCE: Record<string, string> = {
   manual: "Manual",
 };
 
-const CRITERIA: Array<[string, string]> = [
-  ["adequacao", "Adequação"],
-  ["tipologia", "Tipologia"],
-  ["uso_pagina", "Uso da página"],
-  ["ortografia", "Ortografia"],
-  ["pontuacao", "Pontuação"],
-  ["coesao", "Coesão"],
-  ["segmentacao", "Segmentação"],
-];
+const STIMULUS: Record<string, string> = {
+  IMAGEM: "Figura",
+  PALAVRA: "Palavra falada",
+  image: "Figura",
+  word: "Palavra falada",
+};
+
+const SITUATION: Record<string, string> = {
+  legivel: "legível",
+  ilegivel: "ilegível",
+  duvidosa: "duvidosa",
+  em_branco: "em branco",
+  branco: "em branco",
+};
+
+const AUDIT_ACTION: Record<string, string> = {
+  leitura: "Leitura",
+  revisao: "Conferência",
+  liberacao: "Liberação",
+};
+
+const AUDIT_DECISION: Record<string, string> = {
+  transcricao_conferida: "Transcrição conferida",
+  liberada: "Liberada",
+  lancamento_manual: "Lançamento manual",
+};
+
+const ITEM_STATUS: Record<string, { label: string; variant: "success" | "warning" | "outline" }> = {
+  CORRIGIDA: { label: "Com nota", variant: "success" },
+  PENDENTE: { label: "Pendente", variant: "warning" },
+};
 
 function objectiveCountLabel(status: string, count: number) {
   const plural: Record<string, [string, string]> = {
@@ -135,7 +169,7 @@ export function AnswerSheetSavedResults({
     <div id="correcoes-gravadas" className="scroll-mt-24">
       <SectionCard
         title="Correções gravadas"
-        description="O que já foi salvo desta avaliação, em ordem de nome. A nota das objetivas vai de 0 a 16. O ditado vai de 0 a 4 e o bilhete de 0 a 14."
+        description="O que já foi salvo desta avaliação, em ordem de nome. A nota das objetivas vai de 0 a 16. O ditado vai de 0 a 4 e o bilhete de 0 a 14. A nota da escrita só publica depois da conferência."
         icon={ClipboardCheck}
         actions={
           <Button
@@ -168,7 +202,11 @@ export function AnswerSheetSavedResults({
         ) : (
           <div className="space-y-3">
             {loading ? <p className="text-xs text-muted-foreground">Atualizando as correções…</p> : null}
-            <AnswerSheetSavedResultList students={data?.students ?? []} />
+            <AnswerSheetSavedResultList
+              students={data?.students ?? []}
+              writtenTestId={writtenTestId}
+              onUpdated={() => setLocalReload((value) => value + 1)}
+            />
           </div>
         )}
       </SectionCard>
@@ -176,7 +214,15 @@ export function AnswerSheetSavedResults({
   );
 }
 
-export function AnswerSheetSavedResultList({ students }: { students: AnswerSheetSavedStudent[] }) {
+export function AnswerSheetSavedResultList({
+  students,
+  writtenTestId,
+  onUpdated,
+}: {
+  students: AnswerSheetSavedStudent[];
+  writtenTestId?: string;
+  onUpdated?: () => void;
+}) {
   if (!students.length) {
     return <p className="py-4 text-center text-sm text-muted-foreground">Nenhuma correção gravada nesta avaliação.</p>;
   }
@@ -186,21 +232,35 @@ export function AnswerSheetSavedResultList({ students }: { students: AnswerSheet
       <p className="text-sm text-muted-foreground">{students.length} aluno(s) com correção gravada.</p>
       <ul className="space-y-2">
         {students.map((student, index) => (
-          <SavedStudent key={`${student.correctionId ?? student.studentId ?? "aluno"}-${index}`} student={student} />
+          <SavedStudent
+            key={`${student.correctionId ?? student.studentId ?? "aluno"}-${index}`}
+            student={student}
+            writtenTestId={writtenTestId}
+            onUpdated={onUpdated}
+          />
         ))}
       </ul>
     </div>
   );
 }
 
-function SavedStudent({ student }: { student: AnswerSheetSavedStudent }) {
+function SavedStudent({
+  student,
+  writtenTestId,
+  onUpdated,
+}: {
+  student: AnswerSheetSavedStudent;
+  writtenTestId?: string;
+  onUpdated?: () => void;
+}) {
   const name = student.studentName?.trim() || "Aluno sem nome";
   const writing = student.writing;
   const objective = student.objective;
+  const [open, setOpen] = useState(false);
 
   return (
     <li className="rounded-xl border">
-      <details className="group">
+      <details className="group" onToggle={(event) => setOpen(event.currentTarget.open)}>
         <summary className="flex cursor-pointer list-none flex-col gap-2 p-3 [&::-webkit-details-marker]:hidden">
           <div className="flex items-start justify-between gap-3">
             <p className="font-medium">{name}</p>
@@ -226,13 +286,26 @@ function SavedStudent({ student }: { student: AnswerSheetSavedStudent }) {
               </span>
             </span>
             {writing ? <StatusBadge kind="writing" status={writing.status} /> : null}
+            {writing ? (
+              <Badge variant={writing.published ? "success" : "outline"}>
+                {writing.published ? "Liberada" : "Não publicada"}
+              </Badge>
+            ) : null}
             {writing?.source ? <Badge variant="outline">{knownLabel(SOURCE, writing.source)}</Badge> : null}
           </div>
         </summary>
-        <div className="space-y-5 border-t p-3">
-          <ObjectiveBlock objective={objective} pages={student.pages} crops={student.crops} />
-          <WritingBlock writing={writing} />
-        </div>
+        {open ? (
+          <div className="space-y-5 border-t p-3">
+            <ObjectiveBlock objective={objective} pages={student.pages} crops={student.crops} />
+            <WritingBlock
+              writing={writing}
+              crops={student.crops}
+              studentId={student.studentId}
+              writtenTestId={writtenTestId}
+              onUpdated={onUpdated}
+            />
+          </div>
+        ) : null}
       </details>
     </li>
   );
@@ -335,7 +408,20 @@ function ObjectiveItem({ item }: { item: AnswerSheetObjectiveItem }) {
   );
 }
 
-function WritingBlock({ writing }: { writing: AnswerSheetWritingScore | null }) {
+function WritingBlock({
+  writing,
+  crops,
+  studentId,
+  writtenTestId,
+  onUpdated,
+}: {
+  writing: AnswerSheetWritingScore | null;
+  crops: AnswerSheetCrop[];
+  studentId: string | null;
+  writtenTestId?: string;
+  onUpdated?: () => void;
+}) {
+  const [releasing, setReleasing] = useState(false);
   if (!writing) {
     return (
       <section>
@@ -346,13 +432,37 @@ function WritingBlock({ writing }: { writing: AnswerSheetWritingScore | null }) 
   }
 
   const words = byNumber(writing.words);
+  const ready = canReleaseWriting(writing);
+  const canAct = Boolean(writtenTestId && studentId && onUpdated);
+
+  async function release() {
+    if (!writtenTestId || !studentId || releasing) return;
+    setReleasing(true);
+    try {
+      await releaseWriting(writtenTestId, { studentId });
+      toast.success("Nota liberada.");
+      onUpdated?.();
+    } catch (error) {
+      toast.error(normalizeApiError(error, "Não foi possível liberar a nota.").message);
+    } finally {
+      setReleasing(false);
+    }
+  }
+
   return (
     <section className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
         <h4 className="text-sm font-medium">Ditado e bilhete</h4>
         <StatusBadge kind="writing" status={writing.status} />
         {writing.source ? <Badge variant="outline">{knownLabel(SOURCE, writing.source)}</Badge> : null}
+        <Badge variant={writing.published ? "success" : "outline"}>{writing.published ? "Liberada" : "Não publicada"}</Badge>
       </div>
+      {writing.review ? (
+        <p className="text-xs text-muted-foreground">
+          {knownLabel(AUDIT_DECISION, writing.review.decision ?? "") || "Registro"}
+          {formatDateTime(writing.review.reviewedAt) ? ` · ${formatDateTime(writing.review.reviewedAt)}` : ""}
+        </p>
+      ) : null}
       {writing.status === "ERRO" ? (
         <Alert variant="destructive">
           <AlertDescription>
@@ -373,67 +483,160 @@ function WritingBlock({ writing }: { writing: AnswerSheetWritingScore | null }) 
       {words.length ? (
         <ul className="space-y-2">
           {words.map((word) => (
-            <WritingWord key={`${word.number}-${word.questionId}`} word={word} />
+            <WritingWord
+              key={`${word.number}-${word.questionId}`}
+              word={word}
+              crop={crops.find((item) => item.number === word.number)}
+              studentId={studentId}
+              writtenTestId={writtenTestId}
+              published={writing.published}
+              onUpdated={onUpdated}
+            />
           ))}
         </ul>
       ) : null}
-      {writing.production ? <ProductionBlock production={writing.production} /> : null}
+      {writing.production ? (
+        <ProductionBlock
+          production={writing.production}
+          crop={crops.find((item) => item.number === writing.production?.number)}
+          studentId={studentId}
+          writtenTestId={writtenTestId}
+          published={writing.published}
+          onUpdated={onUpdated}
+        />
+      ) : null}
+      {canAct && !writing.published ? (
+        <div className="space-y-2">
+          <Button type="button" onClick={() => void release()} disabled={!ready || releasing}>
+            {releasing ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            Liberar nota
+          </Button>
+          {!ready ? (
+            <p className="text-xs text-muted-foreground">
+              Confira a transcrição dos itens sem nota antes de liberar. Enquanto houver pendência, a nota continua sem publicar.
+            </p>
+          ) : null}
+        </div>
+      ) : null}
       <FeedbackBlock feedback={writing.feedback} />
+      <AuditTrail writing={writing} />
     </section>
   );
 }
 
-function WritingWord({ word }: { word: AnswerSheetWritingWord }) {
+function WritingWord({
+  word,
+  crop,
+  studentId,
+  writtenTestId,
+  published,
+  onUpdated,
+}: {
+  word: AnswerSheetWritingWord;
+  crop?: AnswerSheetCrop;
+  studentId: string | null;
+  writtenTestId?: string;
+  published: boolean;
+  onUpdated?: () => void;
+}) {
+  const stimulus = knownLabel(STIMULUS, word.stimulus);
+  const pending = !published && (word.points == null || word.status === "PENDENTE" || word.needsReview);
+  const sameAsReadings =
+    word.readings.length > 0 && word.readings.every((reading) => reading.transcription === word.transcription);
   return (
-    <li className="rounded-lg border p-3 text-sm">
+    <li className="space-y-3 rounded-lg border p-3 text-sm">
       <div className="flex flex-wrap items-center gap-2">
-        <p className="font-medium">Ditado {word.number}</p>
+        <p className="font-medium">
+          Ditado {word.number}
+          {stimulus ? <span className="font-normal text-muted-foreground"> · {stimulus}</span> : null}
+        </p>
+        {word.status ? <ItemStatus status={word.status} /> : null}
         {word.classification ? <Badge variant="outline">{knownLabel(CLASSIFICATION, word.classification)}</Badge> : null}
         {word.needsReview ? <Badge variant="warning">Revisar</Badge> : null}
         <span className="ml-auto text-xs tabular-nums text-muted-foreground">
-          {word.points == null ? "em aberto" : `${word.points} pt`}
+          {word.points == null ? "em aberto" : `${word.points}/2`}
         </span>
       </div>
-      <p className="mt-2">
-        <span className="text-muted-foreground">Esperado: </span>
-        {word.expected || "—"}
-      </p>
-      <p>
-        <span className="text-muted-foreground">Lido: </span>
-        {word.transcription || "—"}
-      </p>
-      {word.justification.trim() ? <p className="mt-1 text-muted-foreground">{word.justification}</p> : null}
-      {word.confidence ? (
-        <p className="mt-1 text-xs text-muted-foreground">Confiança {knownLabel(CONFIDENCE, word.confidence)}</p>
+      <CropPhoto imageUrl={crop?.imageUrl} label={`Letra da questão ${word.number}`} />
+      {word.expected ? (
+        <p>
+          <span className="text-muted-foreground">Esperado: </span>
+          {word.expected}
+        </p>
+      ) : null}
+      <Readings readings={word.readings} transcription={word.transcription} secondTranscription={word.secondTranscription} />
+      {word.points != null && !sameAsReadings ? (
+        <p>
+          <span className="text-muted-foreground">Texto da nota: </span>
+          {word.transcription.trim() ? word.transcription : "(em branco)"}
+        </p>
+      ) : null}
+      {word.justification.trim() ? <p className="text-muted-foreground">{word.justification}</p> : null}
+      {pending && writtenTestId && studentId && onUpdated ? (
+        <TranscriptionConfirm
+          id={`revisao-${studentId}-${word.number}`}
+          initial={word.transcription}
+          multiline={false}
+          onConfirm={async (transcription) => {
+            await reviewWriting(writtenTestId, { studentId, words: [{ number: word.number, transcription }] });
+            onUpdated();
+          }}
+        />
       ) : null}
     </li>
   );
 }
 
-function ProductionBlock({ production }: { production: AnswerSheetWritingProduction }) {
+function ProductionBlock({
+  production,
+  crop,
+  studentId,
+  writtenTestId,
+  published,
+  onUpdated,
+}: {
+  production: AnswerSheetWritingProduction;
+  crop?: AnswerSheetCrop;
+  studentId: string | null;
+  writtenTestId?: string;
+  published: boolean;
+  onUpdated?: () => void;
+}) {
   const genre = production.genre === "BILHETE" ? "Bilhete" : production.genre || "Produção";
+  const pending = !published && (production.points == null || production.status === "PENDENTE" || production.needsReview);
+  const sameAsReadings =
+    production.readings.length > 0 &&
+    production.readings.every((reading) => reading.transcription === production.transcription);
   return (
     <div className="space-y-3 rounded-lg border p-3">
       <div className="flex flex-wrap items-center gap-2">
         <p className="text-sm font-medium">{genre}</p>
+        {production.status ? <ItemStatus status={production.status} /> : null}
         {production.needsReview ? <Badge variant="warning">Revisar</Badge> : null}
         <span className="ml-auto text-xs tabular-nums text-muted-foreground">
           {production.points == null ? "em aberto" : `${production.points}/${TEXT_MAX}`}
         </span>
       </div>
-      {production.transcription.trim() ? (
-        <p className="whitespace-pre-wrap rounded-md bg-muted/40 p-3 text-sm">{production.transcription}</p>
-      ) : (
-        <p className="text-sm text-muted-foreground">Sem transcrição.</p>
-      )}
+      <CropPhoto imageUrl={crop?.imageUrl} label="Letra do bilhete" />
+      <Readings
+        readings={production.readings}
+        transcription={production.transcription}
+        secondTranscription={production.secondTranscription}
+      />
+      {production.points != null && !sameAsReadings ? (
+        <p className="whitespace-pre-wrap text-sm">
+          <span className="text-muted-foreground">Texto da nota: </span>
+          {production.transcription.trim() ? production.transcription : "(em branco)"}
+        </p>
+      ) : null}
       <ul className="grid gap-2 sm:grid-cols-2">
-        {CRITERIA.map(([key, label]) => {
-          const score = production.criteria[key];
-          const why = production.justifications[key]?.trim();
+        {WRITING_CRITERIA.map((criterion) => {
+          const score = criterionScore(production.criteria, criterion.readKeys);
+          const why = criterion.readKeys.map((key) => production.justifications[key]?.trim()).find(Boolean);
           return (
-            <li key={key} className="rounded-md border px-3 py-2 text-sm">
+            <li key={criterion.postKey} className="rounded-md border px-3 py-2 text-sm">
               <div className="flex items-center justify-between gap-2">
-                <span>{label}</span>
+                <span>{criterion.label}</span>
                 <span className="font-medium tabular-nums">{typeof score === "number" ? score : "—"}</span>
               </div>
               {why ? <p className="mt-1 text-xs text-muted-foreground">{why}</p> : null}
@@ -441,12 +644,216 @@ function ProductionBlock({ production }: { production: AnswerSheetWritingProduct
           );
         })}
       </ul>
-      {production.confidence ? (
-        <p className="text-xs text-muted-foreground">Confiança {knownLabel(CONFIDENCE, production.confidence)}</p>
+      {pending && writtenTestId && studentId && onUpdated ? (
+        <TranscriptionConfirm
+          id={`revisao-${studentId}-bilhete`}
+          initial={production.transcription}
+          multiline
+          onConfirm={async (transcription) => {
+            await reviewWriting(writtenTestId, { studentId, production: { transcription } });
+            onUpdated();
+          }}
+        />
       ) : null}
     </div>
   );
 }
+
+function ItemStatus({ status }: { status: string }) {
+  const known = ITEM_STATUS[status];
+  return <Badge variant={known?.variant ?? "outline"}>{known?.label ?? knownLabel({}, status)}</Badge>;
+}
+
+function Readings({
+  readings,
+  transcription,
+  secondTranscription,
+}: {
+  readings: AnswerSheetWritingReading[];
+  transcription: string;
+  secondTranscription: string;
+}) {
+  if (!readings.length) {
+    return (
+      <div className="space-y-1">
+        <p className="whitespace-pre-wrap">
+          <span className="text-muted-foreground">Transcrição: </span>
+          {transcription.trim() ? transcription : "—"}
+        </p>
+        {secondTranscription.trim() && secondTranscription !== transcription ? (
+          <p className="whitespace-pre-wrap">
+            <span className="text-muted-foreground">Segunda leitura: </span>
+            {secondTranscription}
+          </p>
+        ) : null}
+      </div>
+    );
+  }
+
+  return (
+    <ul className="space-y-2">
+      {readings.map((reading, index) => (
+        <li key={`${reading.model}-${index}`} className="rounded-md bg-muted/40 p-3">
+          <p className="text-xs text-muted-foreground">
+            Leitura {index + 1}
+            {reading.model ? ` · ${reading.model}` : ""}
+            {reading.situation ? ` · ${knownLabel(SITUATION, reading.situation)}` : ""}
+          </p>
+          <p className="mt-1 whitespace-pre-wrap">{reading.transcription.trim() ? reading.transcription : "(em branco)"}</p>
+          {reading.uncertain.length ? (
+            <p className="mt-1 text-xs text-muted-foreground">Trechos incertos: {reading.uncertain.join(", ")}</p>
+          ) : null}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function CropPhoto({ imageUrl, label }: { imageUrl?: string | null; label: string }) {
+  const [src, setSrc] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    if (!imageUrl) {
+      setSrc(null);
+      setFailed(false);
+      return;
+    }
+    let cancelled = false;
+    let objectUrl: string | null = null;
+    setFailed(false);
+    fetchCropObjectUrl(imageUrl)
+      .then((url) => {
+        if (cancelled) {
+          URL.revokeObjectURL(url);
+          return;
+        }
+        objectUrl = url;
+        setSrc(url);
+      })
+      .catch(() => {
+        if (!cancelled) setFailed(true);
+      });
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [imageUrl]);
+
+  if (!imageUrl) return <p className="text-xs text-muted-foreground">A foto deste recorte não foi salva.</p>;
+  if (failed) return <p className="text-xs text-muted-foreground">Não foi possível abrir a foto da letra.</p>;
+  if (!src) return <Skeleton className="h-28 w-full max-w-sm rounded-lg" />;
+  return (
+    // eslint-disable-next-line @next/next/no-img-element -- PNG autenticado, carregado como blob
+    <img src={src} alt={label} className="max-h-48 max-w-full rounded-lg border bg-white object-contain" />
+  );
+}
+
+function TranscriptionConfirm({
+  id,
+  initial,
+  multiline,
+  onConfirm,
+}: {
+  id: string;
+  initial: string;
+  multiline: boolean;
+  onConfirm: (transcription: string) => Promise<void>;
+}) {
+  const [text, setText] = useState(initial);
+  const [sending, setSending] = useState(false);
+
+  useEffect(() => {
+    setText(initial);
+  }, [initial]);
+
+  async function confirm() {
+    if (sending) return;
+    setSending(true);
+    try {
+      await onConfirm(text.trim());
+      toast.success("Transcrição conferida. A nota deste item foi recalculada.");
+    } catch (error) {
+      toast.error(normalizeApiError(error, "Não foi possível conferir a transcrição.").message);
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={id}>Texto que está na folha</Label>
+      <Textarea
+        id={id}
+        value={text}
+        onChange={(event) => setText(event.target.value)}
+        className={multiline ? "min-h-[96px] whitespace-pre-wrap" : "min-h-[72px]"}
+        disabled={sending}
+      />
+      <p className="text-xs text-muted-foreground">Deixe vazio se a resposta estiver em branco. A nota deste item é recalculada e continua sem publicar.</p>
+      <Button type="button" variant="outline" size="sm" onClick={() => void confirm()} disabled={sending}>
+        {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+        Confirmar transcrição
+      </Button>
+    </div>
+  );
+}
+
+function AuditTrail({ writing }: { writing: AnswerSheetWritingScore }) {
+  if (!writing.audit.length) return null;
+  return (
+    <details className="rounded-lg border">
+      <summary className="cursor-pointer px-3 py-2 text-sm font-medium">Trilha da correção ({writing.audit.length})</summary>
+      <ol className="space-y-3 border-t p-3">
+        {writing.audit.map((entry, index) => (
+          <li key={`${entry.at}-${entry.action}-${index}`} className="text-sm">
+            <p className="font-medium">
+              {knownLabel(AUDIT_ACTION, entry.action) || entry.action || "Registro"}
+              {entry.decision ? <span className="font-normal text-muted-foreground"> · {knownLabel(AUDIT_DECISION, entry.decision)}</span> : null}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {formatDateTime(entry.at) ?? "Sem data"}
+              {entry.actorId ? ` · ${entry.actorId}` : ""}
+            </p>
+            {entry.promptVersions ? (
+              <p className="mt-1 text-xs text-muted-foreground">
+                {entry.promptVersions.leitura ? `Leitura ${entry.promptVersions.leitura}` : ""}
+                {entry.promptVersions.leitura && entry.promptVersions.avaliacao ? " · " : ""}
+                {entry.promptVersions.avaliacao ? `Avaliação ${entry.promptVersions.avaliacao}` : ""}
+              </p>
+            ) : null}
+            {entry.items.length ? (
+              <ul className="mt-1 space-y-1 text-xs text-muted-foreground">
+                {entry.items.map((item) => {
+                  const transcription = asTrailText(item.transcription);
+                  const status = asTrailText(item.status);
+                  const evidence = asTrailText(item.evidence);
+                  return (
+                    <li key={`${entry.at}-${item.number}`}>
+                      Questão {item.number}: {transcription || "(em branco)"}
+                      {item.points == null ? "" : ` · ${item.points} pt`}
+                      {status ? ` · ${knownLabel(ITEM_STATUS_LABEL, status)}` : ""}
+                      {evidence ? ` · ${evidence}` : ""}
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : null}
+          </li>
+        ))}
+      </ol>
+    </details>
+  );
+}
+
+function asTrailText(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+const ITEM_STATUS_LABEL: Record<string, string> = {
+  CORRIGIDA: "com nota",
+  PENDENTE: "pendente",
+};
 
 function FeedbackBlock({ feedback }: { feedback: AnswerSheetWritingScore["feedback"] }) {
   const notes = feedback.notes.trim();

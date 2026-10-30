@@ -2,10 +2,11 @@ import type {
   BankQuestion,
   BankQuestionOrigin,
   BankQuestionType,
+  DictationStimulus,
   WrittenTestDetail,
   WrittenTestQuestionRef,
 } from "@/lib/api/afirme-reading/types";
-import { normalizeQuestionType, questionAnswerSummary, questionStatement } from "@/lib/ica/questions";
+import { normalizeQuestionType, questionAnswerSummary, questionImageDescription, questionStatement, questionStimulus } from "@/lib/ica/questions";
 
 /**
  * Composição da prova escrita do ICA, igual ao cartão-resposta: 16 múltipla escolha (1–16),
@@ -42,6 +43,9 @@ export interface SlotItem {
   gradeName: string | null;
   difficulty: string | null;
   answer: string;
+  /** Ditado por figura sem descrição não pode entrar numa prova publicada. */
+  stimulus?: DictationStimulus | null;
+  imageDescription?: string | null;
   origin: BankQuestionOrigin;
   value: number;
   /** Questão excluída do banco depois de entrar na prova: precisa ser trocada antes de publicar. */
@@ -89,6 +93,8 @@ export function toSlotItem(question: BankQuestion): SlotItem {
     gradeName: question.grade?.name ?? null,
     difficulty: question.difficulty || null,
     answer: questionAnswerSummary(question),
+    stimulus: questionStimulus(question),
+    imageDescription: questionImageDescription(question) || null,
     origin: question.origin,
     value: question.value ?? 1,
   };
@@ -183,6 +189,12 @@ export function totalScore(draft: AssessmentDraft) {
 
 export function hasMissingQuestions(draft: AssessmentDraft) {
   return SLOT_LAYOUT.some((group) => draft.slots[group.type].some((slot) => slot?.missing));
+}
+
+export function imageDictationWithoutDescription(draft: AssessmentDraft) {
+  return draft.slots.dictation.some(
+    (slot) => slot && !slot.missing && slot.stimulus === "image" && !slot.imageDescription?.trim()
+  );
 }
 
 export function isDraftEmpty(draft: AssessmentDraft) {

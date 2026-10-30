@@ -211,7 +211,16 @@ function ApplicationHub() {
             </SheetDescription>
           </SheetHeader>
           <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto p-6">
-            <AnswerSheetSavedResultList students={viewingStudents} />
+            <AnswerSheetSavedResultList
+              students={viewingStudents}
+              writtenTestId={viewing?.id}
+              onUpdated={() => {
+                if (!viewingId) return;
+                listAnswerSheetCorrections(viewingId)
+                  .then((list) => setSavedById((prev) => ({ ...prev, [viewingId]: list })))
+                  .catch(() => setSavedById((prev) => ({ ...prev, [viewingId]: "error" })));
+              }}
+            />
           </div>
         </SheetContent>
       </Sheet>
