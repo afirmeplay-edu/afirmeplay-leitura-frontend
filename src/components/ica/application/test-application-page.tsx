@@ -109,7 +109,7 @@ function TestApplication({ id }: { id: string }) {
   const [sheetClass, setSheetClass] = useState<string>(ALL_CLASSES);
   const [generating, setGenerating] = useState(false);
   const [downloadingRun, setDownloadingRun] = useState<string | null>(null);
-  const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const [downloadingPdf, setDownloadingPdf] = useState<"student" | "applicator" | null>(null);
 
   const [studentsOf, setStudentsOf] = useState<WrittenTestClassApplication | null>(null);
   const [students, setStudents] = useState<WrittenTestClassStudents | null>(null);
@@ -282,14 +282,14 @@ function TestApplication({ id }: { id: string }) {
     }
   }
 
-  async function handlePdf() {
-    setDownloadingPdf(true);
+  async function handlePdf(mode: "student" | "applicator") {
+    setDownloadingPdf(mode);
     try {
-      await downloadWrittenTestPdf(id);
+      await downloadWrittenTestPdf(id, mode);
     } catch (error) {
       toast.error(normalizeApiError(error, "Não foi possível gerar a prova em PDF.").message);
     } finally {
-      setDownloadingPdf(false);
+      setDownloadingPdf(null);
     }
   }
 
@@ -342,9 +342,15 @@ function TestApplication({ id }: { id: string }) {
       >
         {backButton}
         {published ? (
-          <Button variant="outline" className="w-full sm:w-auto" onClick={() => void handlePdf()} disabled={downloadingPdf}>
-            {downloadingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
-            Baixar prova (PDF)
+          <Button variant="outline" className="w-full sm:w-auto" onClick={() => void handlePdf("student")} disabled={downloadingPdf != null}>
+            {downloadingPdf === "student" ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+            Prova do aluno
+          </Button>
+        ) : null}
+        {published ? (
+          <Button variant="outline" className="w-full sm:w-auto" onClick={() => void handlePdf("applicator")} disabled={downloadingPdf != null}>
+            {downloadingPdf === "applicator" ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+            Prova do aplicador
           </Button>
         ) : null}
       </PageHeader>
@@ -360,7 +366,16 @@ function TestApplication({ id }: { id: string }) {
             </Link>
           </AlertDescription>
         </Alert>
-      ) : null}
+      ) : (
+        <Alert>
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Prova do aplicador</AlertTitle>
+          <AlertDescription>
+            O PDF do aplicador solicita o modo com megafones. Enquanto o backend não diferenciar os modos, o arquivo
+            pode sair igual ao do aluno. As marcações de ditado ficam na pré-visualização da avaliação.
+          </AlertDescription>
+        </Alert>
+      )}
 
       <SectionCard
         title="Turmas"

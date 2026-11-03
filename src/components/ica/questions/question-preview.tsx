@@ -1,6 +1,7 @@
 "use client";
 
-import { CheckCircle2, ImageIcon, Mic, PenLine } from "lucide-react";
+import { CheckCircle2, ImageIcon, Megaphone, Mic, PenLine } from "lucide-react";
+import { normalizeDictationMarks } from "@/lib/ica/dictation-marks";
 import { formatQuestionValue, QUESTION_TYPE_LABEL, type QuestionPreviewModel } from "@/lib/ica/questions";
 import { cn } from "@/lib/utils";
 import { QuestionHtml } from "@/components/ica/question-html";
@@ -24,17 +25,48 @@ export function QuestionPreview({ question, showAnswer = true, showMeta = true, 
   ].filter((item): item is { label: string; value: string } => item !== null);
 
   const hasStatement = Boolean(question.formattedText?.trim() || question.text?.trim());
+  const marks = normalizeDictationMarks(question.dictationMarks);
+
+  const Mark = ({ label }: { label: string }) => (
+    <span
+      className="inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-900"
+      title={`${label}: o aplicador lê em voz alta`}
+    >
+      <Megaphone className="h-3 w-3" aria-hidden />
+      Ler
+    </span>
+  );
 
   return (
     <div className={cn("space-y-4", className)}>
+      {question.title?.trim() ? (
+        <div className="flex items-start gap-2">
+          <p className="flex-1 font-semibold">{question.title}</p>
+          {marks.title ? <Mark label="Título" /> : null}
+        </div>
+      ) : null}
       <div className="space-y-2 text-sm leading-relaxed text-foreground">
         {hasStatement ? (
-          <QuestionHtml html={question.formattedText} fallbackText={question.text} />
+          <div className="flex items-start gap-2">
+            <div className="min-w-0 flex-1">
+              <QuestionHtml html={question.formattedText} fallbackText={question.text} />
+            </div>
+            {marks.statement ? <Mark label="Enunciado" /> : null}
+          </div>
         ) : (
           <p className="text-muted-foreground">O enunciado aparece aqui.</p>
         )}
         {question.secondStatement?.trim() ? (
-          <p className="whitespace-pre-line text-muted-foreground">{question.secondStatement}</p>
+          <div className="flex items-start gap-2">
+            <p className="min-w-0 flex-1 whitespace-pre-line text-muted-foreground">{question.secondStatement}</p>
+            {marks.support ? <Mark label="Texto de apoio" /> : null}
+          </div>
+        ) : null}
+        {marks.images.length ? (
+          <p className="flex items-center gap-1.5 text-xs text-amber-900">
+            <Megaphone className="h-3.5 w-3.5" aria-hidden />
+            Ler as imagens {marks.images.map((index) => index + 1).join(", ")}.
+          </p>
         ) : null}
       </div>
 
@@ -115,6 +147,7 @@ export function QuestionPreview({ question, showAnswer = true, showMeta = true, 
                   Gabarito
                 </span>
               ) : null}
+              {marks.options.includes(option.letter) ? <Mark label={`Alternativa ${option.letter}`} /> : null}
             </li>
           );
         })}

@@ -40,6 +40,10 @@ export const ROUTES = {
       textos: `${LEITURA}/cadastros/textos`,
     },
     relatorios: `${LEITURA}/relatorios`,
+    relatoriosPainel: `${LEITURA}/relatorios/painel`,
+    relatoriosParticipacao: `${LEITURA}/relatorios/participacao`,
+    relatoriosNiveis: `${LEITURA}/relatorios/niveis`,
+    relatoriosEscolas: `${LEITURA}/relatorios/escolas`,
     relatoriosFluencia: `${LEITURA}/relatorios-fluencia`,
     configuracaoAvaliacao: `${LEITURA}/configuracao-avaliacao`,
   },
@@ -48,6 +52,7 @@ export const ROUTES = {
     questoes: {
       root: `${ICA}/questoes`,
       nova: `${ICA}/questoes/nova`,
+      importar: `${ICA}/questoes/importar`,
       detalhe: (id: string) => `${ICA}/questoes/${id}`,
     },
     avaliacoes: {
@@ -58,6 +63,11 @@ export const ROUTES = {
     },
     aplicacao: `${ICA}/aplicacao`,
     acompanhamento: `${ICA}/acompanhamento`,
+    resultados: `${ICA}/resultados`,
+    relatorios: {
+      niveis: `${ICA}/relatorios/niveis`,
+      proficiencia: `${ICA}/relatorios/proficiencia`,
+    },
   },
 } as const;
 

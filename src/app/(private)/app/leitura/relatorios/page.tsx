@@ -1,5 +1,5 @@
-import { ResultadosDashboard } from "@/components/relatorios/resultados-dashboard";
+import { RelatoriosHubPage } from "@/components/relatorios/hub/relatorios-hub-page";
 
 export default function RelatoriosPage() {
-  return <ResultadosDashboard />;
+  return <RelatoriosHubPage />;
 }

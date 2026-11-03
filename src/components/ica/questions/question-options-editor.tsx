@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, type KeyboardEvent } from "react";
-import { ImagePlus, Plus, Trash2, X } from "lucide-react";
+import { ImagePlus, Megaphone, Plus, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { QUESTION_IMAGE_ACCEPT, QuestionImageError, readQuestionImage } from "@/lib/ica/image-file";
 import { MAX_QUESTION_OPTIONS, MIN_QUESTION_OPTIONS, optionLetter } from "@/lib/ica/questions";
@@ -18,6 +18,8 @@ interface QuestionOptionsEditorProps {
   disabled?: boolean;
   optionErrors?: Record<number, string>;
   groupError?: string | null;
+  dictatedOptions?: string[];
+  onToggleDictation?: (letter: string) => void;
 }
 
 export function QuestionOptionsEditor({
@@ -26,6 +28,8 @@ export function QuestionOptionsEditor({
   disabled,
   optionErrors = {},
   groupError,
+  dictatedOptions = [],
+  onToggleDictation,
 }: QuestionOptionsEditorProps) {
   const [leaving, setLeaving] = useState<Set<string>>(new Set());
   const [entering, setEntering] = useState<Set<string>>(new Set());
@@ -197,6 +201,22 @@ export function QuestionOptionsEditor({
                       event.target.value = "";
                     }}
                   />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    aria-pressed={dictatedOptions.includes(letter)}
+                    className={cn(
+                      "h-10 w-10",
+                      dictatedOptions.includes(letter) && "bg-amber-100 text-amber-800 hover:bg-amber-100"
+                    )}
+                    disabled={disabled}
+                    onClick={() => onToggleDictation?.(letter)}
+                    aria-label={`${dictatedOptions.includes(letter) ? "Desmarcar" : "Marcar"} alternativa ${letter} para leitura`}
+                    title="Ler alternativa em voz alta"
+                  >
+                    <Megaphone className="h-4 w-4" />
+                  </Button>
                   <Button
                     type="button"
                     variant="ghost"

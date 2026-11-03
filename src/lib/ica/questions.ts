@@ -3,6 +3,7 @@ import type {
   BankQuestionDifficulty,
   BankQuestionOrigin,
   BankQuestionType,
+  DictationMarks,
   DictationStimulus,
   ScopeType,
 } from "@/lib/api/afirme-reading/types";
@@ -196,7 +197,9 @@ export interface QuestionPreviewOption {
 
 export interface QuestionPreviewModel {
   type?: BankQuestionType;
-  stimulus?: DictationStimulus | null;
+  title?: string | null;
+  dictationMarks?: DictationMarks | null;
+  stimulus?: DictationStimulus | string | null;
   dictatedWord?: string | null;
   imageDescription?: string | null;
   text: string;
@@ -216,6 +219,8 @@ export function toPreviewModel(question: BankQuestion, skillLabel?: string | nul
   const type = normalizeQuestionType(question.type) ?? "multipleChoice";
   return {
     type,
+    title: question.title,
+    dictationMarks: question.dictationMarks,
     stimulus: questionStimulus(question),
     dictatedWord: questionDictatedWord(question) || null,
     imageDescription: questionImageDescription(question) || null,

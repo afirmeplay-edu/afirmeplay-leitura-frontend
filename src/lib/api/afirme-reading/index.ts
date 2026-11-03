@@ -23,8 +23,7 @@ export {
   getBankQuestion,
   createBankQuestion,
   updateBankQuestion,
-  describeQuestionImage,
-  previewQuestionImage,
+  importQuestionsDocx,
 } from "@/lib/api/afirme-reading/questions";
 export {
   createGuidedSession,
@@ -103,6 +102,26 @@ export {
   getPerfilEstudanteResultados,
   getStudentApplication,
 } from "@/lib/api/afirme-reading/resultados";
+export {
+  ICA_LEVEL_NAMES,
+  ICA_STATUS_VALUES,
+  getIcaDashboard,
+  getIcaSkillMap,
+  postIcaProficiency,
+  downloadIcaResultsCsv,
+} from "@/lib/api/afirme-reading/ica-results";
+export type {
+  IcaDashboard,
+  IcaDashboardQuery,
+  IcaDashboardRow,
+  IcaDashboardStudent,
+  IcaKpis,
+  IcaNiveis,
+  IcaNivelItem,
+  IcaProficiencyResult,
+  IcaProficiencyStudentInput,
+  IcaSkillMap,
+} from "@/lib/api/afirme-reading/ica-results";
 export type {
   WordList,
   WordListKind,
@@ -176,6 +195,11 @@ export type {
   BankQuestionPagination,
   BankQuestionRef,
   BankQuestionType,
+  DictationMarks,
+  DictationMarksSource,
+  ImportedDocxQuestion,
+  QuestionDocxImportPreview,
+  QuestionDocxImportCommitResult,
   CreateBankQuestionPayload,
   ListBankQuestionsParams,
   UpdateBankQuestionPayload,

@@ -26,7 +26,7 @@ export function PerfilPage() {
           <div className="space-y-2"><Label>Nome</Label><Input defaultValue={user?.name ?? ""} /></div>
           <div className="space-y-2"><Label>E-mail</Label><Input defaultValue={user?.email ?? ""} /></div>
         </div>
-        <Button className="mt-4">Salvar alterações (demonstração)</Button>
+        <Button className="mt-4">Salvar alterações</Button>
       </SectionCard>
 
       <SectionCard title="Alterar senha" description="Atualize sua senha de acesso">

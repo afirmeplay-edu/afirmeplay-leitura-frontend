@@ -5,9 +5,10 @@ import type {
   BankQuestionOptionPayload,
   BankQuestionType,
   CreateBankQuestionPayload,
-  DictationStimulus,
+  DictationMarks,
   UpdateBankQuestionPayload,
 } from "@/lib/api/afirme-reading/types";
+import { normalizeDictationMarks } from "@/lib/ica/dictation-marks";
 import { buildQuestionHtml, extractImageSources, htmlToPlainText, resolveQuestionAssetUrl } from "@/lib/ica/question-html";
 import {
   MAX_QUESTION_OPTIONS,
@@ -33,9 +34,11 @@ export interface OptionDraft {
 
 export interface QuestionDraft {
   type: BankQuestionType;
-  /** Só no ditado. O padrão é palavra falada. */
-  stimulus: DictationStimulus;
-  /** Só no ditado por palavra. */
+  title: string;
+  dictation: DictationMarks;
+  /** Só no ditado: `word` (falado) ou `image` (figura). */
+  stimulus: "word" | "image";
+  /** Só no ditado. */
   dictatedWord: string;
   /** Descrição devolvida pela IA. Só leitura: trocar o enunciado apaga no servidor. */
   imageDescription: string;
@@ -83,6 +86,8 @@ export function emptyOption(): OptionDraft {
 export function emptyQuestionDraft(type: BankQuestionType = "multipleChoice"): QuestionDraft {
   return {
     type,
+    title: "",
+    dictation: normalizeDictationMarks(null),
     stimulus: "word",
     dictatedWord: "",
     imageDescription: "",
@@ -112,7 +117,9 @@ export function draftFromQuestion(question: BankQuestion): QuestionDraft {
   }));
   return {
     type,
-    stimulus: questionStimulus(question) ?? "word",
+    title: question.title ?? "",
+    dictation: normalizeDictationMarks(question.dictationMarks),
+    stimulus: questionStimulus(question) === "image" ? "image" : "word",
     dictatedWord: questionDictatedWord(question),
     imageDescription: questionImageDescription(question),
     text: question.text?.trim() || htmlToPlainText(question.formattedText),
@@ -213,15 +220,32 @@ function splitTopics(raw: string) {
     .filter(Boolean);
 }
 
+function payloadDictation(draft: QuestionDraft): DictationMarks {
+  const marks = normalizeDictationMarks(draft.dictation);
+  return {
+    ...marks,
+    images: marks.images.filter((index) => index < draft.statementImages.length),
+    options:
+      draft.type === "multipleChoice"
+        ? marks.options.filter((letter) => {
+            const index = letter.charCodeAt(0) - "A".charCodeAt(0);
+            return index >= 0 && index < draft.options.length;
+          })
+        : [],
+  };
+}
+
 export function buildCreatePayload(draft: QuestionDraft): CreateBankQuestionPayload {
   const text = draft.text.trim();
   const payload: CreateBankQuestionPayload = {
+    title: draft.title.trim(),
     text,
     formattedText: buildQuestionHtml(text, draft.statementImages, "Imagem do enunciado"),
     type: draft.type,
     subjectId: draft.subjectId,
     grade: draft.gradeId,
     value: parseValue(draft.value),
+    dictationMarks: payloadDictation(draft),
   };
   if (draft.type === "multipleChoice") payload.options = draft.options.map(toOptionPayload);
   if (draft.type === "dictation") {
@@ -249,6 +273,8 @@ const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
 export function buildUpdatePayload(initial: QuestionDraft, current: QuestionDraft): UpdateBankQuestionPayload {
   const payload: UpdateBankQuestionPayload = {};
 
+  if (current.title.trim() !== initial.title.trim()) payload.title = current.title.trim();
+  if (!same(current.dictation, initial.dictation)) payload.dictationMarks = payloadDictation(current);
   if (current.text.trim() !== initial.text.trim() || !same(current.statementImages, initial.statementImages)) {
     payload.text = current.text.trim();
     payload.formattedText = buildQuestionHtml(current.text.trim(), current.statementImages, "Imagem do enunciado");
