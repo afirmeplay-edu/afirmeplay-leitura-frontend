@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, Megaphone, Mic, PenLine } from "lucide-react";
+import { CheckCircle2, ImageIcon, Megaphone, Mic, PenLine } from "lucide-react";
 import { normalizeDictationMarks } from "@/lib/ica/dictation-marks";
 import { formatQuestionValue, QUESTION_TYPE_LABEL, type QuestionPreviewModel } from "@/lib/ica/questions";
 import { cn } from "@/lib/utils";

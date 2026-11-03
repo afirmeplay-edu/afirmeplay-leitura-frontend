@@ -4,6 +4,7 @@ import type {
   BankQuestionOrigin,
   BankQuestionType,
   DictationMarks,
+  DictationStimulus,
   ScopeType,
 } from "@/lib/api/afirme-reading/types";
 import { canWriteIca, normalizeRole } from "@/lib/auth/roles";
@@ -198,6 +199,7 @@ export interface QuestionPreviewModel {
   type?: BankQuestionType;
   title?: string | null;
   dictationMarks?: DictationMarks | null;
+  stimulus?: DictationStimulus | string | null;
   dictatedWord?: string | null;
   imageDescription?: string | null;
   text: string;
@@ -219,6 +221,7 @@ export function toPreviewModel(question: BankQuestion, skillLabel?: string | nul
     type,
     title: question.title,
     dictationMarks: question.dictationMarks,
+    stimulus: questionStimulus(question),
     dictatedWord: questionDictatedWord(question) || null,
     imageDescription: questionImageDescription(question) || null,
     text: question.text,

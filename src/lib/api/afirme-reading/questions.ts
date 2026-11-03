@@ -69,6 +69,21 @@ export async function updateBankQuestion(id: string, payload: UpdateBankQuestion
   return data;
 }
 
+/** Prévia da descrição da figura (questão ainda não salva / imagem data-URL). */
+export async function previewQuestionImage(formattedText: string) {
+  const { data } = await afirmeReadingApi.post<{ imageDescription?: string | null }>(
+    "/questions/image-description",
+    { formattedText }
+  );
+  return data;
+}
+
+/** Gera e grava a descrição da figura de uma questão já salva. */
+export async function describeQuestionImage(questionId: string) {
+  const { data } = await afirmeReadingApi.post<BankQuestion>(`/questions/${questionId}/image-description`);
+  return data;
+}
+
 export interface ImportDocxConfirmationQuestion {
   index: number;
   dictationMarks: DictationMarks;

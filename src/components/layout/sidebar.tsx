@@ -82,10 +82,7 @@ function ItemContent({
   const description = item.description?.trim() ?? "";
   /** Descrições longas ficam ocultas e expandem abaixo no hover (sem reticências). */
   const isLongDescription = description.length > 28;
-  const descriptionClass = cn(
-    "text-left text-[11px] leading-snug",
-    isActive ? "text-white/80" : "text-[var(--sidebar-text-muted)]"
-  );
+  const descriptionClass = "text-left text-[11px] leading-snug text-[var(--sidebar-text-muted)]";
 
   return (
     <div className="flex w-full items-center justify-between gap-1">
@@ -94,15 +91,16 @@ function ItemContent({
           className={cn(
             "flex shrink-0 items-center justify-center rounded-full bg-[var(--sidebar-icon-bg)] transition-all duration-300",
             !item.disabled && "group-hover:scale-110 group-hover:bg-[var(--sidebar-icon-bg-hover)]",
-            isCollapsed ? "h-10 w-10" : "h-8 w-8 md:h-9 md:w-9",
-            isActive && "bg-white/20 group-hover:bg-white/25"
+            isCollapsed ? "h-10 w-10" : "h-8 w-8 md:h-9 md:w-9"
           )}
         >
           <Icon
             className={cn(
               "shrink-0 transition-colors duration-300",
               isCollapsed ? "h-[18px] w-[18px]" : "h-4 w-4 md:h-[18px] md:w-[18px]",
-              isActive ? "text-white" : "text-[var(--sidebar-icon-color)]"
+              isActive
+                ? "text-[var(--sidebar-icon-color-active)]"
+                : "text-[var(--sidebar-icon-color)]"
             )}
             aria-hidden
           />
@@ -112,7 +110,9 @@ function ItemContent({
             <span
               className={cn(
                 "flex items-center gap-2 text-left text-xs font-semibold leading-snug md:text-sm",
-                isActive ? "text-white" : "text-[var(--sidebar-text)]"
+                isActive
+                  ? "text-[var(--sidebar-link-active-text)]"
+                  : "text-[var(--sidebar-text)]"
               )}
             >
               <span className="min-w-0">{item.label}</span>
@@ -151,7 +151,7 @@ function itemClasses(isActive: boolean, isCollapsed: boolean, disabled?: boolean
           "hover:translate-x-1 active:scale-[0.98]",
           !isActive && "hover:!bg-[var(--sidebar-link-hover-bg)]"
         ),
-    isActive && "font-semibold shadow-sm",
+    isActive && "font-semibold",
     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sidebar-focus-ring)]"
   );
 }
@@ -261,7 +261,9 @@ function MenuItem({
                       aria-hidden
                       className={cn(
                         "h-3.5 w-3.5 shrink-0 transition-transform duration-200 group-data-[state=open]:rotate-180",
-                        isActive ? "text-white" : "text-[var(--sidebar-icon-color)]"
+                        isActive
+                          ? "text-[var(--sidebar-icon-color-active)]"
+                          : "text-[var(--sidebar-icon-color)]"
                       )}
                     />
                   }
@@ -286,7 +288,8 @@ function MenuItem({
                         "sidebar-link flex min-h-10 items-center rounded-xl px-3 py-2 text-xs transition-all duration-200 md:text-sm",
                         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sidebar-focus-ring)]",
                         !childActive && "hover:translate-x-1 hover:bg-[var(--sidebar-link-hover-bg)]",
-                        childActive && "font-semibold text-white"
+                        childActive &&
+                          "font-semibold text-[var(--sidebar-link-active-text)]"
                       )}
                       style={childActive ? activeStyle : undefined}
                     >

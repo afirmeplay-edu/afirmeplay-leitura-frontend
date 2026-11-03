@@ -36,8 +36,9 @@ export interface QuestionDraft {
   type: BankQuestionType;
   title: string;
   dictation: DictationMarks;
+  /** Só no ditado: `word` (falado) ou `image` (figura). */
+  stimulus: "word" | "image";
   /** Só no ditado. */
->>>>>>> Stashed changes
   dictatedWord: string;
   /** Descrição devolvida pela IA. Só leitura: trocar o enunciado apaga no servidor. */
   imageDescription: string;
@@ -87,6 +88,7 @@ export function emptyQuestionDraft(type: BankQuestionType = "multipleChoice"): Q
     type,
     title: "",
     dictation: normalizeDictationMarks(null),
+    stimulus: "word",
     dictatedWord: "",
     imageDescription: "",
     text: "",
@@ -117,6 +119,7 @@ export function draftFromQuestion(question: BankQuestion): QuestionDraft {
     type,
     title: question.title ?? "",
     dictation: normalizeDictationMarks(question.dictationMarks),
+    stimulus: questionStimulus(question) === "image" ? "image" : "word",
     dictatedWord: questionDictatedWord(question),
     imageDescription: questionImageDescription(question),
     text: question.text?.trim() || htmlToPlainText(question.formattedText),

@@ -21,12 +21,13 @@ const panelLight: SidebarThemeVars = {
   "--sidebar-icon-bg": "var(--system-soft)",
   "--sidebar-icon-bg-hover": "color-mix(in srgb, var(--system-text) 16%, transparent)",
   "--sidebar-icon-color": "var(--system-text)",
-  "--sidebar-icon-color-active": "#ffffff",
+  /** Ativo: ícone/texto na cor do sistema, fundo cinza claro (como o Afirme Play). */
+  "--sidebar-icon-color-active": "var(--system-text)",
   "--sidebar-text": "#1e293b",
   "--sidebar-text-muted": "#64748b",
   "--sidebar-link-hover-bg": "color-mix(in srgb, var(--system-text) 6%, transparent)",
-  "--sidebar-link-active-bg": "var(--system-gradient)",
-  "--sidebar-link-active-text": "#ffffff",
+  "--sidebar-link-active-bg": "#f1f5f9",
+  "--sidebar-link-active-text": "var(--system-text)",
   "--sidebar-category-text": "#94a3b8",
   "--sidebar-focus-ring": "color-mix(in srgb, var(--system-text) 35%, transparent)",
 };

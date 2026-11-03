@@ -366,7 +366,16 @@ function TestApplication({ id }: { id: string }) {
             </Link>
           </AlertDescription>
         </Alert>
-      ) : null}
+      ) : (
+        <Alert>
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Prova do aplicador</AlertTitle>
+          <AlertDescription>
+            O PDF do aplicador solicita o modo com megafones. Enquanto o backend não diferenciar os modos, o arquivo
+            pode sair igual ao do aluno. As marcações de ditado ficam na pré-visualização da avaliação.
+          </AlertDescription>
+        </Alert>
+      )}
 
       <SectionCard
         title="Turmas"

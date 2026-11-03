@@ -103,9 +103,24 @@ export {
   getStudentApplication,
 } from "@/lib/api/afirme-reading/resultados";
 export {
+  ICA_LEVEL_NAMES,
+  ICA_STATUS_VALUES,
   getIcaDashboard,
   getIcaSkillMap,
+  postIcaProficiency,
   downloadIcaResultsCsv,
+} from "@/lib/api/afirme-reading/ica-results";
+export type {
+  IcaDashboard,
+  IcaDashboardQuery,
+  IcaDashboardRow,
+  IcaDashboardStudent,
+  IcaKpis,
+  IcaNiveis,
+  IcaNivelItem,
+  IcaProficiencyResult,
+  IcaProficiencyStudentInput,
+  IcaSkillMap,
 } from "@/lib/api/afirme-reading/ica-results";
 export type {
   WordList,

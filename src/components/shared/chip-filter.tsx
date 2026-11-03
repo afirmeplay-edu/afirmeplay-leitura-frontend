@@ -65,7 +65,7 @@ export function ChipFilter({
                 }
               }}
               className={cn(
-                "min-h-9 rounded-[25%] border px-3 py-1.5 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--system-text)] focus-visible:ring-offset-2",
+                "min-h-9 rounded-md border px-3 py-1.5 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--system-text)] focus-visible:ring-offset-2",
                 selected
                   ? "border-transparent text-white shadow-sm"
                   : "border-border bg-muted/70 text-foreground hover:bg-muted",

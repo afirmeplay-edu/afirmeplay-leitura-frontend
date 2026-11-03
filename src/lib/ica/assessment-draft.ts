@@ -3,13 +3,16 @@ import type {
   BankQuestionOrigin,
   BankQuestionType,
   DictationMarks,
+  DictationStimulus,
   WrittenTestDetail,
   WrittenTestQuestionRef,
 } from "@/lib/api/afirme-reading/types";
 import {
   normalizeQuestionType,
   questionAnswerSummary,
+  questionImageDescription,
   questionStatement,
+  questionStimulus,
   toPreviewModel,
   type QuestionPreviewModel,
 } from "@/lib/ica/questions";

@@ -108,10 +108,14 @@ export const NAV_LEITURA: NavCategory[] = [
       {
         href: L.relatorios,
         label: "Resultados",
-        description: "IFL, perfis leitores e provas aplicadas",
+        description: "IFL, participação, níveis e escolas",
         icon: BarChart3,
         children: [
-          { href: L.relatorios, label: "Painel de resultados", exact: true },
+          { href: L.relatorios, label: "Hub de relatórios", exact: true },
+          { href: L.relatoriosPainel, label: "Painel de resultados" },
+          { href: L.relatoriosParticipacao, label: "Participação" },
+          { href: L.relatoriosNiveis, label: "Níveis / perfil leitor" },
+          { href: L.relatoriosEscolas, label: "Escolas e turmas" },
           { href: L.relatoriosFluencia, label: "Relatório de fluência" },
           { href: L.avaliacoes.root, label: "Avaliações aplicadas" },
         ],
@@ -171,8 +175,13 @@ export const NAV_ICA: NavCategory[] = [
       {
         href: I.resultados,
         label: "Resultados",
-        description: "Alfabetização, níveis e filtros",
+        description: "Painel populacional ICA (≥ 743 e níveis)",
         icon: BarChart3,
+        children: [
+          { href: I.resultados, label: "Painel ICA", exact: true },
+          { href: I.relatorios.niveis, label: "Níveis Inep" },
+          { href: I.relatorios.proficiencia, label: "Importar proficiência", roles: WRITE_ROLES },
+        ],
       },
     ],
   },
@@ -213,7 +222,7 @@ export const DASHBOARD_SHORTCUTS: Record<AppSystem, DashboardShortcut[]> = {
     {
       href: L.relatorios,
       label: "Resultados",
-      description: "Painel, evolução no ano e turmas",
+      description: "Hub, participação, níveis e escolas",
       accent: "purple",
       icon: BarChart3,
     },
@@ -249,8 +258,8 @@ export const DASHBOARD_SHORTCUTS: Record<AppSystem, DashboardShortcut[]> = {
     },
     {
       href: I.resultados,
-      label: "Resultados",
-      description: "Alfabetização, níveis e participação",
+      label: "Resultados ICA",
+      description: "Visão geral, escolas, turmas e ≥ 743",
       accent: "blue",
       icon: BarChart3,
     },

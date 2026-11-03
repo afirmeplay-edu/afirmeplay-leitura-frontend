@@ -599,6 +599,18 @@ function AssessmentBuilder({ id }: { id?: string }) {
         ) : null}
       </PageHeader>
 
+      {published ? (
+        <Alert>
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Prova do aplicador</AlertTitle>
+          <AlertDescription>
+            A prova do aluno e a do aplicador já podem ser baixadas. Os megafones no PDF do aplicador dependem do
+            suporte do backend; até lá, o arquivo pode sair igual ao do aluno. As marcações continuam visíveis na
+            pré-visualização desta tela.
+          </AlertDescription>
+        </Alert>
+      ) : null}
+
       {readOnly && detail ? (
         <Alert>
           <Lock className="h-4 w-4" />
