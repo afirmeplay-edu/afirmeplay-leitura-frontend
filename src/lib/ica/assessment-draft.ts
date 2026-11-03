@@ -2,11 +2,25 @@ import type {
   BankQuestion,
   BankQuestionOrigin,
   BankQuestionType,
+<<<<<<< Updated upstream
   DictationStimulus,
   WrittenTestDetail,
   WrittenTestQuestionRef,
 } from "@/lib/api/afirme-reading/types";
 import { normalizeQuestionType, questionAnswerSummary, questionImageDescription, questionStatement, questionStimulus } from "@/lib/ica/questions";
+=======
+  DictationMarks,
+  WrittenTestDetail,
+  WrittenTestQuestionRef,
+} from "@/lib/api/afirme-reading/types";
+import {
+  normalizeQuestionType,
+  questionAnswerSummary,
+  questionStatement,
+  toPreviewModel,
+  type QuestionPreviewModel,
+} from "@/lib/ica/questions";
+>>>>>>> Stashed changes
 
 /**
  * Composição da prova escrita do ICA, igual ao cartão-resposta: 16 múltipla escolha (1–16),
@@ -48,6 +62,9 @@ export interface SlotItem {
   imageDescription?: string | null;
   origin: BankQuestionOrigin;
   value: number;
+  preview?: QuestionPreviewModel;
+  /** `undefined` herda; objeto presente substitui a marcação da questão nesta avaliação. */
+  dictationMarksOverride?: DictationMarks;
   /** Questão excluída do banco depois de entrar na prova: precisa ser trocada antes de publicar. */
   missing?: boolean;
 }
@@ -97,6 +114,11 @@ export function toSlotItem(question: BankQuestion): SlotItem {
     imageDescription: questionImageDescription(question) || null,
     origin: question.origin,
     value: question.value ?? 1,
+    preview: toPreviewModel(question),
+    dictationMarksOverride:
+      "dictationMarksSource" in question && question.dictationMarksSource === "assessment"
+        ? question.dictationMarks ?? undefined
+        : undefined,
   };
 }
 
@@ -164,7 +186,11 @@ export function toQuestionRefs(draft: AssessmentDraft, extra: SlotItem[] = []): 
     ...SLOT_LAYOUT.flatMap((group) => draft.slots[group.type].filter((slot): slot is SlotItem => slot !== null)),
     ...extra,
   ];
-  return items.map((item, index) => ({ id: item.questionId, order: index + 1 }));
+  return items.map((item, index) => ({
+    id: item.questionId,
+    order: index + 1,
+    ...(item.dictationMarksOverride !== undefined ? { dictationMarks: item.dictationMarksOverride } : {}),
+  }));
 }
 
 export function countFilled(draft: AssessmentDraft, type: BankQuestionType) {

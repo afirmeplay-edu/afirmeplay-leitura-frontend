@@ -11,6 +11,7 @@ import {
   CheckCircle2,
   ClipboardCheck,
   FileDown,
+  FileInput,
   FilePlus2,
   Loader2,
   Lock,
@@ -64,6 +65,7 @@ import {
 } from "@/lib/ica/assessment-draft";
 import { ICA_BRAND } from "@/lib/ica/brand";
 import { QUESTION_TYPE_LABEL, formatQuestionValue } from "@/lib/ica/questions";
+import { extractImageSources } from "@/lib/ica/question-html";
 import { canManageWrittenTest, formatDateTime, WRITTEN_TEST_STATUS_LABEL } from "@/lib/ica/written-tests";
 import { classMatchesAnyGrade } from "@/lib/fluencia/class-label";
 import { useFlipList } from "@/hooks/use-flip-list";
@@ -78,6 +80,8 @@ import { PageShell } from "@/components/shared/page-shell";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { OriginBadge } from "@/components/ica/questions/question-badges";
 import { QuestionPickerDialog } from "@/components/ica/assessments/question-picker-dialog";
+import { DictationMarksEditor } from "@/components/ica/questions/dictation-marks-editor";
+import { QuestionPreview } from "@/components/ica/questions/question-preview";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -96,7 +100,7 @@ const SLOT_STYLE: Record<BankQuestionType, { badge: string; border: string }> = 
 };
 
 type PickerTarget = { type: BankQuestionType; index: number | null } | null;
-type Busy = "save" | "publish" | "delete" | "pdf" | null;
+type Busy = "save" | "publish" | "delete" | "pdf-student" | "pdf-applicator" | null;
 
 function SlotNumber({ number, type }: { number: number; type: BankQuestionType }) {
   return (
@@ -287,6 +291,20 @@ function AssessmentBuilder({ id }: { id?: string }) {
     });
   }
 
+  function setSlotDictation(type: BankQuestionType, index: number, dictationMarksOverride: SlotItem["dictationMarksOverride"]) {
+    setDraft((prev) => {
+      const group = [...prev.slots[type]];
+      const item = group[index];
+      if (item) {
+        group[index] = {
+          ...item,
+          dictationMarksOverride,
+        };
+      }
+      return touch({ ...prev, slots: { ...prev.slots, [type]: group } });
+    });
+  }
+
   function toggleId(field: "gradeIds" | "schoolIds" | "classIds", value: string, checked: boolean) {
     setDraft((prev) => {
       const next = {
@@ -420,11 +438,11 @@ function AssessmentBuilder({ id }: { id?: string }) {
     }
   }
 
-  async function handlePdf() {
+  async function handlePdf(mode: "student" | "applicator") {
     if (!id) return;
-    setBusy("pdf");
+    setBusy(mode === "student" ? "pdf-student" : "pdf-applicator");
     try {
-      await downloadWrittenTestPdf(id);
+      await downloadWrittenTestPdf(id, mode);
     } catch (err) {
       toast.error(normalizeApiError(err, "Não foi possível gerar a prova em PDF.").message);
     } finally {
@@ -540,6 +558,14 @@ function AssessmentBuilder({ id }: { id?: string }) {
             Salvar
           </Button>
         ) : null}
+        {!readOnly ? (
+          <Button variant="outline" asChild className="w-full sm:w-auto">
+            <Link href={ROUTES.ica.questoes.importar}>
+              <FileInput className="h-4 w-4" />
+              Importar DOCX
+            </Link>
+          </Button>
+        ) : null}
         {!isNew && !readOnly ? (
           <Button
             className="w-full sm:w-auto"
@@ -552,9 +578,15 @@ function AssessmentBuilder({ id }: { id?: string }) {
           </Button>
         ) : null}
         {published ? (
-          <Button variant="outline" className="w-full sm:w-auto" onClick={() => void handlePdf()} disabled={busy !== null}>
-            {busy === "pdf" ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
-            Baixar prova (PDF)
+          <Button variant="outline" className="w-full sm:w-auto" onClick={() => void handlePdf("student")} disabled={busy !== null}>
+            {busy === "pdf-student" ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+            Prova do aluno
+          </Button>
+        ) : null}
+        {published ? (
+          <Button variant="outline" className="w-full sm:w-auto" onClick={() => void handlePdf("applicator")} disabled={busy !== null}>
+            {busy === "pdf-applicator" ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+            Prova do aplicador
           </Button>
         ) : null}
         {published && id ? (
@@ -800,6 +832,50 @@ function AssessmentBuilder({ id }: { id?: string }) {
                                     ) : null}
                                     <span>· {formatQuestionValue(slot.value)}</span>
                                   </div>
+                                ) : null}
+                                {!slot.missing && slot.preview ? (
+                                  <details className="mt-3 rounded-lg border border-dashed bg-muted/20 p-3">
+                                    <summary className="cursor-pointer text-xs font-semibold text-brand-highlight">
+                                      Pré-visualizar e ajustar megafones
+                                    </summary>
+                                    <div className="mt-3 space-y-3">
+                                      <QuestionPreview
+                                        question={{
+                                          ...slot.preview,
+                                          dictationMarks: slot.dictationMarksOverride ?? slot.preview.dictationMarks,
+                                        }}
+                                        showMeta={false}
+                                        className="rounded-lg bg-background p-3"
+                                      />
+                                      {!readOnly ? (
+                                        <div className="rounded-lg border bg-background p-3">
+                                          <DictationMarksEditor
+                                            value={slot.dictationMarksOverride ?? slot.preview.dictationMarks}
+                                            onChange={(marks) => setSlotDictation(type, index, marks)}
+                                            imageCount={extractImageSources(slot.preview.formattedText).length}
+                                            optionCount={slot.preview.options.length}
+                                            compact
+                                          />
+                                          <p className="mt-2 text-[11px] text-muted-foreground">
+                                            {slot.dictationMarksOverride
+                                              ? "Ajustado nesta avaliação."
+                                              : "Herdado da questão. Ao alterar, será salvo como ajuste desta avaliação."}
+                                          </p>
+                                          {slot.dictationMarksOverride ? (
+                                            <Button
+                                              type="button"
+                                              variant="link"
+                                              size="sm"
+                                              className="mt-1 h-auto px-0 py-0 text-xs"
+                                              onClick={() => setSlotDictation(type, index, undefined)}
+                                            >
+                                              Usar marcação original da questão
+                                            </Button>
+                                          ) : null}
+                                        </div>
+                                      ) : null}
+                                    </div>
+                                  </details>
                                 ) : null}
                               </div>
                             </div>

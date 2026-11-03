@@ -12,6 +12,7 @@ export interface SchoolClass {
   className?: string | null;
   schoolId?: string | null;
   gradeId?: string | null;
+  shift?: string | null;
 }
 
 export interface Student {
@@ -73,6 +74,12 @@ function normalizeClass(raw: Record<string, unknown>): SchoolClass {
           : grade?.id != null
             ? String(grade.id)
             : null,
+    shift:
+      typeof raw.shift === "string"
+        ? raw.shift
+        : typeof raw.turno === "string"
+          ? raw.turno
+          : null,
   };
 }
 

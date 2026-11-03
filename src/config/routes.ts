@@ -48,6 +48,7 @@ export const ROUTES = {
     questoes: {
       root: `${ICA}/questoes`,
       nova: `${ICA}/questoes/nova`,
+      importar: `${ICA}/questoes/importar`,
       detalhe: (id: string) => `${ICA}/questoes/${id}`,
     },
     avaliacoes: {
@@ -58,6 +59,7 @@ export const ROUTES = {
     },
     aplicacao: `${ICA}/aplicacao`,
     acompanhamento: `${ICA}/acompanhamento`,
+    resultados: `${ICA}/resultados`,
   },
 } as const;
 

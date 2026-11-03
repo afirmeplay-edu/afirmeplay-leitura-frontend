@@ -38,6 +38,7 @@ import {
   type QuestionField,
 } from "@/components/ica/questions/question-draft";
 import { QuestionOptionsEditor } from "@/components/ica/questions/question-options-editor";
+import { DictationMarkButton } from "@/components/ica/questions/dictation-marks-editor";
 import { QuestionPreview } from "@/components/ica/questions/question-preview";
 import { OriginBadge, ScopeBadge } from "@/components/ica/questions/question-badges";
 import { FormPage } from "@/components/shared/form-page";
@@ -133,6 +134,17 @@ export function QuestionForm({ mode, question, initialType, onSaved }: QuestionF
       });
     }
   }, []);
+
+  function flipDictation(field: "title" | "statement" | "support") {
+    patch({ dictation: { ...draft.dictation, [field]: !draft.dictation[field] } });
+  }
+
+  function flipStatementImage(index: number) {
+    const images = draft.dictation.images.includes(index)
+      ? draft.dictation.images.filter((current) => current !== index)
+      : [...draft.dictation.images, index].sort((left, right) => left - right);
+    patch({ dictation: { ...draft.dictation, images } });
+  }
 
   async function addStatementImage(file: File | undefined) {
     if (!file) return;
@@ -260,9 +272,9 @@ export function QuestionForm({ mode, question, initialType, onSaved }: QuestionF
     const value = Number(draft.value.replace(",", "."));
     return {
       type: draft.type,
-      stimulus: draft.type === "dictation" ? draft.stimulus : null,
-      dictatedWord: draft.type === "dictation" && draft.stimulus === "word" ? draft.dictatedWord.trim() || null : null,
-      imageDescription: draft.type === "dictation" && draft.stimulus === "image" ? draft.imageDescription.trim() || null : null,
+      title: draft.title,
+      dictationMarks: draft.dictation,
+      dictatedWord: draft.type === "dictation" ? draft.dictatedWord.trim() || null : null,
       text: draft.text,
       formattedText: buildQuestionHtml(draft.text, draft.statementImages),
       secondStatement: draft.secondStatement,
@@ -374,8 +386,29 @@ export function QuestionForm({ mode, question, initialType, onSaved }: QuestionF
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base">{draft.type === "text_production" ? "Comando de produção" : "Enunciado"}</CardTitle>
+            <CardDescription>
+              O megafone ao lado de cada parte marca o que o aplicador deve ler em voz alta. A alternativa tem o mesmo botão na própria linha.
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            <div className="flex items-end gap-2">
+              <div className="min-w-0 flex-1 space-y-2">
+                <Label htmlFor="questao-titulo">Título</Label>
+                <Input
+                  id="questao-titulo"
+                  value={draft.title}
+                  onChange={(event) => patch({ title: event.target.value })}
+                  placeholder="Opcional"
+                  disabled={busy}
+                />
+              </div>
+              <DictationMarkButton
+                active={draft.dictation.title}
+                label="o título"
+                disabled={busy}
+                onClick={() => flipDictation("title")}
+              />
+            </div>
             {question && hasRichFormatting(question.formattedText) ? (
               <Alert>
                 <Info className="h-4 w-4" />
@@ -386,7 +419,15 @@ export function QuestionForm({ mode, question, initialType, onSaved }: QuestionF
               </Alert>
             ) : null}
             <div className="space-y-2" data-field="text">
-              <Label htmlFor="questao-enunciado">Enunciado *</Label>
+              <div className="flex items-center justify-between gap-2">
+                <Label htmlFor="questao-enunciado">Enunciado *</Label>
+                <DictationMarkButton
+                  active={draft.dictation.statement}
+                  label="o enunciado"
+                  disabled={busy}
+                  onClick={() => flipDictation("statement")}
+                />
+              </div>
               <Textarea
                 id="questao-enunciado"
                 value={draft.text}
@@ -437,7 +478,8 @@ export function QuestionForm({ mode, question, initialType, onSaved }: QuestionF
                   {draft.statementImages.map((src, index) => {
                     const resolved = resolveQuestionAssetUrl(src);
                     return (
-                      <li key={`${index}-${src.slice(0, 32)}`} className="relative animate-in fade-in-0 zoom-in-95 duration-200">
+                      <li key={`${index}-${src.slice(0, 32)}`} className="flex items-start gap-2 animate-in fade-in-0 zoom-in-95 duration-200">
+                        <div className="relative">
                         {resolved ? (
                           // eslint-disable-next-line @next/next/no-img-element -- data-URL local ou imagem do backend via /api
                           <img src={resolved} alt={`Imagem ${index + 1} do enunciado`} className="h-24 rounded-lg border object-contain" />
@@ -450,7 +492,12 @@ export function QuestionForm({ mode, question, initialType, onSaved }: QuestionF
                           onClick={() =>
                             patch({
                               statementImages: draft.statementImages.filter((_, current) => current !== index),
-                              imageDescription: "",
+                              dictation: {
+                                ...draft.dictation,
+                                images: draft.dictation.images
+                                  .filter((current) => current !== index)
+                                  .map((current) => (current > index ? current - 1 : current)),
+                              },
                             })
                           }
                           disabled={busy}
@@ -458,6 +505,13 @@ export function QuestionForm({ mode, question, initialType, onSaved }: QuestionF
                         >
                           <X className="h-3.5 w-3.5" />
                         </Button>
+                        </div>
+                        <DictationMarkButton
+                          active={draft.dictation.images.includes(index)}
+                          label={`a imagem ${index + 1}`}
+                          disabled={busy}
+                          onClick={() => flipStatementImage(index)}
+                        />
                       </li>
                     );
                   })}
@@ -473,7 +527,15 @@ export function QuestionForm({ mode, question, initialType, onSaved }: QuestionF
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="questao-apoio">Texto de apoio</Label>
+              <div className="flex items-center justify-between gap-2">
+                <Label htmlFor="questao-apoio">Texto de apoio</Label>
+                <DictationMarkButton
+                  active={draft.dictation.support}
+                  label="o texto de apoio"
+                  disabled={busy}
+                  onClick={() => flipDictation("support")}
+                />
+              </div>
               <Textarea
                 id="questao-apoio"
                 value={draft.secondStatement}
@@ -611,6 +673,17 @@ export function QuestionForm({ mode, question, initialType, onSaved }: QuestionF
               disabled={busy}
               optionErrors={optionErrors}
               groupError={errors.options}
+              dictatedOptions={draft.dictation.options}
+              onToggleDictation={(letter) =>
+                patch({
+                  dictation: {
+                    ...draft.dictation,
+                    options: draft.dictation.options.includes(letter)
+                      ? draft.dictation.options.filter((item) => item !== letter)
+                      : [...draft.dictation.options, letter].sort(),
+                  },
+                })
+              }
             />
           </CardContent>
         </Card>

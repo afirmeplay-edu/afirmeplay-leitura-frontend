@@ -6,6 +6,9 @@ import type {
   BankQuestionPagination,
   CreateBankQuestionPayload,
   ListBankQuestionsParams,
+  QuestionDocxImportCommitResult,
+  QuestionDocxImportPreview,
+  DictationMarks,
   UpdateBankQuestionPayload,
 } from "@/lib/api/afirme-reading/types";
 
@@ -66,16 +69,36 @@ export async function updateBankQuestion(id: string, payload: UpdateBankQuestion
   return data;
 }
 
-/** Prévia. Não cria questão. Só lê `data:image/...;base64` dentro do `formattedText`. */
-export async function previewQuestionImage(formattedText: string) {
-  const { data } = await afirmeReadingApi.post<{ imageDescription: string }>("/questions/image-description", {
-    formattedText,
-  });
-  return data;
+export interface ImportDocxConfirmationQuestion {
+  index: number;
+  dictationMarks: DictationMarks;
 }
 
-/** Foto já gravada na questão. Descreve, grava e devolve a questão inteira. */
-export async function describeQuestionImage(id: string) {
-  const { data } = await afirmeReadingApi.post<BankQuestion>(`/questions/${id}/image-description`);
+/**
+ * O mesmo multipart faz prévia (`commit=false`) e confirmação (`commit=true`).
+ * `grade` e `subjectId` valem para os blocos que não trazem esses dados.
+ * `confirmation` grava os megafones ajustados na prévia, pelo índice do bloco.
+ */
+export async function importQuestionsDocx(
+  file: File,
+  options: {
+    commit?: boolean;
+    gradeId?: string;
+    subjectId?: string;
+    indexes?: number[];
+    questions?: ImportDocxConfirmationQuestion[];
+  } = {}
+) {
+  const form = new FormData();
+  form.append("file", file);
+  form.append("commit", options.commit ? "true" : "false");
+  if (options.gradeId) form.append("grade", options.gradeId);
+  if (options.subjectId) form.append("subjectId", options.subjectId);
+  if (options.indexes?.length) form.append("indexes", options.indexes.join(","));
+  if (options.questions) form.append("confirmation", JSON.stringify({ questions: options.questions }));
+  const { data } = await afirmeReadingApi.postForm<QuestionDocxImportPreview | QuestionDocxImportCommitResult>(
+    "/questions/import/docx",
+    form
+  );
   return data;
 }

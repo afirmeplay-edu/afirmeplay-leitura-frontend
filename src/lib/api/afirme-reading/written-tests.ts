@@ -190,9 +190,13 @@ async function downloadFile(path: string, fallbackName: string) {
   }
 }
 
-/** PDF da prova (o nome do arquivo vem do backend). */
-export async function downloadWrittenTestPdf(id: string, fallbackName = "avaliacao-escrita.pdf") {
-  await downloadFile(`/written-tests/${id}/pdf`, fallbackName);
+/** PDF do aluno (sem marcações) ou do aplicador (com megafones). */
+export async function downloadWrittenTestPdf(
+  id: string,
+  mode: "student" | "applicator" = "student",
+  fallbackName = mode === "applicator" ? "avaliacao-escrita-aplicador.pdf" : "avaliacao-escrita.pdf"
+) {
+  await downloadFile(`/written-tests/${id}/pdf?mode=${mode}`, fallbackName);
 }
 
 /** ZIP dos cartões-resposta de uma geração concluída. */

@@ -3,7 +3,11 @@ import type {
   BankQuestionDifficulty,
   BankQuestionOrigin,
   BankQuestionType,
+<<<<<<< Updated upstream
   DictationStimulus,
+=======
+  DictationMarks,
+>>>>>>> Stashed changes
   ScopeType,
 } from "@/lib/api/afirme-reading/types";
 import { canWriteIca, normalizeRole } from "@/lib/auth/roles";
@@ -196,7 +200,12 @@ export interface QuestionPreviewOption {
 
 export interface QuestionPreviewModel {
   type?: BankQuestionType;
+<<<<<<< Updated upstream
   stimulus?: DictationStimulus | null;
+=======
+  title?: string | null;
+  dictationMarks?: DictationMarks | null;
+>>>>>>> Stashed changes
   dictatedWord?: string | null;
   imageDescription?: string | null;
   text: string;
@@ -216,7 +225,12 @@ export function toPreviewModel(question: BankQuestion, skillLabel?: string | nul
   const type = normalizeQuestionType(question.type) ?? "multipleChoice";
   return {
     type,
+<<<<<<< Updated upstream
     stimulus: questionStimulus(question),
+=======
+    title: question.title,
+    dictationMarks: question.dictationMarks,
+>>>>>>> Stashed changes
     dictatedWord: questionDictatedWord(question) || null,
     imageDescription: questionImageDescription(question) || null,
     text: question.text,

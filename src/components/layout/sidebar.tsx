@@ -430,12 +430,10 @@ export function Sidebar({ categories, system, onNavigate, isMobile, onCollapsedC
               aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
               aria-expanded={!collapsed}
               className={cn(
-                "flex h-10 items-center justify-center rounded-full text-[var(--sidebar-icon-color)] transition-colors hover:bg-[var(--sidebar-link-hover-bg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sidebar-focus-ring)]",
-                collapsed ? "w-10" : "gap-1.5 px-3 text-xs font-medium"
+                "flex h-10 w-10 items-center justify-center rounded-full text-[var(--sidebar-icon-color)] transition-colors hover:bg-[var(--sidebar-link-hover-bg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sidebar-focus-ring)]"
               )}
             >
               {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-              {collapsed ? null : <span>Recolher</span>}
             </button>
           </div>
         )}

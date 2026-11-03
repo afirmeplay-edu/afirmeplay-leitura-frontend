@@ -651,6 +651,15 @@ export interface BankQuestionOption {
   image?: BankQuestionImage | null;
 }
 
+/** Partes que o aplicador deve ler em voz alta. Índices de imagem são baseados em zero. */
+export interface DictationMarks {
+  title: boolean;
+  statement: boolean;
+  support: boolean;
+  images: number[];
+  options: string[];
+}
+
 export interface BankQuestion {
   id: string;
   number: number;
@@ -685,6 +694,7 @@ export interface BankQuestion {
   imageDescription?: string | null;
   /** Palavra ditada quando `stimulus` é `word`; `null` na figura e nos outros tipos. */
   dictatedWord?: string | null;
+  dictationMarks?: DictationMarks | null;
 }
 
 export interface BankQuestionPagination {
@@ -731,6 +741,7 @@ export interface BankQuestionOptionPayload {
  * não levam `options`.
  */
 export interface CreateBankQuestionPayload {
+  title?: string;
   text: string;
   formattedText?: string;
   secondStatement?: string;
@@ -748,6 +759,7 @@ export interface CreateBankQuestionPayload {
   topics?: string[];
   options?: BankQuestionOptionPayload[];
   formattedSolution?: string;
+  dictationMarks?: DictationMarks | null;
 }
 
 /** PUT parcial; `null` limpa campos opcionais (o contrato converte `educationStageId: ""` em `null`). */
@@ -798,7 +810,15 @@ export interface WrittenTestMissingQuestion {
   missing: true;
 }
 
-export type WrittenTestQuestion = (BankQuestion & { order: number; missing?: false }) | WrittenTestMissingQuestion;
+export type DictationMarksSource = "question" | "assessment" | "none";
+
+export type WrittenTestQuestion =
+  | (BankQuestion & {
+      order: number;
+      missing?: false;
+      dictationMarksSource?: DictationMarksSource;
+    })
+  | WrittenTestMissingQuestion;
 
 export interface WrittenTestDetail extends WrittenTestSummary {
   grades: WrittenTestNamedRef[];
@@ -824,6 +844,62 @@ export interface ListWrittenTestsParams {
 export interface WrittenTestQuestionRef {
   id: string;
   order: number;
+  /** Ausente = herda da questão; presente = override desta avaliação. */
+  dictationMarks?: DictationMarks | null;
+}
+
+export interface ImportedQuestionPayload {
+  text?: string;
+  formattedText?: string | null;
+  type?: string;
+  subjectId?: string;
+  grade?: string;
+  title?: string | null;
+  secondStatement?: string | null;
+  difficulty?: string | null;
+  value?: number | null;
+  skills?: string | null;
+  dictationMarks?: DictationMarks | null;
+  dictatedWord?: string | null;
+  formattedSolution?: string | null;
+  options?: BankQuestionOption[];
+}
+
+export interface ImportedDocxQuestion {
+  index: number;
+  valid: boolean;
+  errors: string[];
+  payload: ImportedQuestionPayload;
+  dictationMarks?: DictationMarks | null;
+  hasDictationMarks: boolean;
+}
+
+export interface QuestionDocxImportSummary {
+  total: number;
+  valid: number;
+  invalid: number;
+  created?: number;
+  failed?: number;
+}
+
+export interface QuestionDocxImportPreview {
+  mode: "preview";
+  summary: QuestionDocxImportSummary;
+  questions: ImportedDocxQuestion[];
+}
+
+export interface QuestionDocxImportCommitResult {
+  mode: "commit";
+  summary: QuestionDocxImportSummary;
+  questions: ImportedDocxQuestion[];
+  created: Array<{
+    index: number;
+    id: string;
+    type: string;
+    origin: string;
+    dictationMarks?: DictationMarks | null;
+  }>;
+  failed: Array<{ index: number; errors: string[] }>;
 }
 
 export interface CreateWrittenTestPayload {
