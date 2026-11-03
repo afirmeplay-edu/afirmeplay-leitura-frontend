@@ -5,11 +5,7 @@ import type {
   BankQuestionOptionPayload,
   BankQuestionType,
   CreateBankQuestionPayload,
-<<<<<<< Updated upstream
-  DictationStimulus,
-=======
   DictationMarks,
->>>>>>> Stashed changes
   UpdateBankQuestionPayload,
 } from "@/lib/api/afirme-reading/types";
 import { normalizeDictationMarks } from "@/lib/ica/dictation-marks";
@@ -38,11 +34,6 @@ export interface OptionDraft {
 
 export interface QuestionDraft {
   type: BankQuestionType;
-<<<<<<< Updated upstream
-  /** Só no ditado. O padrão é palavra falada. */
-  stimulus: DictationStimulus;
-  /** Só no ditado por palavra. */
-=======
   title: string;
   dictation: DictationMarks;
   /** Só no ditado. */
@@ -94,12 +85,8 @@ export function emptyOption(): OptionDraft {
 export function emptyQuestionDraft(type: BankQuestionType = "multipleChoice"): QuestionDraft {
   return {
     type,
-<<<<<<< Updated upstream
-    stimulus: "word",
-=======
     title: "",
     dictation: normalizeDictationMarks(null),
->>>>>>> Stashed changes
     dictatedWord: "",
     imageDescription: "",
     text: "",
@@ -128,12 +115,8 @@ export function draftFromQuestion(question: BankQuestion): QuestionDraft {
   }));
   return {
     type,
-<<<<<<< Updated upstream
-    stimulus: questionStimulus(question) ?? "word",
-=======
     title: question.title ?? "",
     dictation: normalizeDictationMarks(question.dictationMarks),
->>>>>>> Stashed changes
     dictatedWord: questionDictatedWord(question),
     imageDescription: questionImageDescription(question),
     text: question.text?.trim() || htmlToPlainText(question.formattedText),

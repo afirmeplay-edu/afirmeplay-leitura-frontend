@@ -2,13 +2,6 @@ import type {
   BankQuestion,
   BankQuestionOrigin,
   BankQuestionType,
-<<<<<<< Updated upstream
-  DictationStimulus,
-  WrittenTestDetail,
-  WrittenTestQuestionRef,
-} from "@/lib/api/afirme-reading/types";
-import { normalizeQuestionType, questionAnswerSummary, questionImageDescription, questionStatement, questionStimulus } from "@/lib/ica/questions";
-=======
   DictationMarks,
   WrittenTestDetail,
   WrittenTestQuestionRef,
@@ -20,7 +13,6 @@ import {
   toPreviewModel,
   type QuestionPreviewModel,
 } from "@/lib/ica/questions";
->>>>>>> Stashed changes
 
 /**
  * Composição da prova escrita do ICA, igual ao cartão-resposta: 16 múltipla escolha (1–16),

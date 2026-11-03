@@ -23,12 +23,7 @@ export {
   getBankQuestion,
   createBankQuestion,
   updateBankQuestion,
-<<<<<<< Updated upstream
-  describeQuestionImage,
-  previewQuestionImage,
-=======
   importQuestionsDocx,
->>>>>>> Stashed changes
 } from "@/lib/api/afirme-reading/questions";
 export {
   createGuidedSession,
