@@ -171,7 +171,7 @@ export function questionCorrectLetter(question: BankQuestion) {
   return (question.correct_answer || question.solution || "").trim();
 }
 
-/** Texto curto do gabarito por tipo: "Gabarito B", "Palavra: casa" ou "Sem gabarito". */
+/** Texto curto do gabarito por tipo: letra da alternativa, "Palavra: casa" ou "Sem gabarito". */
 export function questionAnswerSummary(question: BankQuestion) {
   const type = normalizeQuestionType(question.type);
   if (type === "dictation") {
@@ -183,8 +183,7 @@ export function questionAnswerSummary(question: BankQuestion) {
     return word ? `Palavra: ${word}` : "";
   }
   if (type === "text_production") return "Sem gabarito";
-  const letter = questionCorrectLetter(question);
-  return letter ? `Gabarito ${letter}` : "";
+  return questionCorrectLetter(question);
 }
 
 export interface QuestionPreviewOption {

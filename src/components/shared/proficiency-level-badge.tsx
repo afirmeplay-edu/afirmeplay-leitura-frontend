@@ -1,6 +1,7 @@
 import { cn } from "@/lib/utils";
 import {
   getProficiencyLevelStyle,
+  isSemProficienciaLabel,
   type ProficiencyLevelStyle,
 } from "@/lib/colors/proficiency-levels";
 import { REPORT_TAG_BASE } from "@/utils/tag-styles";
@@ -16,6 +17,13 @@ export function ProficiencyLevelBadge({
 }) {
   const style = getProficiencyLevelStyle(level);
   if (!style) {
+    if (isSemProficienciaLabel(level)) {
+      return (
+        <span className={cn("text-sm text-muted-foreground", className)}>
+          Sem proficiência
+        </span>
+      );
+    }
     return <span className={cn("text-sm text-muted-foreground", className)}>{fallback}</span>;
   }
 

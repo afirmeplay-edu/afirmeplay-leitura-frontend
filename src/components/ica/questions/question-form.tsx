@@ -8,6 +8,7 @@ import { createBankQuestion, describeQuestionImage, previewQuestionImage, update
 import type { BankQuestion, BankQuestionType } from "@/lib/api/afirme-reading/types";
 import { normalizeApiError } from "@/lib/api/errors";
 import { formatSkillLabel, listSkills, type CatalogSkill } from "@/lib/api/question-catalog";
+import { SkillSelectItem } from "@/components/ica/questions/skill-select-item";
 import { ROUTES } from "@/config/routes";
 import { ICA_BRAND } from "@/lib/ica/brand";
 import { QUESTION_IMAGE_ACCEPT, QuestionImageError, readQuestionImage } from "@/lib/ica/image-file";
@@ -264,12 +265,28 @@ export function QuestionForm({ mode, question, initialType, onSaved }: QuestionF
 
   const skillOptions = useMemo(() => {
     if (!draft.skillId || skills.some((skill) => skill.id === draft.skillId)) return skills;
-    return [{ id: draft.skillId, code: "", description: "Habilidade atual", subjectId: null, gradeIds: [] }, ...skills];
+    return [
+      {
+        id: draft.skillId,
+        code: "",
+        description: "Habilidade não catalogada",
+        subjectId: null,
+        gradeIds: [],
+      },
+      ...skills,
+    ];
   }, [draft.skillId, skills]);
 
   const preview: QuestionPreviewModel = useMemo(() => {
     const skill = skillOptions.find((item) => item.id === draft.skillId);
     const value = Number(draft.value.replace(",", "."));
+    const skillLabel = skill
+      ? skill.code || (skill.description && skill.description !== "Habilidade não catalogada")
+        ? formatSkillLabel(skill)
+        : "Habilidade não catalogada"
+      : draft.skillId
+        ? "Habilidade não catalogada"
+        : null;
     return {
       type: draft.type,
       title: draft.title,
@@ -292,7 +309,7 @@ export function QuestionForm({ mode, question, initialType, onSaved }: QuestionF
       difficulty: draft.difficulty || null,
       subjectName: subjects.find((subject) => subject.id === draft.subjectId)?.name ?? null,
       gradeName: grades.find((grade) => grade.id === draft.gradeId)?.name ?? null,
-      skillLabel: skill ? formatSkillLabel(skill) : null,
+      skillLabel,
     };
   }, [draft, grades, skillOptions, subjects]);
 
@@ -784,7 +801,7 @@ export function QuestionForm({ mode, question, initialType, onSaved }: QuestionF
             </div>
 
             <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="questao-habilidade">Habilidade</Label>
+              <Label htmlFor="questao-habilidade">Habilidade (BNCC)</Label>
               <Select
                 value={draft.skillId || NONE}
                 onValueChange={(value) => patch({ skillId: value === NONE ? "" : value })}
@@ -797,19 +814,21 @@ export function QuestionForm({ mode, question, initialType, onSaved }: QuestionF
                         ? "Escolha a disciplina ou a série primeiro"
                         : skillsLoading
                           ? "Carregando habilidades..."
-                          : "Opcional"
+                          : "Selecione a habilidade do catálogo"
                     }
                   />
                 </SelectTrigger>
                 <SelectContent className="max-w-[min(90vw,640px)]">
                   <SelectItem value={NONE}>Sem habilidade</SelectItem>
                   {skillOptions.map((skill) => (
-                    <SelectItem key={skill.id} value={skill.id}>
-                      {formatSkillLabel(skill)}
-                    </SelectItem>
+                    <SkillSelectItem key={skill.id} skill={skill} />
                   ))}
                 </SelectContent>
               </Select>
+              <p className="text-xs text-muted-foreground">
+                Catálogo compartilhado com o Afirme Play. Indicar a habilidade habilita o desempenho por habilidade nos
+                Resultados ICA.
+              </p>
               {!skillsLoading && (draft.subjectId || draft.gradeId) && skills.length === 0 ? (
                 <p className="text-xs text-muted-foreground">Nenhuma habilidade cadastrada para esse recorte.</p>
               ) : null}

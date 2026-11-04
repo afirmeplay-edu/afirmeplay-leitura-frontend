@@ -107,6 +107,47 @@ const LABEL_ALIASES: Record<string, ProficiencyLevelLabel> = {
   avancado: "Avançado",
 };
 
+/** Rótulos que não são faixa Saeb, mas devem aparecer no badge em vez de "—". */
+const NON_LEVEL_LABELS = new Set([
+  "sem proficiência",
+  "sem proficiencia",
+  "sem_proficiencia",
+]);
+
+export function isSemProficienciaLabel(value?: string | null): boolean {
+  return Boolean(value?.trim() && NON_LEVEL_LABELS.has(value.trim().toLowerCase()));
+}
+
+/**
+ * Cortes do mapa de habilidades do Afirme Play (`skills_map_service.faixa_from_percent`).
+ * 0–29 Abaixo do Básico · 30–59 Básico · 60–79 Adequado · 80–100 Avançado
+ *
+ * Usar só para `performance_percentage` de habilidade. Não usar em
+ * `nivel_aprendizagem` do ICA (`classifyIcaProficienciaNivel`) nem em nota 0–10.
+ */
+export const HABILIDADE_PERCENT_CUTS = {
+  basico: 30,
+  adequado: 60,
+  avancado: 80,
+} as const;
+
+export const HABILIDADE_PERCENT_INTERVALOS: Record<ProficiencyFaixaKey, string> = {
+  abaixo_do_basico: "0–29%",
+  basico: "30–59%",
+  adequado: "60–79%",
+  avancado: "80–100%",
+};
+
+export function classifyHabilidadePercentual(
+  percentual: number | null | undefined
+): ProficiencyLevelStyle | null {
+  if (typeof percentual !== "number" || !Number.isFinite(percentual)) return null;
+  if (percentual < HABILIDADE_PERCENT_CUTS.basico) return BY_KEY.abaixo_do_basico;
+  if (percentual < HABILIDADE_PERCENT_CUTS.adequado) return BY_KEY.basico;
+  if (percentual < HABILIDADE_PERCENT_CUTS.avancado) return BY_KEY.adequado;
+  return BY_KEY.avancado;
+}
+
 /**
  * Classifica nota 0–10 nas faixas oficiais de desempenho do Afirme Play.
  * Abaixo do Básico ≤ 3,9 · Básico ≤ 6,0 · Adequado ≤ 8,0 · Avançado > 8,0

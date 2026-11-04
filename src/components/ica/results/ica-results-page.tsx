@@ -13,18 +13,22 @@ import {
 import {
   downloadIcaResultsCsv,
   getIcaDashboard,
+  getIcaSkillMap,
   ICA_LEVEL_NAMES,
   ICA_STATUS_VALUES,
   type IcaDashboard,
   type IcaDashboardQuery,
   type IcaDashboardRow,
   type IcaRowLevel,
+  type IcaSkillMap,
 } from "@/lib/api/afirme-reading/ica-results";
 import { getWrittenTest, listWrittenTests } from "@/lib/api/afirme-reading/written-tests";
 import type { WrittenTestNamedRef, WrittenTestSummary } from "@/lib/api/afirme-reading/types";
 import { normalizeApiError } from "@/lib/api/errors";
 import { ICA_BRAND } from "@/lib/ica/brand";
 import { IcaCityScope } from "@/components/ica/ica-city-scope";
+import { IcaSkillsSection } from "@/components/ica/results/ica-skills-section";
+import { IcaStudentItemsTable } from "@/components/ica/results/ica-student-items-table";
 import { PageHeader } from "@/components/layout/page-header";
 import { ChipFilter } from "@/components/shared/chip-filter";
 import { NotaDesempenhoCard } from "@/components/shared/nota-desempenho-card";
@@ -154,9 +158,13 @@ function IcaResultsContent() {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [view, setView] = useState<ViewMode>("visao");
+  const [studentId, setStudentId] = useState(ALL);
   const [dashboard, setDashboard] = useState<IcaDashboard | null>(null);
+  const [skillMap, setSkillMap] = useState<IcaSkillMap | null>(null);
   const [loading, setLoading] = useState(false);
+  const [skillLoading, setSkillLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [skillError, setSkillError] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
@@ -184,6 +192,7 @@ function IcaResultsContent() {
     setSchoolId(ALL);
     setGradeId(ALL);
     setClassId(ALL);
+    setStudentId(ALL);
     if (!writtenTestId) {
       setSchools([]);
       setGrades([]);
@@ -220,22 +229,28 @@ function IcaResultsContent() {
       escolaId: schoolId === ALL ? undefined : schoolId,
       serieId: gradeId === ALL ? undefined : gradeId,
       turmaId: classId === ALL ? undefined : classId,
+      estudanteId: studentId === ALL ? undefined : studentId,
       status: statusFilter === ALL ? undefined : statusFilter,
       nivel: nivelFilter === ALL ? undefined : nivelFilter,
       q: debouncedSearch || undefined,
     }),
-    [classId, debouncedSearch, gradeId, nivelFilter, schoolId, statusFilter]
+    [classId, debouncedSearch, gradeId, nivelFilter, schoolId, statusFilter, studentId]
   );
 
   useEffect(() => {
     if (!writtenTestId) {
       setDashboard(null);
+      setSkillMap(null);
       setLoading(false);
+      setSkillLoading(false);
       return;
     }
     const controller = new AbortController();
     setLoading(true);
+    setSkillLoading(true);
     setError(null);
+    setSkillError(null);
+
     void getIcaDashboard(writtenTestId, query, { signal: controller.signal })
       .then((panel) => {
         if (!controller.signal.aborted) setDashboard(panel);
@@ -248,6 +263,20 @@ function IcaResultsContent() {
       .finally(() => {
         if (!controller.signal.aborted) setLoading(false);
       });
+
+    void getIcaSkillMap(writtenTestId, query, { signal: controller.signal })
+      .then((map) => {
+        if (!controller.signal.aborted) setSkillMap(map);
+      })
+      .catch((reason) => {
+        if (controller.signal.aborted) return;
+        setSkillMap(null);
+        setSkillError(normalizeApiError(reason, "Não foi possível carregar o mapa de habilidades.").message);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setSkillLoading(false);
+      });
+
     return () => controller.abort();
   }, [query, writtenTestId]);
 
@@ -280,11 +309,18 @@ function IcaResultsContent() {
     }
   }
 
+  const selectedStudentName =
+    dashboard?.student?.student_name ||
+    dashboard?.scope.estudanteName ||
+    students.find((row) => row.studentId === studentId || row.id === studentId)?.name ||
+    null;
+
   const placeLabel = [
     dashboard?.municipio ? `${dashboard.municipio}${dashboard.uf ? `/${dashboard.uf}` : ""}` : null,
     schoolId !== ALL ? schoolOptions.find((item) => item.id === schoolId)?.name : null,
     gradeId !== ALL ? gradeOptions.find((item) => item.id === gradeId)?.name : null,
     classId !== ALL ? classOptions.find((item) => item.id === classId)?.name : null,
+    studentId !== ALL ? selectedStudentName : null,
   ]
     .filter(Boolean)
     .join(" · ");
@@ -315,6 +351,7 @@ function IcaResultsContent() {
             onChange={(value) => {
               setSchoolId(value);
               setClassId(ALL);
+              setStudentId(ALL);
             }}
           />
           <SelectFilter
@@ -325,6 +362,7 @@ function IcaResultsContent() {
             onChange={(value) => {
               setGradeId(value);
               setClassId(ALL);
+              setStudentId(ALL);
             }}
           />
           <SelectFilter
@@ -332,7 +370,10 @@ function IcaResultsContent() {
             value={classId}
             options={classOptions}
             disabled={!writtenTestId}
-            onChange={setClassId}
+            onChange={(value) => {
+              setClassId(value);
+              setStudentId(ALL);
+            }}
           />
           <div className="relative min-w-0 space-y-1.5">
             <Label className="text-xs text-muted-foreground">Busca</Label>
@@ -530,6 +571,18 @@ function IcaResultsContent() {
         </SectionCard>
       )}
 
+      {(view === "visao" || view === "alunos") && writtenTestId ? (
+        <IcaSkillsSection
+          skillMap={skillMap}
+          loading={skillLoading && !skillMap}
+          error={skillError}
+        />
+      ) : null}
+
+      {(view === "visao" || view === "alunos") && (dashboard?.student || (studentId !== ALL && loading)) ? (
+        <IcaStudentItemsTable student={dashboard?.student ?? null} loading={loading && !dashboard?.student} />
+      ) : null}
+
       {view === "visao" ? (
         <SectionCard
           title="Diagnóstico (IAD)"
@@ -579,9 +632,24 @@ function IcaResultsContent() {
       {view === "alunos" || (view === "visao" && students.length > 0) ? (
         <SectionCard
           title={view === "alunos" ? "Relação individual de estudantes" : "Estudantes do recorte"}
-          description="Valores da correção finalizada. Sem correção, a proficiência fica vazia e o status é Não avaliado."
+          description="Valores da correção finalizada. Sem correção, a proficiência fica vazia e o status é Não avaliado. Clique em um estudante para ver os itens e o desempenho por habilidade no recorte individual."
+          actions={
+            studentId !== ALL ? (
+              <Button variant="outline" size="sm" onClick={() => setStudentId(ALL)}>
+                Limpar estudante
+              </Button>
+            ) : null
+          }
         >
-          <StudentsTable rows={view === "visao" ? students.slice(0, 12) : students} loading={loading && !dashboard} />
+          <StudentsTable
+            rows={view === "visao" ? students.slice(0, 12) : students}
+            loading={loading && !dashboard}
+            selectedStudentId={studentId === ALL ? null : studentId}
+            onSelectStudent={(id) => {
+              setStudentId(id);
+              setView("alunos");
+            }}
+          />
           {view === "visao" && students.length > 12 ? (
             <div className="mt-3">
               <Button variant="outline" size="sm" onClick={() => setView("alunos")}>
@@ -703,7 +771,17 @@ function GroupTable({
   );
 }
 
-function StudentsTable({ rows, loading }: { rows: IcaDashboardRow[]; loading?: boolean }) {
+function StudentsTable({
+  rows,
+  loading,
+  selectedStudentId,
+  onSelectStudent,
+}: {
+  rows: IcaDashboardRow[];
+  loading?: boolean;
+  selectedStudentId?: string | null;
+  onSelectStudent?: (studentId: string) => void;
+}) {
   if (loading) return <Skeleton className="h-40" />;
   return (
     <div className="overflow-x-auto">
@@ -721,29 +799,40 @@ function StudentsTable({ rows, loading }: { rows: IcaDashboardRow[]; loading?: b
           </TableRow>
         </TableHeader>
         <TableBody>
-          {rows.map((row) => (
-            <TableRow key={row.id}>
-              <TableCell className="font-medium">{row.name}</TableCell>
-              <TableCell>{row.schoolName ?? "—"}</TableCell>
-              <TableCell>{[row.serieName, row.className].filter(Boolean).join(" · ") || "—"}</TableCell>
-              <TableCell>{formatCount(row.pontos_34)}</TableCell>
-              <TableCell className="tabular-nums font-medium">{formatOne(row.nota_tct_0_10)}</TableCell>
-              <TableCell
+          {rows.map((row) => {
+            const id = row.studentId || row.id;
+            const selected = Boolean(selectedStudentId && selectedStudentId === id);
+            return (
+              <TableRow
+                key={row.id}
                 className={cn(
-                  "tabular-nums font-medium",
-                  classifyIcaProficienciaNivel(row.proficiencia)?.softClass.text
+                  onSelectStudent && "cursor-pointer",
+                  selected && "bg-muted/60"
                 )}
+                onClick={() => onSelectStudent?.(id)}
               >
-                {formatOne(row.proficiencia)}
-              </TableCell>
-              <TableCell>
-                <ProficiencyLevelBadge level={row.nivel_aprendizagem} />
-              </TableCell>
-              <TableCell>
-                <IcaSituacaoBadge status={row.status} />
-              </TableCell>
-            </TableRow>
-          ))}
+                <TableCell className="font-medium">{row.name}</TableCell>
+                <TableCell>{row.schoolName ?? "—"}</TableCell>
+                <TableCell>{[row.serieName, row.className].filter(Boolean).join(" · ") || "—"}</TableCell>
+                <TableCell>{formatCount(row.pontos_34)}</TableCell>
+                <TableCell className="tabular-nums font-medium">{formatOne(row.nota_tct_0_10)}</TableCell>
+                <TableCell
+                  className={cn(
+                    "tabular-nums font-medium",
+                    classifyIcaProficienciaNivel(row.proficiencia)?.softClass.text
+                  )}
+                >
+                  {formatOne(row.proficiencia)}
+                </TableCell>
+                <TableCell>
+                  <ProficiencyLevelBadge level={row.nivel_aprendizagem} />
+                </TableCell>
+                <TableCell>
+                  <IcaSituacaoBadge status={row.status} />
+                </TableCell>
+              </TableRow>
+            );
+          })}
           {!rows.length ? (
             <TableRow>
               <TableCell colSpan={8} className="py-8 text-center text-muted-foreground">
