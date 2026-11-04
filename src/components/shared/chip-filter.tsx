@@ -1,11 +1,14 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, type CSSProperties } from "react";
 import { cn } from "@/lib/utils";
 
 export interface ChipFilterOption {
   value: string;
   label: string;
+  /** Cor sólida quando o chip está selecionado (ex.: faixas Saeb). */
+  accentColor?: string;
+  accentTextColor?: string;
 }
 
 interface ChipFilterProps {
@@ -41,6 +44,17 @@ export function ChipFilter({
         {options.map((option, index) => {
           const selected = value === option.value;
           const includedByAll = allSelected && option.value !== allValue;
+          const selectedStyle: CSSProperties | undefined = selected
+            ? option.accentColor
+              ? {
+                  background: option.accentColor,
+                  color: option.accentTextColor ?? "#fff",
+                  borderColor: "transparent",
+                }
+              : { background: "var(--system-gradient)" }
+            : option.accentColor
+              ? { borderColor: `${option.accentColor}66`, color: option.accentColor }
+              : undefined;
           return (
             <button
               key={option.value}
@@ -67,11 +81,14 @@ export function ChipFilter({
               className={cn(
                 "min-h-9 rounded-md border px-3 py-1.5 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--system-text)] focus-visible:ring-offset-2",
                 selected
-                  ? "border-transparent text-white shadow-sm"
+                  ? cn(
+                      "border-transparent shadow-sm",
+                      option.accentTextColor ? null : "text-white"
+                    )
                   : "border-border bg-muted/70 text-foreground hover:bg-muted",
                 includedByAll && "border-dashed border-[var(--system-text)]"
               )}
-              style={selected ? { background: "var(--system-gradient)" } : undefined}
+              style={selectedStyle}
             >
               {option.label}
             </button>

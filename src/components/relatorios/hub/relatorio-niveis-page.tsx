@@ -8,6 +8,7 @@ import { StatCard } from "@/components/shared/stat-card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useRelatorioFluencia } from "@/lib/relatorios-fluencia/store";
 import { formatDecimal, formatPct } from "@/lib/relatorios-fluencia/format";
+import { NIVEL_COLOR } from "@/lib/relatorios-fluencia/types";
 
 export function RelatorioNiveisPage() {
   return (
@@ -65,8 +66,19 @@ function NiveisContent() {
             <TableBody>
               {(ind?.distribuicao ?? []).map((row) => (
                 <TableRow key={row.code}>
-                  <TableCell className="font-medium">{row.label}</TableCell>
-                  <TableCell>{row.estudantes}</TableCell>
+                  <TableCell className="font-medium">
+                    <span className="inline-flex items-center gap-2">
+                      <span
+                        className="h-2.5 w-2.5 rounded-full"
+                        style={{ backgroundColor: NIVEL_COLOR[row.code] }}
+                        aria-hidden
+                      />
+                      {row.label}
+                    </span>
+                  </TableCell>
+                  <TableCell className="font-semibold tabular-nums" style={{ color: NIVEL_COLOR[row.code] }}>
+                    {row.estudantes}
+                  </TableCell>
                   <TableCell>{formatPct(row.percentual)}</TableCell>
                   <TableCell>
                     {row.delta == null ? "—" : `${row.delta > 0 ? "+" : ""}${formatDecimal(row.delta)} p.p.`}

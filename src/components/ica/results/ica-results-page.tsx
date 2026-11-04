@@ -27,7 +27,10 @@ import { ICA_BRAND } from "@/lib/ica/brand";
 import { IcaCityScope } from "@/components/ica/ica-city-scope";
 import { PageHeader } from "@/components/layout/page-header";
 import { ChipFilter } from "@/components/shared/chip-filter";
+import { NotaDesempenhoCard } from "@/components/shared/nota-desempenho-card";
 import { PageShell } from "@/components/shared/page-shell";
+import { ProficiencyLevelBadge } from "@/components/shared/proficiency-level-badge";
+import { ProficiencyLevelCards } from "@/components/shared/proficiency-level-cards";
 import { SectionCard } from "@/components/shared/section-card";
 import { StatCard } from "@/components/shared/stat-card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -37,6 +40,11 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  classifyNotaDesempenho,
+  getProficiencyLevelStyle,
+} from "@/lib/colors/proficiency-levels";
+import { cn } from "@/lib/utils";
 
 const ALL = "all";
 
@@ -373,7 +381,15 @@ function IcaResultsContent() {
             onChange={setNivelFilter}
             options={[
               { value: ALL, label: "Todos" },
-              ...ICA_LEVEL_NAMES.map((value) => ({ value, label: value })),
+              ...ICA_LEVEL_NAMES.map((value) => {
+                const style = getProficiencyLevelStyle(value);
+                return {
+                  value,
+                  label: value,
+                  accentColor: style?.hex,
+                  accentTextColor: style?.fgHex,
+                };
+              }),
             ]}
           />
         </div>
@@ -470,22 +486,7 @@ function IcaResultsContent() {
           loading={loading}
           trend="Escala 0–1000"
         />
-        <StatCard
-          variant="metric"
-          label="Nota convertida média"
-          value={formatTwo(dashboard?.kpis.nota_prof_media)}
-          icon={BarChart3}
-          loading={loading}
-          trend="0–10 · média da nota exata"
-        />
-        <StatCard
-          variant="metric"
-          label="Nota TCT média"
-          value={formatTwo(dashboard?.kpis.nota_tct_media)}
-          icon={BarChart3}
-          loading={loading}
-          trend="0–10 · pontos / 34"
-        />
+        <NotaDesempenhoCard value={dashboard?.kpis.nota_tct_media} loading={loading} />
       </section>
 
       {(view === "visao" || view === "alunos") && (
@@ -497,30 +498,10 @@ function IcaResultsContent() {
               : "Nenhum estudante com correção finalizada neste recorte."
           }
         >
-          {loading && !dashboard ? (
-            <Skeleton className="h-28" />
-          ) : (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              {(dashboard?.niveis.items ?? ICA_LEVEL_NAMES.map((name) => ({ name, count: 0, percentage: 0 }))).map(
-                (item) => (
-                  <div key={item.name} className="rounded-xl border p-4">
-                    <p className="text-xs font-medium text-muted-foreground">{item.name}</p>
-                    <p className="mt-2 text-2xl font-semibold tabular-nums">{formatCount(item.count)}</p>
-                    <p className="mt-1 text-sm text-muted-foreground">{formatPercent(item.percentage)}</p>
-                    <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
-                      <div
-                        className="h-full rounded-full"
-                        style={{
-                          width: `${Math.min(item.percentage ?? 0, 100)}%`,
-                          background: "var(--system-gradient)",
-                        }}
-                      />
-                    </div>
-                  </div>
-                )
-              )}
-            </div>
-          )}
+          <ProficiencyLevelCards
+            items={dashboard?.niveis.items ?? ICA_LEVEL_NAMES.map((name) => ({ name, count: 0, percentage: 0 }))}
+            loading={loading && !dashboard}
+          />
         </SectionCard>
       )}
 
@@ -606,7 +587,7 @@ function GroupTable({
     mode === "turmas" ||
     (mode === "recorte" && rows.some((row) => row.rowLevel !== "escola"));
   const showSerie = mode === "turmas";
-  const colSpan = 1 + (showKind ? 1 : 0) + (showSchool ? 1 : 0) + (showSerie ? 1 : 0) + 7 + (detailed ? 7 : 0);
+  const colSpan = 1 + (showKind ? 1 : 0) + (showSchool ? 1 : 0) + (showSerie ? 1 : 0) + 7 + (detailed ? 6 : 0);
 
   if (loading) return <Skeleton className="h-40" />;
   return (
@@ -629,12 +610,15 @@ function GroupTable({
             <TableHead>≥ 743</TableHead>
             {detailed ? (
               <>
-                <TableHead>Abaixo</TableHead>
-                <TableHead>Básico</TableHead>
-                <TableHead>Adequado</TableHead>
-                <TableHead>Avançado</TableHead>
-                <TableHead>TCT /10</TableHead>
-                <TableHead>Prof. /10</TableHead>
+                {ICA_LEVEL_NAMES.map((name) => {
+                  const style = getProficiencyLevelStyle(name);
+                  return (
+                    <TableHead key={name} className={style?.softClass.text}>
+                      {name === "Abaixo do Básico" ? "Abaixo" : name}
+                    </TableHead>
+                  );
+                })}
+                <TableHead>Nota</TableHead>
                 <TableHead>Proficiência</TableHead>
               </>
             ) : null}
@@ -656,12 +640,17 @@ function GroupTable({
               <TableCell>{formatPercent(row.percentual_ge_743)}</TableCell>
               {detailed ? (
                 <>
-                  <TableCell>{formatCount(levelCount(row, "Abaixo do Básico"))}</TableCell>
-                  <TableCell>{formatCount(levelCount(row, "Básico"))}</TableCell>
-                  <TableCell>{formatCount(levelCount(row, "Adequado"))}</TableCell>
-                  <TableCell>{formatCount(levelCount(row, "Avançado"))}</TableCell>
-                  <TableCell>{formatTwo(row.nota_tct_media)}</TableCell>
-                  <TableCell>{formatTwo(row.nota_prof_media)}</TableCell>
+                  {ICA_LEVEL_NAMES.map((name) => {
+                    const style = getProficiencyLevelStyle(name);
+                    return (
+                      <TableCell key={name} className={cn("tabular-nums", style?.softClass.text)}>
+                        {formatCount(levelCount(row, name))}
+                      </TableCell>
+                    );
+                  })}
+                  <TableCell className={cn("tabular-nums font-medium", classifyNotaDesempenho(row.nota_tct_media)?.softClass.text)}>
+                    {formatTwo(row.nota_tct_media)}
+                  </TableCell>
                   <TableCell>{formatOne(row.proficiencia_media)}</TableCell>
                 </>
               ) : null}
@@ -691,8 +680,7 @@ function StudentsTable({ rows, loading }: { rows: IcaDashboardRow[]; loading?: b
             <TableHead>Escola</TableHead>
             <TableHead>Série / turma</TableHead>
             <TableHead>Pontos</TableHead>
-            <TableHead>Nota TCT /10</TableHead>
-            <TableHead>Nota prof. /10</TableHead>
+            <TableHead>Nota</TableHead>
             <TableHead>Proficiência</TableHead>
             <TableHead>Nível</TableHead>
             <TableHead>Situação</TableHead>
@@ -705,16 +693,19 @@ function StudentsTable({ rows, loading }: { rows: IcaDashboardRow[]; loading?: b
               <TableCell>{row.schoolName ?? "—"}</TableCell>
               <TableCell>{[row.serieName, row.className].filter(Boolean).join(" · ") || "—"}</TableCell>
               <TableCell>{formatCount(row.pontos_34)}</TableCell>
-              <TableCell>{formatTwo(row.nota_tct_0_10)}</TableCell>
-              <TableCell>{formatTwo(row.nota_prof_0_10)}</TableCell>
+              <TableCell className={cn("tabular-nums font-medium", classifyNotaDesempenho(row.nota_tct_0_10)?.softClass.text)}>
+                {formatTwo(row.nota_tct_0_10)}
+              </TableCell>
               <TableCell>{formatOne(row.proficiencia)}</TableCell>
-              <TableCell>{row.nivel_aprendizagem ?? "—"}</TableCell>
+              <TableCell>
+                <ProficiencyLevelBadge level={row.nivel_aprendizagem} />
+              </TableCell>
               <TableCell>{row.status ?? "—"}</TableCell>
             </TableRow>
           ))}
           {!rows.length ? (
             <TableRow>
-              <TableCell colSpan={9} className="py-8 text-center text-muted-foreground">
+              <TableCell colSpan={8} className="py-8 text-center text-muted-foreground">
                 Nenhum estudante neste recorte.
               </TableCell>
             </TableRow>

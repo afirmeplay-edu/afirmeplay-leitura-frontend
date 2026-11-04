@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, BarChart3, Layers } from "lucide-react";
+import { AlertTriangle, Layers } from "lucide-react";
 import {
   getIcaDashboard,
   ICA_LEVEL_NAMES,
@@ -18,6 +18,7 @@ import { IcaCityScope } from "@/components/ica/ica-city-scope";
 import { PageHeader } from "@/components/layout/page-header";
 import { ChipFilter } from "@/components/shared/chip-filter";
 import { PageShell } from "@/components/shared/page-shell";
+import { ProficiencyLevelCards } from "@/components/shared/proficiency-level-cards";
 import { SectionCard } from "@/components/shared/section-card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -25,6 +26,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { getProficiencyLevelStyle } from "@/lib/colors/proficiency-levels";
+import { cn } from "@/lib/utils";
 
 const ALL = "all";
 
@@ -127,7 +130,15 @@ function IcaLevelsReportContent() {
             onChange={setNivelFilter}
             options={[
               { value: ALL, label: "Todos" },
-              ...ICA_LEVEL_NAMES.map((value) => ({ value, label: value })),
+              ...ICA_LEVEL_NAMES.map((value) => {
+                const style = getProficiencyLevelStyle(value);
+                return {
+                  value,
+                  label: value,
+                  accentColor: style?.hex,
+                  accentTextColor: style?.fgHex,
+                };
+              }),
             ]}
           />
         </div>
@@ -169,24 +180,10 @@ function IcaLevelsReportContent() {
             : "Selecione uma avaliação publicada."
         }
       >
-        {loading && !dashboard ? (
-          <Skeleton className="h-32" />
-        ) : (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {(dashboard?.niveis.items ?? ICA_LEVEL_NAMES.map((name) => ({ name, count: 0, percentage: 0 }))).map(
-              (item) => (
-                <div key={item.name} className="rounded-xl border p-4">
-                  <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-                    <BarChart3 className="h-3.5 w-3.5" />
-                    {item.name}
-                  </div>
-                  <p className="mt-2 text-3xl font-semibold tabular-nums">{formatCount(item.count)}</p>
-                  <p className="text-sm text-muted-foreground">{formatPercent(item.percentage)}</p>
-                </div>
-              )
-            )}
-          </div>
-        )}
+        <ProficiencyLevelCards
+          items={dashboard?.niveis.items ?? ICA_LEVEL_NAMES.map((name) => ({ name, count: 0, percentage: 0 }))}
+          loading={loading && !dashboard}
+        />
       </SectionCard>
 
       <SectionCard title="Comparativo por agrupamento" description="Escolas, séries ou turmas do nível atual do painel.">
@@ -203,9 +200,14 @@ function IcaLevelsReportContent() {
                   <TableHead>Não alfabetizados</TableHead>
                   <TableHead>Sem proficiência</TableHead>
                   <TableHead>≥ 743</TableHead>
-                  {ICA_LEVEL_NAMES.map((name) => (
-                    <TableHead key={name}>{name}</TableHead>
-                  ))}
+                  {ICA_LEVEL_NAMES.map((name) => {
+                    const style = getProficiencyLevelStyle(name);
+                    return (
+                      <TableHead key={name} className={style?.softClass.text}>
+                        {name}
+                      </TableHead>
+                    );
+                  })}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -217,9 +219,14 @@ function IcaLevelsReportContent() {
                     <TableCell>{formatCount(row.nao_alfabetizados)}</TableCell>
                     <TableCell>{formatCount(row.sem_proficiencia)}</TableCell>
                     <TableCell>{formatPercent(row.percentual_ge_743)}</TableCell>
-                    {ICA_LEVEL_NAMES.map((name) => (
-                      <TableCell key={name}>{formatCount(row.niveis?.[name] ?? 0)}</TableCell>
-                    ))}
+                    {ICA_LEVEL_NAMES.map((name) => {
+                      const style = getProficiencyLevelStyle(name);
+                      return (
+                        <TableCell key={name} className={cn("tabular-nums", style?.softClass.text)}>
+                          {formatCount(row.niveis?.[name] ?? 0)}
+                        </TableCell>
+                      );
+                    })}
                   </TableRow>
                 ))}
                 {!comparisonRows.length ? (
