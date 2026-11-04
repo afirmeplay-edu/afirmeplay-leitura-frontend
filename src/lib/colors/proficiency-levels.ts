@@ -86,10 +86,6 @@ export const PROFICIENCY_LEVELS: ProficiencyLevelStyle[] = [
   },
 ];
 
-/** Gradiente da régua de nota (mesma ordem visual do ranking Afirme Play). */
-export const NOTA_DESEMPENHO_GRADIENT =
-  "linear-gradient(to right, #e11d48 0%, #facc15 34%, #86efac 67%, #166534 100%)";
-
 const BY_KEY = Object.fromEntries(PROFICIENCY_LEVELS.map((level) => [level.key, level])) as Record<
   ProficiencyFaixaKey,
   ProficiencyLevelStyle
@@ -139,10 +135,4 @@ export function getProficiencyLevelStyle(value?: string | null): ProficiencyLeve
 
 export function getProficiencyStyleByKey(key: ProficiencyFaixaKey): ProficiencyLevelStyle {
   return BY_KEY[key];
-}
-
-/** Posição 0–100% na régua de nota para o ponteiro. */
-export function notaPointerPercent(nota: number | null | undefined): number {
-  if (typeof nota !== "number" || !Number.isFinite(nota)) return 0;
-  return Math.max(0, Math.min(100, (nota / 10) * 100));
 }
