@@ -80,6 +80,7 @@ import { PageShell } from "@/components/shared/page-shell";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { OriginBadge } from "@/components/ica/questions/question-badges";
 import { QuestionPickerDialog } from "@/components/ica/assessments/question-picker-dialog";
+import { DifficultyBadge } from "@/components/shared/status-badge";
 import { DictationMarksEditor } from "@/components/ica/questions/dictation-marks-editor";
 import { QuestionPreview } from "@/components/ica/questions/question-preview";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -830,7 +831,7 @@ function AssessmentBuilder({ id }: { id?: string }) {
                                     <OriginBadge origin={slot.origin} />
                                     {slot.subjectName ? <span>{slot.subjectName}</span> : null}
                                     {slot.gradeName ? <span>· {slot.gradeName}</span> : null}
-                                    {slot.difficulty ? <span>· {slot.difficulty}</span> : null}
+                                    {slot.difficulty ? <DifficultyBadge difficulty={slot.difficulty} /> : null}
                                     {slot.answer ? (
                                       <span
                                         className={

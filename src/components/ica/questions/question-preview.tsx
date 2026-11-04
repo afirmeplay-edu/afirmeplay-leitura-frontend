@@ -1,10 +1,12 @@
 "use client";
 
 import { CheckCircle2, ImageIcon, Megaphone, Mic, PenLine } from "lucide-react";
+import type { ReactNode } from "react";
 import { normalizeDictationMarks } from "@/lib/ica/dictation-marks";
 import { formatQuestionValue, QUESTION_TYPE_LABEL, type QuestionPreviewModel } from "@/lib/ica/questions";
 import { cn } from "@/lib/utils";
 import { QuestionHtml } from "@/components/ica/question-html";
+import { DifficultyBadge } from "@/components/shared/status-badge";
 
 interface QuestionPreviewProps {
   question: QuestionPreviewModel;
@@ -15,14 +17,16 @@ interface QuestionPreviewProps {
 
 export function QuestionPreview({ question, showAnswer = true, showMeta = true, className }: QuestionPreviewProps) {
   const type = question.type ?? "multipleChoice";
-  const meta = [
+  const meta: Array<{ label: string; value: ReactNode }> = [
     { label: "Tipo", value: QUESTION_TYPE_LABEL[type] },
-    question.subjectName ? { label: "Disciplina", value: question.subjectName } : null,
-    question.gradeName ? { label: "Série", value: question.gradeName } : null,
-    question.difficulty ? { label: "Dificuldade", value: question.difficulty } : null,
+    ...(question.subjectName ? [{ label: "Disciplina", value: question.subjectName }] : []),
+    ...(question.gradeName ? [{ label: "Série", value: question.gradeName }] : []),
+    ...(question.difficulty
+      ? [{ label: "Dificuldade", value: <DifficultyBadge difficulty={question.difficulty} /> }]
+      : []),
     { label: "Valor", value: formatQuestionValue(question.value) },
-    question.skillLabel ? { label: "Habilidade", value: question.skillLabel } : null,
-  ].filter((item): item is { label: string; value: string } => item !== null);
+    ...(question.skillLabel ? [{ label: "Habilidade", value: question.skillLabel }] : []),
+  ];
 
   const hasStatement = Boolean(question.formattedText?.trim() || question.text?.trim());
   const marks = normalizeDictationMarks(question.dictationMarks);
@@ -167,7 +171,7 @@ export function QuestionPreview({ question, showAnswer = true, showMeta = true, 
           {meta.map((item) => (
             <div key={item.label} className="min-w-0">
               <dt className="text-xs text-muted-foreground">{item.label}</dt>
-              <dd className="break-words font-medium">{item.value}</dd>
+              <dd className="break-words font-medium [&:has(span)]:font-normal">{item.value}</dd>
             </div>
           ))}
         </dl>

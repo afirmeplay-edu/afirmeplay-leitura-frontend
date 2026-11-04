@@ -18,6 +18,7 @@ import {
   type QuestionFilterValue,
 } from "@/components/ica/questions/question-filters";
 import { QuestionPreview } from "@/components/ica/questions/question-preview";
+import { DifficultyBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -174,7 +175,7 @@ export function QuestionPickerDialog({
                           <OriginBadge origin={question.origin} />
                           {question.subject?.name ? <span>{question.subject.name}</span> : null}
                           {question.grade?.name ? <span>· {question.grade.name}</span> : null}
-                          {question.difficulty ? <span>· {question.difficulty}</span> : null}
+                          {question.difficulty ? <DifficultyBadge difficulty={question.difficulty} /> : null}
                           {questionAnswerSummary(question) ? <span>· {questionAnswerSummary(question)}</span> : null}
                         </div>
                       </div>

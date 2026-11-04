@@ -1,6 +1,8 @@
 import { Badge } from "@/components/ui/badge";
+import { ProficiencyLevelBadge } from "@/components/shared/proficiency-level-badge";
 import { cn } from "@/lib/utils";
 import { getDifficultyTagClass, getIcaLevelTagClass } from "@/utils/tag-styles";
+import { getProficiencyLevelStyle } from "@/lib/colors/proficiency-levels";
 
 type StatusType = "ativo" | "inativo" | "calibrado" | "pendente" | "fluencia" | "ica" | "guiada" | "padrao";
 
@@ -25,5 +27,8 @@ export function IcaLevelBadge({ level }: { level?: string | number | null }) {
 }
 
 export function DifficultyBadge({ difficulty }: { difficulty: string }) {
+  if (getProficiencyLevelStyle(difficulty)) {
+    return <ProficiencyLevelBadge level={difficulty} />;
+  }
   return <span className={getDifficultyTagClass(difficulty)}>{difficulty}</span>;
 }

@@ -30,6 +30,7 @@ import {
   type QuestionFilterValue,
 } from "@/components/ica/questions/question-filters";
 import { QuestionPreviewSheet } from "@/components/ica/questions/question-preview-sheet";
+import { DifficultyBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -181,7 +182,13 @@ function QuestionsList() {
     },
     { key: "disciplina", header: "Disciplina", render: (question) => question.subject?.name ?? "—" },
     { key: "serie", header: "Série", render: (question) => question.grade?.name ?? "—" },
-    { key: "dificuldade", header: "Dificuldade", render: (question) => question.difficulty || "—", hideOnMobile: true },
+    {
+      key: "dificuldade",
+      header: "Dificuldade",
+      render: (question) =>
+        question.difficulty ? <DifficultyBadge difficulty={question.difficulty} /> : "—",
+      hideOnMobile: true,
+    },
     { key: "valor", header: "Valor", render: (question) => formatQuestionValue(question.value), hideOnMobile: true },
     {
       key: "origem",
