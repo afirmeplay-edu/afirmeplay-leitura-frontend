@@ -47,35 +47,26 @@ export function ProficiencyLevelCards({
         const style =
           getProficiencyLevelStyle(item.name) ??
           PROFICIENCY_LEVELS.find((level) => level.label === (item.name as ProficiencyLevelLabel));
+
         return (
           <div
             key={item.name}
-            className={cn(
-              "rounded-xl border p-4",
-              style ? `${style.softClass.border} ${style.softClass.bg}` : null
-            )}
+            className="overflow-hidden rounded-xl border-0 p-4 shadow-sm"
+            style={
+              style
+                ? { backgroundColor: style.hex, color: style.fgHex }
+                : undefined
+            }
           >
-            <p className={cn("text-xs font-medium", style?.softClass.text ?? "text-muted-foreground")}>
+            <p className="text-sm font-bold leading-tight tracking-tight sm:text-base">
               {style?.label ?? item.name}
             </p>
-            <p
-              className={cn(
-                "mt-2 text-2xl font-semibold tabular-nums",
-                style?.softClass.text
-              )}
-            >
+            <p className="mt-3 text-3xl font-bold tabular-nums leading-none">
               {formatCount(item.count)}
             </p>
-            <p className="mt-1 text-sm text-muted-foreground">{formatPercent(item.percentage)}</p>
-            <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
-              <div
-                className={cn("h-full rounded-full", style?.softClass.bar)}
-                style={{
-                  width: `${Math.min(Number(item.percentage ?? 0), 100)}%`,
-                  ...(style ? { backgroundColor: style.hex } : undefined),
-                }}
-              />
-            </div>
+            <p className={cn("mt-2 text-xs font-medium", style ? "opacity-80" : "text-muted-foreground")}>
+              {formatPercent(item.percentage)}
+            </p>
           </div>
         );
       })}
