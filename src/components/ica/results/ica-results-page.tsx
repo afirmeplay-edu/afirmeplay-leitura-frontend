@@ -32,16 +32,18 @@ import { PageShell } from "@/components/shared/page-shell";
 import { ProficiencyLevelBadge } from "@/components/shared/proficiency-level-badge";
 import { ProficiencyLevelCards } from "@/components/shared/proficiency-level-cards";
 import { SectionCard } from "@/components/shared/section-card";
+import { IcaSituacaoBadge } from "@/components/shared/status-badge";
 import { StatCard } from "@/components/shared/stat-card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
-  classifyNotaDesempenho,
+  classifyIcaProficienciaNivel,
   getProficiencyLevelStyle,
 } from "@/lib/colors/proficiency-levels";
 import { cn } from "@/lib/utils";
@@ -71,11 +73,6 @@ const ROW_KIND: Record<IcaRowLevel, string> = {
 function formatOne(value: number | null | undefined) {
   if (typeof value !== "number" || Number.isNaN(value)) return "—";
   return value.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
-}
-
-function formatTwo(value: number | null | undefined) {
-  if (typeof value !== "number" || Number.isNaN(value)) return "—";
-  return value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function formatPercent(value: number | null | undefined) {
@@ -462,14 +459,38 @@ function IcaResultsContent() {
           loading={loading}
           trend={`${formatCount(dashboard?.kpis.alfabetizados)} alfabetizados`}
         />
-        <StatCard
-          variant="metric"
-          label="Não alfabetizados"
-          value={formatCount(dashboard?.kpis.nao_alfabetizados ?? 0)}
-          icon={Users}
-          loading={loading}
-          trend="Proficiência abaixo de 743"
-        />
+        <Card className="overflow-hidden border-0 bg-emerald-600 text-white shadow-sm transition-shadow hover:shadow-md">
+          <CardContent className="space-y-3 p-4 sm:p-5">
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-sm text-white/80">Alfabetizados</p>
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-black/10">
+                <Users className="h-4 w-4" />
+              </div>
+            </div>
+            <div className="text-2xl font-bold tabular-nums sm:text-3xl">
+              {loading ? <Skeleton className="h-8 w-16 bg-white/25" /> : formatCount(dashboard?.kpis.alfabetizados ?? 0)}
+            </div>
+            <p className="text-xs text-white/75">Proficiência ≥ 743</p>
+          </CardContent>
+        </Card>
+        <Card className="overflow-hidden border-0 bg-rose-600 text-white shadow-sm transition-shadow hover:shadow-md">
+          <CardContent className="space-y-3 p-4 sm:p-5">
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-sm text-white/80">Não alfabetizados</p>
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-black/10">
+                <Users className="h-4 w-4" />
+              </div>
+            </div>
+            <div className="text-2xl font-bold tabular-nums sm:text-3xl">
+              {loading ? (
+                <Skeleton className="h-8 w-16 bg-white/25" />
+              ) : (
+                formatCount(dashboard?.kpis.nao_alfabetizados ?? 0)
+              )}
+            </div>
+            <p className="text-xs text-white/75">Proficiência abaixo de 743</p>
+          </CardContent>
+        </Card>
         <StatCard
           variant="metric"
           label="Sem proficiência"
@@ -478,15 +499,19 @@ function IcaResultsContent() {
           loading={loading}
           trend="Sem correção finalizada"
         />
-        <StatCard
-          variant="metric"
+        <NotaDesempenhoCard
           label="Proficiência média"
-          value={formatOne(dashboard?.kpis.proficiencia_media)}
-          icon={BarChart3}
+          value={dashboard?.kpis.proficiencia_media}
+          level={classifyIcaProficienciaNivel(dashboard?.kpis.proficiencia_media)}
           loading={loading}
-          trend="Escala 0–1000"
+          scaleHint="Escala 0–1000"
         />
-        <NotaDesempenhoCard value={dashboard?.kpis.nota_tct_media} loading={loading} />
+        <NotaDesempenhoCard
+          label="Nota"
+          value={dashboard?.kpis.nota_tct_media}
+          loading={loading}
+          scaleHint="0–10 · pontos / 34"
+        />
       </section>
 
       {(view === "visao" || view === "alunos") && (
@@ -634,8 +659,12 @@ function GroupTable({
               <TableCell>{formatCount(row.previstos ?? row.expected)}</TableCell>
               <TableCell>{formatCount(row.avaliados ?? row.evaluated_diagnostic)}</TableCell>
               <TableCell>{formatPercent(row.participacao_percentual ?? row.percentage)}</TableCell>
-              <TableCell>{formatCount(row.alfabetizados)}</TableCell>
-              <TableCell>{formatCount(row.nao_alfabetizados)}</TableCell>
+              <TableCell className="font-medium text-emerald-700 dark:text-emerald-400">
+                {formatCount(row.alfabetizados)}
+              </TableCell>
+              <TableCell className="font-medium text-rose-700 dark:text-rose-400">
+                {formatCount(row.nao_alfabetizados)}
+              </TableCell>
               <TableCell>{formatCount(row.sem_proficiencia)}</TableCell>
               <TableCell>{formatPercent(row.percentual_ge_743)}</TableCell>
               {detailed ? (
@@ -648,10 +677,15 @@ function GroupTable({
                       </TableCell>
                     );
                   })}
-                  <TableCell className={cn("tabular-nums font-medium", classifyNotaDesempenho(row.nota_tct_media)?.softClass.text)}>
-                    {formatTwo(row.nota_tct_media)}
+                  <TableCell className="tabular-nums font-medium">{formatOne(row.nota_tct_media)}</TableCell>
+                  <TableCell
+                    className={cn(
+                      "tabular-nums font-medium",
+                      classifyIcaProficienciaNivel(row.proficiencia_media)?.softClass.text
+                    )}
+                  >
+                    {formatOne(row.proficiencia_media)}
                   </TableCell>
-                  <TableCell>{formatOne(row.proficiencia_media)}</TableCell>
                 </>
               ) : null}
             </TableRow>
@@ -693,14 +727,21 @@ function StudentsTable({ rows, loading }: { rows: IcaDashboardRow[]; loading?: b
               <TableCell>{row.schoolName ?? "—"}</TableCell>
               <TableCell>{[row.serieName, row.className].filter(Boolean).join(" · ") || "—"}</TableCell>
               <TableCell>{formatCount(row.pontos_34)}</TableCell>
-              <TableCell className={cn("tabular-nums font-medium", classifyNotaDesempenho(row.nota_tct_0_10)?.softClass.text)}>
-                {formatTwo(row.nota_tct_0_10)}
+              <TableCell className="tabular-nums font-medium">{formatOne(row.nota_tct_0_10)}</TableCell>
+              <TableCell
+                className={cn(
+                  "tabular-nums font-medium",
+                  classifyIcaProficienciaNivel(row.proficiencia)?.softClass.text
+                )}
+              >
+                {formatOne(row.proficiencia)}
               </TableCell>
-              <TableCell>{formatOne(row.proficiencia)}</TableCell>
               <TableCell>
                 <ProficiencyLevelBadge level={row.nivel_aprendizagem} />
               </TableCell>
-              <TableCell>{row.status ?? "—"}</TableCell>
+              <TableCell>
+                <IcaSituacaoBadge status={row.status} />
+              </TableCell>
             </TableRow>
           ))}
           {!rows.length ? (
