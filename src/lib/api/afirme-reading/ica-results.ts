@@ -2,11 +2,13 @@ import axios from "axios";
 import { afirmeReadingApi } from "@/lib/api/afirme-reading/client";
 
 /**
- * Painel do ICA (backend artur3):
- * GET  /afirme-reading/written-tests/{id}/ica-dashboard
- * POST /afirme-reading/written-tests/{id}/ica-proficiency
- * GET  /afirme-reading/written-tests/{id}/skill-map
- * GET  /afirme-reading/written-tests/{id}/results.csv
+ * Painel do ICA:
+ * GET /afirme-reading/written-tests/{id}/ica-dashboard
+ * GET /afirme-reading/written-tests/{id}/skill-map
+ * GET /afirme-reading/written-tests/{id}/results.csv
+ *
+ * Proficiência, notas, nível e status saem da correção finalizada.
+ * O painel só exibe o que o backend já calculou.
  */
 
 export type IcaScopeLevel = "municipio" | "escola" | "serie" | "turma" | "aluno";
@@ -19,12 +21,7 @@ export const ICA_LEVEL_NAMES = [
   "Avançado",
 ] as const;
 
-export const ICA_STATUS_VALUES = [
-  "Alfabetizado",
-  "Não alfabetizado",
-  "Proficiência indisponível",
-  "Não avaliado",
-] as const;
+export const ICA_STATUS_VALUES = ["Alfabetizado", "Não alfabetizado", "Não avaliado"] as const;
 
 export type IcaLearningLevel = (typeof ICA_LEVEL_NAMES)[number];
 export type IcaStudentStatus = (typeof ICA_STATUS_VALUES)[number];
@@ -61,12 +58,6 @@ export interface IcaDiagnostic {
   valid: number;
   apt: number;
   iad_percentage: number | null;
-}
-
-export interface IcaProficiencyInep {
-  imported_valid: number;
-  ica_percentage: number | null;
-  status: string;
 }
 
 export interface IcaKpis {
@@ -113,6 +104,8 @@ export interface IcaDashboardRow {
   avaliados: number | null;
   participacao_percentual: number | null;
   alfabetizados: number | null;
+  nao_alfabetizados: number | null;
+  sem_proficiencia: number | null;
   percentual_ge_743: number | null;
   niveis: Record<string, number> | null;
   nota_tct_media: number | null;
@@ -179,7 +172,6 @@ export interface IcaDashboard {
   niveis: IcaNiveis;
   participation: IcaParticipation;
   diagnostic: IcaDiagnostic;
-  proficiency_inep: IcaProficiencyInep;
   rows: IcaDashboardRow[];
   students: IcaDashboardRow[];
   student: IcaDashboardStudent | null;
@@ -200,26 +192,6 @@ export interface IcaSkillMap {
   max_points: number | null;
   valid_attempts: number;
   skills: IcaSkill[];
-}
-
-export interface IcaProficiencyStudentInput {
-  studentId: string;
-  proficiencia: number | null;
-}
-
-export interface IcaProficiencyUpdatedStudent {
-  student_id: string;
-  aluno: string;
-  proficiencia: number | null;
-  nota_prof_0_10: number | null;
-  nivel_aprendizagem: string | null;
-  status: string | null;
-}
-
-export interface IcaProficiencyResult {
-  writtenTestId: string;
-  updated: number;
-  students: IcaProficiencyUpdatedStudent[];
 }
 
 function clean(params: IcaDashboardQuery) {
@@ -335,6 +307,8 @@ function normalizeRow(value: unknown): IcaDashboardRow {
     avaliados: num(pick(record, "avaliados", "evaluated_diagnostic", "evaluatedDiagnostic")),
     participacao_percentual: num(pick(record, "participacao_percentual", "percentage")),
     alfabetizados: num(pick(record, "alfabetizados")),
+    nao_alfabetizados: num(pick(record, "nao_alfabetizados")),
+    sem_proficiencia: num(pick(record, "sem_proficiencia")),
     percentual_ge_743: num(pick(record, "percentual_ge_743")),
     niveis: normalizeLevelCounts(pick(record, "niveis")),
     nota_tct_media: num(pick(record, "nota_tct_media")),
@@ -346,7 +320,7 @@ function normalizeRow(value: unknown): IcaDashboardRow {
     reading,
     words,
     text: textScore,
-    pontos_34: num(pick(record, "pontos_34")) ?? (reading != null && words != null && textScore != null ? reading + words + textScore : null),
+    pontos_34: num(pick(record, "pontos_34")),
     nota_tct_0_10: num(pick(record, "nota_tct_0_10")),
     nota_prof_0_10: num(pick(record, "nota_prof_0_10")),
     nota_prof_exata: num(pick(record, "nota_prof_exata")),
@@ -389,7 +363,7 @@ function normalizeStudent(value: unknown): IcaDashboardStudent | null {
     reading,
     words,
     text: textScore,
-    pontos_34: num(pick(record, "pontos_34")) ?? (reading != null && words != null && textScore != null ? reading + words + textScore : null),
+    pontos_34: num(pick(record, "pontos_34")),
     score: num(pick(record, "score", "nota_100")),
     nota_tct_0_10: num(pick(record, "nota_tct_0_10")),
     nota_prof_0_10: num(pick(record, "nota_prof_0_10")),
@@ -404,16 +378,16 @@ function normalizeStudent(value: unknown): IcaDashboardStudent | null {
   };
 }
 
-function normalizeKpis(value: unknown, participation: IcaParticipation, diagnostic: IcaDiagnostic, proficiency: IcaProficiencyInep): IcaKpis {
+function normalizeKpis(value: unknown, participation: IcaParticipation): IcaKpis {
   const record = asRecord(value) ?? {};
   return {
-    previstos: count(pick(record, "previstos")) || participation.expected,
-    avaliados: count(pick(record, "avaliados")) || participation.evaluated_diagnostic,
+    previstos: num(pick(record, "previstos")) ?? participation.expected,
+    avaliados: num(pick(record, "avaliados")) ?? participation.evaluated_diagnostic,
     participacao_percentual: num(pick(record, "participacao_percentual")) ?? participation.percentage,
     alfabetizados: count(pick(record, "alfabetizados")),
     nao_alfabetizados: count(pick(record, "nao_alfabetizados")),
     sem_proficiencia: count(pick(record, "sem_proficiencia")),
-    percentual_ge_743: num(pick(record, "percentual_ge_743")) ?? proficiency.ica_percentage,
+    percentual_ge_743: num(pick(record, "percentual_ge_743")),
     proficiencia_media: num(pick(record, "proficiencia_media")),
     nota_prof_media: num(pick(record, "nota_prof_media")),
     nota_tct_media: num(pick(record, "nota_tct_media")),
@@ -443,7 +417,6 @@ function normalizeDashboard(value: unknown): IcaDashboard {
   const record = asRecord(value) ?? {};
   const participationRaw = asRecord(pick(record, "participation")) ?? {};
   const diagnosticRaw = asRecord(pick(record, "diagnostic")) ?? {};
-  const proficiencyRaw = asRecord(pick(record, "proficiency_inep", "proficiencyInep")) ?? {};
   const rows = pick(record, "rows");
   const students = pick(record, "students");
   const participation: IcaParticipation = {
@@ -456,22 +429,16 @@ function normalizeDashboard(value: unknown): IcaDashboard {
     apt: count(pick(diagnosticRaw, "apt")),
     iad_percentage: num(pick(diagnosticRaw, "iad_percentage", "iadPercentage")),
   };
-  const proficiency_inep: IcaProficiencyInep = {
-    imported_valid: count(pick(proficiencyRaw, "imported_valid", "importedValid")),
-    ica_percentage: num(pick(proficiencyRaw, "ica_percentage", "icaPercentage")),
-    status: text(pick(proficiencyRaw, "status"), "SEM_DADOS"),
-  };
   return {
     writtenTestId: text(pick(record, "writtenTestId", "written_test_id")),
     title: text(pick(record, "title"), "Avaliação"),
     municipio: textOrNull(pick(record, "municipio")),
     uf: textOrNull(pick(record, "uf")),
     scope: normalizeScope(pick(record, "scope")),
-    kpis: normalizeKpis(pick(record, "kpis"), participation, diagnostic, proficiency_inep),
+    kpis: normalizeKpis(pick(record, "kpis"), participation),
     niveis: normalizeNiveis(pick(record, "niveis")),
     participation,
     diagnostic,
-    proficiency_inep,
     rows: Array.isArray(rows) ? rows.map(normalizeRow) : [],
     students: Array.isArray(students) ? students.map(normalizeRow) : [],
     student: normalizeStudent(pick(record, "student")),
@@ -503,28 +470,6 @@ function normalizeSkillMap(value: unknown): IcaSkillMap {
   };
 }
 
-function normalizeProficiencyResult(value: unknown): IcaProficiencyResult {
-  const record = asRecord(value) ?? {};
-  const students = pick(record, "students");
-  return {
-    writtenTestId: text(pick(record, "writtenTestId", "written_test_id")),
-    updated: count(pick(record, "updated")),
-    students: Array.isArray(students)
-      ? students.map((item) => {
-          const row = asRecord(item) ?? {};
-          return {
-            student_id: text(pick(row, "student_id", "studentId")),
-            aluno: text(pick(row, "aluno", "student_name", "name"), "Aluno"),
-            proficiencia: num(pick(row, "proficiencia")),
-            nota_prof_0_10: num(pick(row, "nota_prof_0_10")),
-            nivel_aprendizagem: textOrNull(pick(row, "nivel_aprendizagem")),
-            status: textOrNull(pick(row, "status")),
-          };
-        })
-      : [],
-  };
-}
-
 export async function getIcaDashboard(
   writtenTestId: string,
   query: IcaDashboardQuery = {},
@@ -547,19 +492,6 @@ export async function getIcaSkillMap(
     params: clean(query),
   });
   return normalizeSkillMap(data);
-}
-
-export async function postIcaProficiency(
-  writtenTestId: string,
-  students: IcaProficiencyStudentInput[]
-) {
-  const { data } = await afirmeReadingApi.post<unknown>(`/written-tests/${writtenTestId}/ica-proficiency`, {
-    students: students.map((item) => ({
-      studentId: item.studentId,
-      proficiencia: item.proficiencia,
-    })),
-  });
-  return normalizeProficiencyResult(data);
 }
 
 async function blobErrorToJson(error: unknown) {

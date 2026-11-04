@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import {
   AlertTriangle,
   BarChart3,
@@ -9,7 +8,6 @@ import {
   GraduationCap,
   School,
   Search,
-  Upload,
   Users,
 } from "lucide-react";
 import {
@@ -20,11 +18,11 @@ import {
   type IcaDashboard,
   type IcaDashboardQuery,
   type IcaDashboardRow,
+  type IcaRowLevel,
 } from "@/lib/api/afirme-reading/ica-results";
 import { getWrittenTest, listWrittenTests } from "@/lib/api/afirme-reading/written-tests";
 import type { WrittenTestNamedRef, WrittenTestSummary } from "@/lib/api/afirme-reading/types";
 import { normalizeApiError } from "@/lib/api/errors";
-import { ROUTES } from "@/config/routes";
 import { ICA_BRAND } from "@/lib/ica/brand";
 import { IcaCityScope } from "@/components/ica/ica-city-scope";
 import { PageHeader } from "@/components/layout/page-header";
@@ -42,30 +40,25 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 
 const ALL = "all";
 
-type ViewMode = "visao" | "escolas" | "turmas" | "alunos";
+type ViewMode = "visao" | "escolas" | "series" | "turmas" | "alunos";
+type GroupMode = "escolas" | "series" | "turmas" | "recorte";
 
 interface NamedOption {
   id: string;
   name: string;
 }
 
-interface GroupRow {
-  id: string;
-  name: string;
-  schoolName?: string;
-  previstos: number;
-  avaliados: number;
-  participacao: number | null;
-  alfabetizados: number;
-  percentual743: number | null;
-  abaixo: number;
-  basico: number;
-  adequado: number;
-  avancado: number;
-  notaTct: number | null;
-  notaProf: number | null;
-  profMedia: number | null;
+interface ClassOption extends NamedOption {
+  schoolId: string | null;
+  gradeId: string | null;
 }
+
+const ROW_KIND: Record<IcaRowLevel, string> = {
+  escola: "Escola",
+  serie: "Série",
+  turma: "Turma",
+  aluno: "Aluno",
+};
 
 function formatOne(value: number | null | undefined) {
   if (typeof value !== "number" || Number.isNaN(value)) return "—";
@@ -86,14 +79,9 @@ function formatCount(value: number | null | undefined) {
   return typeof value === "number" ? value.toLocaleString("pt-BR") : "—";
 }
 
-function mean(values: number[]) {
-  if (!values.length) return null;
-  return values.reduce((a, b) => a + b, 0) / values.length;
-}
-
-function pct(part: number, whole: number) {
-  if (whole <= 0) return null;
-  return (part * 100) / whole;
+function levelCount(row: IcaDashboardRow, name: string) {
+  if (!row.niveis) return null;
+  return row.niveis[name] ?? 0;
 }
 
 function SelectFilter({
@@ -135,48 +123,8 @@ function studentList(dashboard: IcaDashboard | null): IcaDashboardRow[] {
   return dashboard.rows.filter((row) => row.rowLevel === "aluno");
 }
 
-function aggregateGroups(students: IcaDashboardRow[], mode: "escolas" | "turmas"): GroupRow[] {
-  const map = new Map<string, IcaDashboardRow[]>();
-  for (const row of students) {
-    const key =
-      mode === "escolas"
-        ? row.escolaId || row.schoolName || row.id
-        : `${row.escolaId || row.schoolName || ""}::${row.classId || row.className || row.id}`;
-    const list = map.get(key) ?? [];
-    list.push(row);
-    map.set(key, list);
-  }
-  return [...map.entries()]
-    .map(([id, items]) => {
-      const sample = items[0];
-      const avaliados = items.filter((item) => item.avaliado).length;
-      const withProf = items.filter((item) => item.proficiencia != null);
-      const alpha = withProf.filter((item) => (item.proficiencia ?? 0) >= 743);
-      const levels = {
-        abaixo: withProf.filter((item) => item.nivel_aprendizagem === "Abaixo do Básico").length,
-        basico: withProf.filter((item) => item.nivel_aprendizagem === "Básico").length,
-        adequado: withProf.filter((item) => item.nivel_aprendizagem === "Adequado").length,
-        avancado: withProf.filter((item) => item.nivel_aprendizagem === "Avançado").length,
-      };
-      return {
-        id,
-        name:
-          mode === "escolas"
-            ? sample.schoolName || sample.name || "Escola"
-            : sample.className || sample.name || "Turma",
-        schoolName: sample.schoolName ?? undefined,
-        previstos: items.length,
-        avaliados,
-        participacao: pct(avaliados, items.length),
-        alfabetizados: alpha.length,
-        percentual743: pct(alpha.length, withProf.length),
-        ...levels,
-        notaTct: mean(items.map((item) => item.nota_tct_0_10).filter((v): v is number => v != null)),
-        notaProf: mean(withProf.map((item) => item.nota_prof_exata ?? item.nota_prof_0_10).filter((v): v is number => v != null)),
-        profMedia: mean(withProf.map((item) => item.proficiencia).filter((v): v is number => v != null)),
-      };
-    })
-    .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+function rowsOf(dashboard: IcaDashboard | null, level: IcaRowLevel) {
+  return (dashboard?.rows ?? []).filter((row) => row.rowLevel === level);
 }
 
 export function IcaResultsPage() {
@@ -190,9 +138,11 @@ export function IcaResultsPage() {
 function IcaResultsContent() {
   const [tests, setTests] = useState<WrittenTestSummary[]>([]);
   const [schools, setSchools] = useState<WrittenTestNamedRef[]>([]);
-  const [classes, setClasses] = useState<NamedOption[]>([]);
+  const [grades, setGrades] = useState<WrittenTestNamedRef[]>([]);
+  const [classes, setClasses] = useState<ClassOption[]>([]);
   const [writtenTestId, setWrittenTestId] = useState("");
   const [schoolId, setSchoolId] = useState(ALL);
+  const [gradeId, setGradeId] = useState(ALL);
   const [classId, setClassId] = useState(ALL);
   const [statusFilter, setStatusFilter] = useState(ALL);
   const [nivelFilter, setNivelFilter] = useState(ALL);
@@ -226,8 +176,12 @@ function IcaResultsContent() {
   }, []);
 
   useEffect(() => {
+    setSchoolId(ALL);
+    setGradeId(ALL);
+    setClassId(ALL);
     if (!writtenTestId) {
       setSchools([]);
+      setGrades([]);
       setClasses([]);
       return;
     }
@@ -236,16 +190,20 @@ function IcaResultsContent() {
       .then((detail) => {
         if (controller.signal.aborted) return;
         setSchools(detail.schools ?? []);
+        setGrades(detail.grades ?? []);
         setClasses(
           (detail.classes ?? []).map((item) => ({
             id: item.id,
             name: item.name ?? "Turma",
+            schoolId: item.schoolId,
+            gradeId: item.gradeId,
           }))
         );
       })
       .catch(() => {
         if (!controller.signal.aborted) {
           setSchools([]);
+          setGrades([]);
           setClasses([]);
         }
       });
@@ -255,12 +213,13 @@ function IcaResultsContent() {
   const query = useMemo<IcaDashboardQuery>(
     () => ({
       escolaId: schoolId === ALL ? undefined : schoolId,
+      serieId: gradeId === ALL ? undefined : gradeId,
       turmaId: classId === ALL ? undefined : classId,
       status: statusFilter === ALL ? undefined : statusFilter,
       nivel: nivelFilter === ALL ? undefined : nivelFilter,
       q: debouncedSearch || undefined,
     }),
-    [classId, debouncedSearch, nivelFilter, schoolId, statusFilter]
+    [classId, debouncedSearch, gradeId, nivelFilter, schoolId, statusFilter]
   );
 
   useEffect(() => {
@@ -289,20 +248,20 @@ function IcaResultsContent() {
 
   const students = useMemo(() => studentList(dashboard), [dashboard]);
   const schoolOptions = schools.filter((item) => item.id).map((item) => ({ id: item.id, name: item.name ?? "Escola" }));
-  const classOptions = useMemo(() => {
-    if (schoolId === ALL) return classes;
-    const allowed = new Set(
-      students.filter((row) => row.escolaId === schoolId).map((row) => row.classId).filter(Boolean)
-    );
-    if (!allowed.size) return classes;
-    return classes.filter((item) => allowed.has(item.id));
-  }, [classes, schoolId, students]);
-
-  const schoolGroups = useMemo(() => aggregateGroups(students, "escolas"), [students]);
-  const classGroups = useMemo(() => aggregateGroups(students, "turmas"), [students]);
-  const officialMissing =
-    dashboard != null &&
-    (dashboard.proficiency_inep.status === "SEM_DADOS" || dashboard.proficiency_inep.ica_percentage == null);
+  const gradeOptions = grades.filter((item) => item.id).map((item) => ({ id: item.id, name: item.name ?? "Série" }));
+  const classOptions = useMemo(
+    () =>
+      classes.filter((item) => {
+        if (schoolId !== ALL && item.schoolId && item.schoolId !== schoolId) return false;
+        if (gradeId !== ALL && item.gradeId && item.gradeId !== gradeId) return false;
+        return true;
+      }),
+    [classes, gradeId, schoolId]
+  );
+  const aggregateRows = useMemo(
+    () => (dashboard?.rows ?? []).filter((row) => row.rowLevel !== "aluno"),
+    [dashboard]
+  );
 
   async function downloadCsv() {
     if (!writtenTestId) return;
@@ -319,6 +278,7 @@ function IcaResultsContent() {
   const placeLabel = [
     dashboard?.municipio ? `${dashboard.municipio}${dashboard.uf ? `/${dashboard.uf}` : ""}` : null,
     schoolId !== ALL ? schoolOptions.find((item) => item.id === schoolId)?.name : null,
+    gradeId !== ALL ? gradeOptions.find((item) => item.id === gradeId)?.name : null,
     classId !== ALL ? classOptions.find((item) => item.id === classId)?.name : null,
   ]
     .filter(Boolean)
@@ -329,27 +289,19 @@ function IcaResultsContent() {
       <PageHeader
         brand={ICA_BRAND}
         title="Resultados ICA"
-        description="Panorama de alfabetização do município: participação, corte ≥ 743, níveis Inep e notas 0–10. Diagnóstico Afirme e ICA oficial ficam separados."
+        description="Participação, proficiência da correção finalizada, corte ≥ 743, níveis e notas 0–10."
         icon={BarChart3}
       >
         {writtenTestId ? (
-          <>
-            <Button asChild variant="outline" size="sm">
-              <Link href={`${ROUTES.ica.relatorios.proficiencia}?writtenTestId=${writtenTestId}`}>
-                <Upload className="h-4 w-4" />
-                Importar proficiência
-              </Link>
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => void downloadCsv()} disabled={downloading}>
-              <Download className="h-4 w-4" />
-              {downloading ? "Baixando…" : "CSV"}
-            </Button>
-          </>
+          <Button variant="outline" size="sm" onClick={() => void downloadCsv()} disabled={downloading}>
+            <Download className="h-4 w-4" />
+            {downloading ? "Baixando…" : "CSV"}
+          </Button>
         ) : null}
       </PageHeader>
 
       <SectionCard title="Filtros" description="Recorte territorial e classificação. A prova escrita do município é resolvida automaticamente.">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <SelectFilter
             label="Escola"
             value={schoolId}
@@ -357,6 +309,16 @@ function IcaResultsContent() {
             disabled={!writtenTestId}
             onChange={(value) => {
               setSchoolId(value);
+              setClassId(ALL);
+            }}
+          />
+          <SelectFilter
+            label="Série"
+            value={gradeId}
+            options={gradeOptions}
+            disabled={!writtenTestId}
+            onChange={(value) => {
+              setGradeId(value);
               setClassId(ALL);
             }}
           />
@@ -391,6 +353,7 @@ function IcaResultsContent() {
             options={[
               { value: "visao", label: "Visão geral" },
               { value: "escolas", label: "Por escola" },
+              { value: "series", label: "Por série" },
               { value: "turmas", label: "Por turma" },
               { value: "alunos", label: "Estudantes" },
             ]}
@@ -456,27 +419,16 @@ function IcaResultsContent() {
         </Alert>
       ) : null}
 
-      {dashboard && officialMissing ? (
-        <Alert>
-          <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>ICA oficial (Rota B) indisponível</AlertTitle>
-          <AlertDescription>
-            Sem proficiência equalizada Inep o índice ≥ 743 e os quatro níveis oficiais ficam sem base. A participação e
-            a Nota TCT (diagnóstico) podem existir à parte. Use “Importar proficiência” quando houver dados TRI.
-          </AlertDescription>
-        </Alert>
-      ) : null}
-
       {placeLabel ? <p className="text-sm text-muted-foreground">Recorte: {placeLabel}</p> : null}
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           variant="metric"
-          label="Matrículas previstas"
+          label="Previstos"
           value={dashboard?.kpis.previstos ?? 0}
           icon={Users}
           loading={loading}
-          trend="Estudantes elegíveis no recorte"
+          trend="Estudantes no recorte"
         />
         <StatCard
           variant="metric"
@@ -488,15 +440,27 @@ function IcaResultsContent() {
         />
         <StatCard
           variant="featured"
-          label="% ≥ 743 — ICA oficial"
+          label="% ≥ 743"
           value={formatPercent(dashboard?.kpis.percentual_ge_743)}
           icon={School}
           loading={loading}
-          trend={
-            officialMissing
-              ? "Sem dados de proficiência equalizada"
-              : `${formatCount(dashboard?.kpis.alfabetizados)} alfabetizados`
-          }
+          trend={`${formatCount(dashboard?.kpis.alfabetizados)} alfabetizados`}
+        />
+        <StatCard
+          variant="metric"
+          label="Não alfabetizados"
+          value={formatCount(dashboard?.kpis.nao_alfabetizados ?? 0)}
+          icon={Users}
+          loading={loading}
+          trend="Proficiência abaixo de 743"
+        />
+        <StatCard
+          variant="metric"
+          label="Sem proficiência"
+          value={formatCount(dashboard?.kpis.sem_proficiencia ?? 0)}
+          icon={Users}
+          loading={loading}
+          trend="Sem correção finalizada"
         />
         <StatCard
           variant="metric"
@@ -504,7 +468,7 @@ function IcaResultsContent() {
           value={formatOne(dashboard?.kpis.proficiencia_media)}
           icon={BarChart3}
           loading={loading}
-          trend="Escala Inep"
+          trend="Escala 0–1000"
         />
         <StatCard
           variant="metric"
@@ -512,7 +476,7 @@ function IcaResultsContent() {
           value={formatTwo(dashboard?.kpis.nota_prof_media)}
           icon={BarChart3}
           loading={loading}
-          trend="0–10 · derivada da proficiência"
+          trend="0–10 · média da nota exata"
         />
         <StatCard
           variant="metric"
@@ -520,17 +484,17 @@ function IcaResultsContent() {
           value={formatTwo(dashboard?.kpis.nota_tct_media)}
           icon={BarChart3}
           loading={loading}
-          trend="0–10 · pontos / 34 (diagnóstico)"
+          trend="0–10 · pontos / 34"
         />
       </section>
 
       {(view === "visao" || view === "alunos") && (
         <SectionCard
-          title="Níveis de aprendizagem (Inep)"
+          title="Níveis de aprendizagem"
           description={
             dashboard?.niveis.validos
               ? `${dashboard.niveis.validos.toLocaleString("pt-BR")} estudante(s) com proficiência no recorte.`
-              : "Exige proficiência equalizada (Rota B)."
+              : "Nenhum estudante com correção finalizada neste recorte."
           }
         >
           {loading && !dashboard ? (
@@ -562,8 +526,8 @@ function IcaResultsContent() {
 
       {view === "visao" ? (
         <SectionCard
-          title="Diagnóstico Afirme (Rota A)"
-          description="IAD-AFIRME usa nota 0–100 e travas L/P/T. Não é o corte 743 do Inep."
+          title="Diagnóstico (IAD)"
+          description="Aptos com nota ≥ 70 e travas de leitura ≥ 11, palavras ≥ 2 e texto ≥ 7. Este índice não é o status de alfabetização."
         >
           <div className="grid gap-3 sm:grid-cols-3">
             <div className="rounded-xl border p-4">
@@ -575,7 +539,7 @@ function IcaResultsContent() {
               <p className="mt-2 text-2xl font-semibold">{formatCount(dashboard?.diagnostic.apt)}</p>
             </div>
             <div className="rounded-xl border p-4">
-              <p className="text-xs text-muted-foreground">IAD-AFIRME</p>
+              <p className="text-xs text-muted-foreground">IAD</p>
               <p className="mt-2 text-2xl font-semibold">{formatPercent(dashboard?.diagnostic.iad_percentage)}</p>
             </div>
           </div>
@@ -583,27 +547,33 @@ function IcaResultsContent() {
       ) : null}
 
       {view === "visao" ? (
-        <SectionCard title="Escolas no recorte" description="Participação e % ≥ 743 por escola.">
-          <GroupTable rows={schoolGroups} mode="escolas" loading={loading && !dashboard} />
+        <SectionCard title="Agrupamento do recorte" description="Escolas, séries ou turmas devolvidos para os filtros atuais.">
+          <GroupTable rows={aggregateRows} mode="recorte" loading={loading && !dashboard} />
         </SectionCard>
       ) : null}
 
       {view === "escolas" ? (
-        <SectionCard title="Indicadores por escola" description="Comparativo territorial do recorte atual.">
-          <GroupTable rows={schoolGroups} mode="escolas" loading={loading && !dashboard} detailed />
+        <SectionCard title="Indicadores por escola" description="Valores agregados devolvidos para o recorte atual.">
+          <GroupTable rows={rowsOf(dashboard, "escola")} mode="escolas" loading={loading && !dashboard} detailed />
+        </SectionCard>
+      ) : null}
+
+      {view === "series" ? (
+        <SectionCard title="Indicadores por série" description="Valores agregados devolvidos para o recorte atual.">
+          <GroupTable rows={rowsOf(dashboard, "serie")} mode="series" loading={loading && !dashboard} detailed />
         </SectionCard>
       ) : null}
 
       {view === "turmas" ? (
-        <SectionCard title="Indicadores por turma" description="Detalhamento por turma do recorte.">
-          <GroupTable rows={classGroups} mode="turmas" loading={loading && !dashboard} detailed />
+        <SectionCard title="Indicadores por turma" description="Valores agregados devolvidos para o recorte atual.">
+          <GroupTable rows={rowsOf(dashboard, "turma")} mode="turmas" loading={loading && !dashboard} detailed />
         </SectionCard>
       ) : null}
 
-      {view === "alunos" || view === "visao" ? (
+      {view === "alunos" || (view === "visao" && students.length > 0) ? (
         <SectionCard
-          title={view === "alunos" ? "Relação individual de estudantes" : "Estudantes (amostra do recorte)"}
-          description="Nota TCT, nota da proficiência, nível e status · corte 743."
+          title={view === "alunos" ? "Relação individual de estudantes" : "Estudantes do recorte"}
+          description="Valores da correção finalizada. Sem correção, a proficiência fica vazia e o status é Não avaliado."
         >
           <StudentsTable rows={view === "visao" ? students.slice(0, 12) : students} loading={loading && !dashboard} />
           {view === "visao" && students.length > 12 ? (
@@ -625,23 +595,37 @@ function GroupTable({
   loading,
   detailed,
 }: {
-  rows: GroupRow[];
-  mode: "escolas" | "turmas";
+  rows: IcaDashboardRow[];
+  mode: GroupMode;
   loading?: boolean;
   detailed?: boolean;
 }) {
+  const showKind = mode === "recorte";
+  const showSchool =
+    mode === "series" ||
+    mode === "turmas" ||
+    (mode === "recorte" && rows.some((row) => row.rowLevel !== "escola"));
+  const showSerie = mode === "turmas";
+  const colSpan = 1 + (showKind ? 1 : 0) + (showSchool ? 1 : 0) + (showSerie ? 1 : 0) + 7 + (detailed ? 7 : 0);
+
   if (loading) return <Skeleton className="h-40" />;
   return (
     <div className="overflow-x-auto">
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>{mode === "escolas" ? "Escola" : "Turma"}</TableHead>
-            {mode === "turmas" ? <TableHead>Escola</TableHead> : null}
+            {showKind ? <TableHead>Tipo</TableHead> : null}
+            <TableHead>
+              {mode === "escolas" ? "Escola" : mode === "series" ? "Série" : mode === "turmas" ? "Turma" : "Nome"}
+            </TableHead>
+            {showSchool ? <TableHead>Escola</TableHead> : null}
+            {showSerie ? <TableHead>Série</TableHead> : null}
             <TableHead>Previstos</TableHead>
             <TableHead>Avaliados</TableHead>
             <TableHead>Participação</TableHead>
             <TableHead>Alfabetizados</TableHead>
+            <TableHead>Não alfabetizados</TableHead>
+            <TableHead>Sem proficiência</TableHead>
             <TableHead>≥ 743</TableHead>
             {detailed ? (
               <>
@@ -651,35 +635,41 @@ function GroupTable({
                 <TableHead>Avançado</TableHead>
                 <TableHead>TCT /10</TableHead>
                 <TableHead>Prof. /10</TableHead>
+                <TableHead>Proficiência</TableHead>
               </>
             ) : null}
           </TableRow>
         </TableHeader>
         <TableBody>
           {rows.map((row) => (
-            <TableRow key={row.id}>
+            <TableRow key={`${row.rowLevel}-${row.id}`}>
+              {showKind ? <TableCell>{ROW_KIND[row.rowLevel]}</TableCell> : null}
               <TableCell className="font-medium">{row.name}</TableCell>
-              {mode === "turmas" ? <TableCell>{row.schoolName ?? "—"}</TableCell> : null}
-              <TableCell>{formatCount(row.previstos)}</TableCell>
-              <TableCell>{formatCount(row.avaliados)}</TableCell>
-              <TableCell>{formatPercent(row.participacao)}</TableCell>
+              {showSchool ? <TableCell>{row.rowLevel === "escola" ? "—" : (row.schoolName ?? "—")}</TableCell> : null}
+              {showSerie ? <TableCell>{row.serieName ?? "—"}</TableCell> : null}
+              <TableCell>{formatCount(row.previstos ?? row.expected)}</TableCell>
+              <TableCell>{formatCount(row.avaliados ?? row.evaluated_diagnostic)}</TableCell>
+              <TableCell>{formatPercent(row.participacao_percentual ?? row.percentage)}</TableCell>
               <TableCell>{formatCount(row.alfabetizados)}</TableCell>
-              <TableCell>{formatPercent(row.percentual743)}</TableCell>
+              <TableCell>{formatCount(row.nao_alfabetizados)}</TableCell>
+              <TableCell>{formatCount(row.sem_proficiencia)}</TableCell>
+              <TableCell>{formatPercent(row.percentual_ge_743)}</TableCell>
               {detailed ? (
                 <>
-                  <TableCell>{formatCount(row.abaixo)}</TableCell>
-                  <TableCell>{formatCount(row.basico)}</TableCell>
-                  <TableCell>{formatCount(row.adequado)}</TableCell>
-                  <TableCell>{formatCount(row.avancado)}</TableCell>
-                  <TableCell>{formatTwo(row.notaTct)}</TableCell>
-                  <TableCell>{formatTwo(row.notaProf)}</TableCell>
+                  <TableCell>{formatCount(levelCount(row, "Abaixo do Básico"))}</TableCell>
+                  <TableCell>{formatCount(levelCount(row, "Básico"))}</TableCell>
+                  <TableCell>{formatCount(levelCount(row, "Adequado"))}</TableCell>
+                  <TableCell>{formatCount(levelCount(row, "Avançado"))}</TableCell>
+                  <TableCell>{formatTwo(row.nota_tct_media)}</TableCell>
+                  <TableCell>{formatTwo(row.nota_prof_media)}</TableCell>
+                  <TableCell>{formatOne(row.proficiencia_media)}</TableCell>
                 </>
               ) : null}
             </TableRow>
           ))}
           {!rows.length ? (
             <TableRow>
-              <TableCell colSpan={detailed ? 12 : 6} className="py-8 text-center text-muted-foreground">
+              <TableCell colSpan={colSpan} className="py-8 text-center text-muted-foreground">
                 Nenhum agrupamento neste recorte.
               </TableCell>
             </TableRow>
@@ -700,6 +690,7 @@ function StudentsTable({ rows, loading }: { rows: IcaDashboardRow[]; loading?: b
             <TableHead>Aluno</TableHead>
             <TableHead>Escola</TableHead>
             <TableHead>Série / turma</TableHead>
+            <TableHead>Pontos</TableHead>
             <TableHead>Nota TCT /10</TableHead>
             <TableHead>Nota prof. /10</TableHead>
             <TableHead>Proficiência</TableHead>
@@ -712,9 +703,8 @@ function StudentsTable({ rows, loading }: { rows: IcaDashboardRow[]; loading?: b
             <TableRow key={row.id}>
               <TableCell className="font-medium">{row.name}</TableCell>
               <TableCell>{row.schoolName ?? "—"}</TableCell>
-              <TableCell>
-                {[row.serieName, row.className].filter(Boolean).join(" · ") || "—"}
-              </TableCell>
+              <TableCell>{[row.serieName, row.className].filter(Boolean).join(" · ") || "—"}</TableCell>
+              <TableCell>{formatCount(row.pontos_34)}</TableCell>
               <TableCell>{formatTwo(row.nota_tct_0_10)}</TableCell>
               <TableCell>{formatTwo(row.nota_prof_0_10)}</TableCell>
               <TableCell>{formatOne(row.proficiencia)}</TableCell>
@@ -724,7 +714,7 @@ function StudentsTable({ rows, loading }: { rows: IcaDashboardRow[]; loading?: b
           ))}
           {!rows.length ? (
             <TableRow>
-              <TableCell colSpan={8} className="py-8 text-center text-muted-foreground">
+              <TableCell colSpan={9} className="py-8 text-center text-muted-foreground">
                 Nenhum estudante neste recorte.
               </TableCell>
             </TableRow>

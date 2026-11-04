@@ -66,7 +66,6 @@ export const ROUTES = {
     resultados: `${ICA}/resultados`,
     relatorios: {
       niveis: `${ICA}/relatorios/niveis`,
-      proficiencia: `${ICA}/relatorios/proficiencia`,
     },
   },
 } as const;

@@ -107,7 +107,6 @@ export {
   ICA_STATUS_VALUES,
   getIcaDashboard,
   getIcaSkillMap,
-  postIcaProficiency,
   downloadIcaResultsCsv,
 } from "@/lib/api/afirme-reading/ica-results";
 export type {
@@ -118,8 +117,6 @@ export type {
   IcaKpis,
   IcaNiveis,
   IcaNivelItem,
-  IcaProficiencyResult,
-  IcaProficiencyStudentInput,
   IcaSkillMap,
 } from "@/lib/api/afirme-reading/ica-results";
 export type {

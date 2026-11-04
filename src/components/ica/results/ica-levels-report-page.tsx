@@ -104,10 +104,6 @@ function IcaLevelsReportContent() {
     return () => controller.abort();
   }, [query, writtenTestId]);
 
-  const officialMissing =
-    dashboard != null &&
-    (dashboard.proficiency_inep.status === "SEM_DADOS" || dashboard.niveis.validos <= 0);
-
   const comparisonRows = (dashboard?.rows ?? []).filter((row) => row.rowLevel !== "aluno");
 
   return (
@@ -165,19 +161,6 @@ function IcaLevelsReportContent() {
         </Alert>
       ) : null}
 
-      {dashboard && officialMissing ? (
-        <Alert>
-          <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Sem proficiência equalizada</AlertTitle>
-          <AlertDescription>
-            Importe a proficiência Inep para preencher os quatro níveis oficiais.{" "}
-            <Link className="underline" href={ROUTES.ica.relatorios.proficiencia}>
-              Abrir importação
-            </Link>
-          </AlertDescription>
-        </Alert>
-      ) : null}
-
       <SectionCard
         title="Distribuição do recorte"
         description={
@@ -217,6 +200,8 @@ function IcaLevelsReportContent() {
                   <TableHead>Nome</TableHead>
                   <TableHead>Previstos</TableHead>
                   <TableHead>Alfabetizados</TableHead>
+                  <TableHead>Não alfabetizados</TableHead>
+                  <TableHead>Sem proficiência</TableHead>
                   <TableHead>≥ 743</TableHead>
                   {ICA_LEVEL_NAMES.map((name) => (
                     <TableHead key={name}>{name}</TableHead>
@@ -229,6 +214,8 @@ function IcaLevelsReportContent() {
                     <TableCell className="font-medium">{row.name}</TableCell>
                     <TableCell>{formatCount(row.previstos ?? row.expected)}</TableCell>
                     <TableCell>{formatCount(row.alfabetizados)}</TableCell>
+                    <TableCell>{formatCount(row.nao_alfabetizados)}</TableCell>
+                    <TableCell>{formatCount(row.sem_proficiencia)}</TableCell>
                     <TableCell>{formatPercent(row.percentual_ge_743)}</TableCell>
                     {ICA_LEVEL_NAMES.map((name) => (
                       <TableCell key={name}>{formatCount(row.niveis?.[name] ?? 0)}</TableCell>
@@ -237,7 +224,7 @@ function IcaLevelsReportContent() {
                 ))}
                 {!comparisonRows.length ? (
                   <TableRow>
-                    <TableCell colSpan={4 + ICA_LEVEL_NAMES.length} className="py-8 text-center text-muted-foreground">
+                    <TableCell colSpan={6 + ICA_LEVEL_NAMES.length} className="py-8 text-center text-muted-foreground">
                       Nenhum agrupamento neste recorte.
                     </TableCell>
                   </TableRow>

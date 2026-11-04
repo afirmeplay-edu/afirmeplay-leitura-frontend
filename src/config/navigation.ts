@@ -175,12 +175,11 @@ export const NAV_ICA: NavCategory[] = [
       {
         href: I.resultados,
         label: "Resultados",
-        description: "Painel populacional ICA (≥ 743 e níveis)",
+        description: "Participação, proficiência, corte ≥ 743 e níveis",
         icon: BarChart3,
         children: [
           { href: I.resultados, label: "Painel ICA", exact: true },
           { href: I.relatorios.niveis, label: "Níveis Inep" },
-          { href: I.relatorios.proficiencia, label: "Importar proficiência", roles: WRITE_ROLES },
         ],
       },
     ],
@@ -259,7 +258,7 @@ export const DASHBOARD_SHORTCUTS: Record<AppSystem, DashboardShortcut[]> = {
     {
       href: I.resultados,
       label: "Resultados ICA",
-      description: "Visão geral, escolas, turmas e ≥ 743",
+      description: "Participação, proficiência e corte ≥ 743",
       accent: "blue",
       icon: BarChart3,
     },
