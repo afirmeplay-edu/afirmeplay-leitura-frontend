@@ -110,12 +110,35 @@ const LABEL_ALIASES: Record<string, ProficiencyLevelLabel> = {
 /**
  * Classifica nota 0–10 nas faixas oficiais de desempenho do Afirme Play.
  * Abaixo do Básico ≤ 3,9 · Básico ≤ 6,0 · Adequado ≤ 8,0 · Avançado > 8,0
+ *
+ * Não usar no ICA para `nivel_aprendizagem`: lá o backend corta pela escala
+ * de proficiência (`classifyIcaProficienciaNivel`).
  */
 export function classifyNotaDesempenho(nota: number | null | undefined): ProficiencyLevelStyle | null {
   if (typeof nota !== "number" || !Number.isFinite(nota)) return null;
   if (nota <= 3.9) return BY_KEY.abaixo_do_basico;
   if (nota <= 6.0) return BY_KEY.basico;
   if (nota <= 8.0) return BY_KEY.adequado;
+  return BY_KEY.avancado;
+}
+
+/**
+ * Cortes oficiais do ICA (`written_test_ica_service._learning_level`).
+ * < 700 Abaixo do Básico · < 743 Básico · < 800 Adequado · ≥ 800 Avançado
+ */
+export const ICA_PROFICIENCIA_CUTS = {
+  basico: 700,
+  alfabetizado: 743,
+  adequado: 800,
+} as const;
+
+export function classifyIcaProficienciaNivel(
+  proficiencia: number | null | undefined
+): ProficiencyLevelStyle | null {
+  if (typeof proficiencia !== "number" || !Number.isFinite(proficiencia)) return null;
+  if (proficiencia < ICA_PROFICIENCIA_CUTS.basico) return BY_KEY.abaixo_do_basico;
+  if (proficiencia < ICA_PROFICIENCIA_CUTS.alfabetizado) return BY_KEY.basico;
+  if (proficiencia < ICA_PROFICIENCIA_CUTS.adequado) return BY_KEY.adequado;
   return BY_KEY.avancado;
 }
 

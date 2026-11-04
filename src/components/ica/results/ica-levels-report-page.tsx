@@ -215,8 +215,12 @@ function IcaLevelsReportContent() {
                   <TableRow key={row.id}>
                     <TableCell className="font-medium">{row.name}</TableCell>
                     <TableCell>{formatCount(row.previstos ?? row.expected)}</TableCell>
-                    <TableCell>{formatCount(row.alfabetizados)}</TableCell>
-                    <TableCell>{formatCount(row.nao_alfabetizados)}</TableCell>
+                    <TableCell className="font-medium text-emerald-700 dark:text-emerald-400">
+                      {formatCount(row.alfabetizados)}
+                    </TableCell>
+                    <TableCell className="font-medium text-rose-700 dark:text-rose-400">
+                      {formatCount(row.nao_alfabetizados)}
+                    </TableCell>
                     <TableCell>{formatCount(row.sem_proficiencia)}</TableCell>
                     <TableCell>{formatPercent(row.percentual_ge_743)}</TableCell>
                     {ICA_LEVEL_NAMES.map((name) => {

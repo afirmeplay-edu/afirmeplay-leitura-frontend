@@ -32,3 +32,18 @@ export function DifficultyBadge({ difficulty }: { difficulty: string }) {
   }
   return <span className={getDifficultyTagClass(difficulty)}>{difficulty}</span>;
 }
+
+const ICA_STATUS_CLASS: Record<string, string> = {
+  Alfabetizado:
+    "inline-flex items-center rounded-full border border-emerald-700/20 bg-emerald-600 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-white",
+  "Não alfabetizado":
+    "inline-flex items-center rounded-full border border-rose-700/20 bg-rose-600 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-white",
+  "Não avaliado":
+    "inline-flex items-center rounded-full border border-slate-300 bg-slate-100 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-slate-600",
+};
+
+export function IcaSituacaoBadge({ status }: { status?: string | null }) {
+  const label = status?.trim();
+  if (!label) return <span className="text-sm text-muted-foreground">—</span>;
+  return <span className={cn(ICA_STATUS_CLASS[label] ?? "text-sm text-foreground")}>{label}</span>;
+}
