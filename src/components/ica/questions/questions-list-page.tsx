@@ -29,7 +29,9 @@ import {
   QuestionFilters,
   type QuestionFilterValue,
 } from "@/components/ica/questions/question-filters";
+import { ExpandableStatement } from "@/components/ica/questions/expandable-statement";
 import { QuestionPreviewSheet } from "@/components/ica/questions/question-preview-sheet";
+import { QuestionSkillCell } from "@/components/ica/questions/question-skill-cell";
 import { DifficultyBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -164,38 +166,109 @@ function QuestionsList() {
 
   const filtersActive = hasActiveQuestionFilters(filters) || Boolean(urlQuery);
 
+  function replaceQuestion(updated: BankQuestion) {
+    setItems((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+    setPreview((current) => (current?.id === updated.id ? updated : current));
+  }
+
   const columns: DataListColumn<BankQuestion>[] = [
     {
       key: "enunciado",
       header: "Enunciado",
+      noTruncate: true,
+      className: "w-[14rem] min-w-[14rem] max-w-[14rem]",
+      headerClassName: "w-[14rem]",
       render: (question) => {
         const statement = questionStatement(question) || "(sem enunciado)";
-        return <span title={statement}>{statement}</span>;
+        return (
+          <div className="space-y-1">
+            <ExpandableStatement text={statement} />
+            <Link
+              href={ROUTES.ica.questoes.detalhe(question.id)}
+              className="text-xs font-medium text-brand-highlight hover:underline"
+              onClick={(event) => event.stopPropagation()}
+            >
+              Abrir
+            </Link>
+          </div>
+        );
       },
     },
-    { key: "tipo", header: "Tipo", render: (question) => <QuestionTypeBadge type={question.type} /> },
+    {
+      key: "tipo",
+      header: "Tipo",
+      noTruncate: true,
+      className: "w-[6rem]",
+      headerClassName: "w-[6rem]",
+      render: (question) => <QuestionTypeBadge type={question.type} />,
+    },
     {
       key: "gabarito",
-      header: "Gabarito",
-      render: (question) => questionAnswerSummary(question) || "—",
+      header: "Gab.",
+      className: "w-[3.5rem] text-center tabular-nums",
+      headerClassName: "w-[3.5rem] text-center",
+      render: (question) => (
+        <span className="font-medium" title={questionAnswerSummary(question) || undefined}>
+          {questionAnswerSummary(question) || "—"}
+        </span>
+      ),
       hideOnMobile: true,
     },
-    { key: "disciplina", header: "Disciplina", render: (question) => question.subject?.name ?? "—" },
-    { key: "serie", header: "Série", render: (question) => question.grade?.name ?? "—" },
+    {
+      key: "habilidade",
+      header: "Habilidade",
+      noTruncate: true,
+      className: "w-[8rem]",
+      headerClassName: "w-[8rem]",
+      render: (question) => (
+        <QuestionSkillCell
+          question={question}
+          editable={canWrite && !readOnlyReason(question, user)}
+          onUpdated={replaceQuestion}
+        />
+      ),
+    },
+    {
+      key: "disciplina",
+      header: "Disciplina",
+      className: "max-w-[8rem]",
+      render: (question) => question.subject?.name ?? "—",
+    },
+    {
+      key: "serie",
+      header: "Série",
+      className: "max-w-[5rem]",
+      render: (question) => question.grade?.name ?? "—",
+    },
     {
       key: "dificuldade",
       header: "Dificuldade",
+      hideOnMobile: true,
+      className: "max-w-[7rem]",
       render: (question) =>
         question.difficulty ? <DifficultyBadge difficulty={question.difficulty} /> : "—",
-      hideOnMobile: true,
     },
-    { key: "valor", header: "Valor", render: (question) => formatQuestionValue(question.value), hideOnMobile: true },
+    {
+      key: "valor",
+      header: "Pts",
+      hideOnMobile: true,
+      className: "w-[3.5rem] text-right tabular-nums",
+      headerClassName: "w-[3.5rem] text-right",
+      render: (question) => {
+        const value = question.value;
+        if (value == null || Number.isNaN(value)) return "—";
+        const short = Number.isInteger(value) ? String(value) : value.toLocaleString("pt-BR");
+        return <span title={formatQuestionValue(value)}>{short}</span>;
+      },
+    },
     {
       key: "origem",
       header: "Origem",
+      noTruncate: true,
+      className: "w-[7.5rem]",
       render: (question) => (
-        <span className="inline-flex flex-wrap justify-end gap-1 md:justify-start">
-          <OriginBadge origin={question.origin} />
+        <span className="inline-flex flex-col items-start gap-1">
+          <OriginBadge origin={question.origin} compact />
           <ScopeBadge scope={question.scopeType} />
         </span>
       ),

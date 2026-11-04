@@ -11,12 +11,19 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useMemo, useState, type ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export interface DataListColumn<T> {
   key: string;
   header: string;
   render: (item: T) => ReactNode;
   hideOnMobile?: boolean;
+  /** Evita truncate na célula (ex.: selects editáveis / enunciado expansível). */
+  noTruncate?: boolean;
+  /** Classes extras na célula (desktop). */
+  className?: string;
+  /** Classes extras no cabeçalho. */
+  headerClassName?: string;
 }
 
 interface DataListPageProps<T extends { id: string }> {
@@ -139,7 +146,7 @@ export function DataListPage<T extends { id: string }>({
                     <div className="space-y-2">
                       {primaryCol && (
                         <div>
-                          {rowHref ? (
+                          {rowHref && !primaryCol.noTruncate ? (
                             <Link
                               href={rowHref(item)}
                               className="text-base font-semibold text-brand-highlight hover:underline"
@@ -171,26 +178,31 @@ export function DataListPage<T extends { id: string }>({
                   <TableHeader>
                     <TableRow>
                       {columns.map((col) => (
-                        <TableHead key={col.key} className="whitespace-nowrap">
+                        <TableHead key={col.key} className={cn("whitespace-nowrap", col.headerClassName)}>
                           {col.header}
                         </TableHead>
                       ))}
-                      {actions && <TableHead className="text-right">Ações</TableHead>}
+                      {actions && <TableHead className="w-[1%] whitespace-nowrap text-right">Ações</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filtered.map((item) => (
-                      <TableRow key={item.id}>
+                      <TableRow key={item.id} className="align-top">
                         {columns.map((col) => {
                           const content = col.render(item);
+                          const isPrimaryLink = Boolean(rowHref && col.key === primaryCol?.key);
                           return (
                             <TableCell
                               key={col.key}
-                              className="max-w-[280px] truncate"
-                              title={cellTitle(content)}
+                              className={cn(
+                                !col.noTruncate && "max-w-[280px] truncate",
+                                col.noTruncate && "whitespace-normal",
+                                col.className
+                              )}
+                              title={col.noTruncate ? undefined : cellTitle(content)}
                             >
-                              {rowHref && col.key === primaryCol?.key ? (
-                                <Link href={rowHref(item)} className="font-medium text-brand-highlight hover:underline">
+                              {isPrimaryLink && !col.noTruncate ? (
+                                <Link href={rowHref!(item)} className="font-medium text-brand-highlight hover:underline">
                                   {content}
                                 </Link>
                               ) : (
@@ -199,7 +211,9 @@ export function DataListPage<T extends { id: string }>({
                             </TableCell>
                           );
                         })}
-                        {actions && <TableCell className="whitespace-nowrap text-right">{actions(item)}</TableCell>}
+                        {actions && (
+                          <TableCell className="whitespace-nowrap text-right align-top">{actions(item)}</TableCell>
+                        )}
                       </TableRow>
                     ))}
                   </TableBody>

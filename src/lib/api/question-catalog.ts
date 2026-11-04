@@ -103,6 +103,13 @@ export function formatSkillLabel(skill: CatalogSkill) {
   return skill.code || skill.description || skill.id;
 }
 
+/** Código BNCC para exibição compacta (tabela / valor selecionado). */
+export function formatSkillCode(skill: CatalogSkill) {
+  const code = skill.code?.trim();
+  if (code) return code;
+  return skill.description?.trim() || skill.id;
+}
+
 export async function listQuestionGrades(): Promise<Grade[]> {
   return listGrades();
 }

@@ -225,8 +225,12 @@ function IcaMonitoring() {
       <Alert>
         <BarChart3 className="h-4 w-4" />
         <AlertDescription>
-          O desempenho dos alunos (acertos por turma e por habilidade) depende da correção dos cartões-resposta, que ainda
-          não existe no servidor. Este painel mostra o andamento da preparação e da aplicação.
+          Este painel acompanha a preparação e a aplicação. Após a correção finalizada, o desempenho por habilidade e os
+          itens do aluno ficam em{" "}
+          <Link href={ROUTES.ica.resultados} className="font-medium underline underline-offset-2">
+            Resultados ICA
+          </Link>
+          .
         </AlertDescription>
       </Alert>
 

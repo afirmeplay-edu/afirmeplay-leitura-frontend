@@ -9,6 +9,8 @@ import {
   QUESTION_ORIGIN_LABEL,
   QUESTION_TYPE_LABEL,
 } from "@/lib/ica/questions";
+import { getProficiencyLevelStyle } from "@/lib/colors/proficiency-levels";
+import { ChipFilter } from "@/components/shared/chip-filter";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -54,7 +56,7 @@ export function QuestionFilters({
   idPrefix = "filtro",
   withType = false,
 }: QuestionFiltersProps) {
-  const fields: {
+  const selectFields: {
     id: string;
     label: string;
     current: string;
@@ -62,18 +64,6 @@ export function QuestionFilters({
     options: { value: string; label: string }[];
     apply: (next: string) => Partial<QuestionFilterValue>;
   }[] = [
-    ...(withType
-      ? [
-          {
-            id: "tipo",
-            label: "Tipo",
-            current: value.type,
-            allLabel: "Todos os tipos",
-            options: ICA_QUESTION_TYPES.map((type) => ({ value: type, label: QUESTION_TYPE_LABEL[type] })),
-            apply: (next: string) => ({ type: next as BankQuestionType | "" }),
-          },
-        ]
-      : []),
     {
       id: "disciplina",
       label: "Disciplina",
@@ -91,14 +81,6 @@ export function QuestionFilters({
       apply: (next) => ({ gradeId: next }),
     },
     {
-      id: "dificuldade",
-      label: "Dificuldade",
-      current: value.difficulty,
-      allLabel: "Todas",
-      options: QUESTION_DIFFICULTIES.map((difficulty) => ({ value: difficulty, label: difficulty })),
-      apply: (next) => ({ difficulty: next }),
-    },
-    {
       id: "origem",
       label: "Origem",
       current: value.origin,
@@ -112,34 +94,68 @@ export function QuestionFilters({
   ];
 
   return (
-    <div className={cn("grid gap-3 sm:grid-cols-2", withType ? "lg:grid-cols-5" : "lg:grid-cols-4")}>
-      {fields.map((field) => {
-        const htmlId = `${idPrefix}-${field.id}`;
-        return (
-          <div key={field.id} className="min-w-0 space-y-1.5">
-            <Label htmlFor={htmlId} className="text-xs text-muted-foreground">
-              {field.label}
-            </Label>
-            <Select
-              value={field.current || ALL}
-              onValueChange={(next) => onChange(field.apply(next === ALL ? "" : next))}
-              disabled={disabled}
-            >
-              <SelectTrigger id={htmlId} className="h-10">
-                <SelectValue placeholder={field.allLabel} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={ALL}>{field.allLabel}</SelectItem>
-                {field.options.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        );
-      })}
+    <div className={cn("space-y-3", disabled && "pointer-events-none opacity-60")}>
+      {withType ? (
+        <ChipFilter
+          label="Tipo"
+          value={value.type || ALL}
+          allValue={ALL}
+          onChange={(next) => onChange({ type: next === ALL ? "" : (next as BankQuestionType) })}
+          options={[
+            { value: ALL, label: "Todos" },
+            ...ICA_QUESTION_TYPES.map((type) => ({ value: type, label: QUESTION_TYPE_LABEL[type] })),
+          ]}
+        />
+      ) : null}
+
+      <ChipFilter
+        label="Dificuldade"
+        value={value.difficulty || ALL}
+        allValue={ALL}
+        onChange={(next) => onChange({ difficulty: next === ALL ? "" : next })}
+        options={[
+          { value: ALL, label: "Todas" },
+          ...QUESTION_DIFFICULTIES.map((difficulty) => {
+            const style = getProficiencyLevelStyle(difficulty);
+            return {
+              value: difficulty,
+              label: difficulty,
+              accentColor: style?.hex,
+              accentTextColor: style?.fgHex,
+            };
+          }),
+        ]}
+      />
+
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {selectFields.map((field) => {
+          const htmlId = `${idPrefix}-${field.id}`;
+          return (
+            <div key={field.id} className="min-w-0 space-y-1.5">
+              <Label htmlFor={htmlId} className="text-xs text-muted-foreground">
+                {field.label}
+              </Label>
+              <Select
+                value={field.current || ALL}
+                onValueChange={(next) => onChange(field.apply(next === ALL ? "" : next))}
+                disabled={disabled}
+              >
+                <SelectTrigger id={htmlId} className="h-10">
+                  <SelectValue placeholder={field.allLabel} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ALL}>{field.allLabel}</SelectItem>
+                  {field.options.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
