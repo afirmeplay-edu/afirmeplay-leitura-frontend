@@ -1,7 +1,7 @@
 export { api, createCityApi } from "@/lib/api/client";
 export { fetchAvailableCities, type AvailableCity } from "@/lib/api/cities";
 export { listCatalogCities, type CatalogCity } from "@/lib/api/catalog-cities";
-export { listGrades, listEducationStages } from "@/lib/api/grades";
+export { listGrades, listEducationStages, listAllEducationStages } from "@/lib/api/grades";
 export { getApiErrorMessage, getApiErrorBody, getApiErrorStatus } from "@/lib/api/errors";
 export {
   listSchools,

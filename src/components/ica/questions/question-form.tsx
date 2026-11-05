@@ -756,13 +756,13 @@ export function QuestionForm({ mode, question, initialType, onSaved }: QuestionF
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="questao-etapa">Etapa de ensino</Label>
+              <Label htmlFor="questao-curso">Curso</Label>
               <Select
                 value={draft.educationStageId || NONE}
                 onValueChange={(value) => patch({ educationStageId: value === NONE ? "" : value })}
                 disabled={busy || catalogLoading}
               >
-                <SelectTrigger id="questao-etapa">
+                <SelectTrigger id="questao-curso">
                   <SelectValue placeholder="Opcional" />
                 </SelectTrigger>
                 <SelectContent>
