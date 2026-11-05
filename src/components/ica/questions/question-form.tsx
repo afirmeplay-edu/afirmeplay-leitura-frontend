@@ -8,7 +8,7 @@ import { createBankQuestion, describeQuestionImage, previewQuestionImage, update
 import type { BankQuestion, BankQuestionType } from "@/lib/api/afirme-reading/types";
 import { normalizeApiError } from "@/lib/api/errors";
 import { formatSkillLabel, listSkills, type CatalogSkill } from "@/lib/api/question-catalog";
-import { SkillSelectItem } from "@/components/ica/questions/skill-select-item";
+import { SkillPickerField } from "@/components/ica/questions/skill-picker-field";
 import { ROUTES } from "@/config/routes";
 import { ICA_BRAND } from "@/lib/ica/brand";
 import { buildQuestionHtml, extractImageSources, htmlToPlainText, isDataImageUrl, resolveQuestionAssetUrl, toStoredQuestionHtml } from "@/lib/ica/question-html";
@@ -780,29 +780,17 @@ export function QuestionForm({ mode, question, initialType, onSaved }: QuestionF
 
             <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="questao-habilidade">Habilidade (BNCC)</Label>
-              <Select
-                value={draft.skillId || NONE}
-                onValueChange={(value) => patch({ skillId: value === NONE ? "" : value })}
-                disabled={busy || skillsLoading || (!draft.subjectId && !draft.gradeId)}
-              >
-                <SelectTrigger id="questao-habilidade">
-                  <SelectValue
-                    placeholder={
-                      !draft.subjectId && !draft.gradeId
-                        ? "Escolha a disciplina ou a série primeiro"
-                        : skillsLoading
-                          ? "Carregando habilidades..."
-                          : "Selecione a habilidade do catálogo"
-                    }
-                  />
-                </SelectTrigger>
-                <SelectContent className="max-w-[min(90vw,640px)]">
-                  <SelectItem value={NONE}>Sem habilidade</SelectItem>
-                  {skillOptions.map((skill) => (
-                    <SkillSelectItem key={skill.id} skill={skill} />
-                  ))}
-                </SelectContent>
-              </Select>
+              <SkillPickerField
+                id="questao-habilidade"
+                skills={skillOptions}
+                value={draft.skillId}
+                onChange={(skillId) => patch({ skillId })}
+                disabled={busy}
+                loading={skillsLoading}
+                lockedReason={
+                  !draft.subjectId && !draft.gradeId ? "Escolha a disciplina ou a série primeiro" : null
+                }
+              />
               <p className="text-xs text-muted-foreground">
                 Catálogo compartilhado com o Afirme Play. Indicar a habilidade habilita o desempenho por habilidade nos
                 Resultados ICA.

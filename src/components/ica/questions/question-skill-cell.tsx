@@ -8,10 +8,8 @@ import type { BankQuestion } from "@/lib/api/afirme-reading/types";
 import { normalizeApiError } from "@/lib/api/errors";
 import { formatSkillCode, listSkills, type CatalogSkill } from "@/lib/api/question-catalog";
 import { formatIcaSkillDisplay, looksLikeUuid } from "@/lib/ica/skill-display";
-import { SkillSelectItem } from "@/components/ica/questions/skill-select-item";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SkillPickerField } from "@/components/ica/questions/skill-picker-field";
 
-const NONE = "__none__";
 const skillsCache = new Map<string, Promise<CatalogSkill[]>>();
 
 function loadSkills(subjectId?: string | null, gradeId?: string | null) {
@@ -101,15 +99,14 @@ export function QuestionSkillCell({
     : undefined;
 
   async function saveSkill(nextId: string) {
-    const next = nextId === NONE ? "" : nextId;
-    if (next === value) return;
+    if (nextId === value) return;
     const previous = value;
-    setValue(next);
+    setValue(nextId);
     setSaving(true);
     try {
-      const updated = await updateBankQuestion(question.id, { skills: next || null });
+      const updated = await updateBankQuestion(question.id, { skills: nextId || null });
       onUpdated?.(updated);
-      toast.success(next ? "Habilidade atualizada." : "Habilidade removida.");
+      toast.success(nextId ? "Habilidade atualizada." : "Habilidade removida.");
     } catch (error) {
       setValue(previous);
       toast.error(normalizeApiError(error, "Não foi possível atualizar a habilidade.").message);
@@ -132,18 +129,15 @@ export function QuestionSkillCell({
   }
 
   return (
-    <div className="w-[7.5rem]" onClick={(event) => event.stopPropagation()} title={selectedTitle}>
-      <Select value={value || NONE} onValueChange={(next) => void saveSkill(next)} disabled={saving || loading}>
-        <SelectTrigger className="h-9 w-full px-2 font-mono text-xs">
-          <SelectValue placeholder={loading ? "…" : "—"} />
-        </SelectTrigger>
-        <SelectContent className="max-w-[min(90vw,640px)]">
-          <SelectItem value={NONE}>Sem habilidade</SelectItem>
-          {options.map((skill) => (
-            <SkillSelectItem key={skill.id} skill={skill} />
-          ))}
-        </SelectContent>
-      </Select>
+    <div className="w-[9.5rem]" onClick={(event) => event.stopPropagation()} title={selectedTitle}>
+      <SkillPickerField
+        skills={options}
+        value={value}
+        onChange={(next) => void saveSkill(next)}
+        disabled={saving}
+        loading={loading}
+        triggerClassName="h-9 px-2 font-mono text-xs"
+      />
       {saving ? (
         <p className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground">
           <Loader2 className="h-3 w-3 animate-spin" />
