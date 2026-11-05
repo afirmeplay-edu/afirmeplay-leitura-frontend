@@ -161,6 +161,11 @@ body {
     @apply transition-all duration-300 ease-out;
   }
 
+  .statement-editor:empty::before {
+    content: attr(data-placeholder);
+    color: hsl(var(--muted-foreground));
+  }
+
   .question-html p {
     @apply my-1.5;
   }

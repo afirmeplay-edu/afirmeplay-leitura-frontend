@@ -9,7 +9,14 @@ import type {
   UpdateBankQuestionPayload,
 } from "@/lib/api/afirme-reading/types";
 import { normalizeDictationMarks } from "@/lib/ica/dictation-marks";
-import { buildQuestionHtml, extractImageSources, htmlToPlainText, resolveQuestionAssetUrl } from "@/lib/ica/question-html";
+import {
+  buildQuestionHtml,
+  editorHtmlFromStored,
+  extractImageSources,
+  htmlToPlainText,
+  resolveQuestionAssetUrl,
+  toStoredQuestionHtml,
+} from "@/lib/ica/question-html";
 import {
   MAX_QUESTION_OPTIONS,
   MIN_QUESTION_OPTIONS,
@@ -42,6 +49,8 @@ export interface QuestionDraft {
   dictatedWord: string;
   /** Descrição devolvida pela IA. Só leitura: trocar o enunciado apaga no servidor. */
   imageDescription: string;
+  /** HTML do enunciado, com as imagens no lugar em que foram inseridas. */
+  statementHtml: string;
   text: string;
   statementImages: string[];
   secondStatement: string;
@@ -58,6 +67,7 @@ export interface QuestionDraft {
 
 export type QuestionField =
   | "type"
+  | "title"
   | "stimulus"
   | "dictatedWord"
   | "statementImages"
@@ -91,6 +101,7 @@ export function emptyQuestionDraft(type: BankQuestionType = "multipleChoice"): Q
     stimulus: "word",
     dictatedWord: "",
     imageDescription: "",
+    statementHtml: "",
     text: "",
     statementImages: [],
     secondStatement: "",
@@ -115,6 +126,10 @@ export function draftFromQuestion(question: BankQuestion): QuestionDraft {
     image: option.image ?? null,
     isCorrect: correct[index] === true,
   }));
+  const storedHtml = question.formattedText?.trim()
+    ? question.formattedText
+    : buildQuestionHtml(question.text ?? "");
+  const statementHtml = editorHtmlFromStored(storedHtml);
   return {
     type,
     title: question.title ?? "",
@@ -122,8 +137,9 @@ export function draftFromQuestion(question: BankQuestion): QuestionDraft {
     stimulus: questionStimulus(question) === "image" ? "image" : "word",
     dictatedWord: questionDictatedWord(question),
     imageDescription: questionImageDescription(question),
-    text: question.text?.trim() || htmlToPlainText(question.formattedText),
-    statementImages: extractImageSources(question.formattedText),
+    statementHtml,
+    text: htmlToPlainText(statementHtml) || question.text?.trim() || "",
+    statementImages: extractImageSources(statementHtml),
     secondStatement: question.secondStatement ?? "",
     subjectId: question.subject?.id ?? "",
     gradeId: question.grade?.id ?? "",
@@ -138,12 +154,6 @@ export function draftFromQuestion(question: BankQuestion): QuestionDraft {
   };
 }
 
-/** HTML que o editor simples não reproduz (negrito, tabelas…). Serve para avisar antes de reescrever. */
-export function hasRichFormatting(html: string | null | undefined) {
-  if (!html) return false;
-  return /<(?!\/?(p|br|img)\b)[a-z][^>]*>/i.test(html);
-}
-
 export function optionImageSrc(image: OptionDraft["image"]) {
   if (!image) return null;
   return typeof image === "string" ? resolveQuestionAssetUrl(image) : resolveQuestionAssetUrl(image.imageUrl);
@@ -155,10 +165,28 @@ function parseValue(raw: string) {
   return Number(normalized);
 }
 
+const QUESTION_NAME_MAX = 255;
+
+export function statementPlainText(draft: Pick<QuestionDraft, "statementHtml" | "text">) {
+  return htmlToPlainText(draft.statementHtml).trim() || draft.text.trim();
+}
+
+/** Texto enviado à API. Enunciado só com imagem usa um rótulo, porque `text` não pode ir vazio. */
+export function statementTextForApi(draft: Pick<QuestionDraft, "statementHtml" | "text" | "statementImages">) {
+  return statementPlainText(draft) || (draft.statementImages.length ? "Imagem" : "");
+}
+
 /** Mesmas regras do backend (CONTRATO_QUESTOES.md), com as mensagens do contrato em linguagem de tela. */
 export function validateQuestionDraft(draft: QuestionDraft): QuestionValidationError[] {
   const errors: QuestionValidationError[] = [];
-  if (!draft.text.trim()) errors.push({ field: "text", message: "Informe o enunciado." });
+  const name = draft.title.trim();
+  if (!name) errors.push({ field: "title", message: "Informe o nome da questão." });
+  else if (name.length > QUESTION_NAME_MAX) {
+    errors.push({ field: "title", message: `O nome da questão deve ter no máximo ${QUESTION_NAME_MAX} caracteres.` });
+  }
+  if (!statementPlainText(draft) && draft.statementImages.length === 0) {
+    errors.push({ field: "text", message: "Informe o enunciado." });
+  }
   if (!draft.subjectId) errors.push({ field: "subjectId", message: "Selecione a disciplina." });
   if (!draft.gradeId) errors.push({ field: "gradeId", message: "Selecione a série." });
 
@@ -236,11 +264,11 @@ function payloadDictation(draft: QuestionDraft): DictationMarks {
 }
 
 export function buildCreatePayload(draft: QuestionDraft): CreateBankQuestionPayload {
-  const text = draft.text.trim();
+  const text = statementTextForApi(draft);
   const payload: CreateBankQuestionPayload = {
     title: draft.title.trim(),
     text,
-    formattedText: buildQuestionHtml(text, draft.statementImages, "Imagem do enunciado"),
+    formattedText: toStoredQuestionHtml(draft.statementHtml),
     type: draft.type,
     subjectId: draft.subjectId,
     grade: draft.gradeId,
@@ -275,9 +303,9 @@ export function buildUpdatePayload(initial: QuestionDraft, current: QuestionDraf
 
   if (current.title.trim() !== initial.title.trim()) payload.title = current.title.trim();
   if (!same(current.dictation, initial.dictation)) payload.dictationMarks = payloadDictation(current);
-  if (current.text.trim() !== initial.text.trim() || !same(current.statementImages, initial.statementImages)) {
-    payload.text = current.text.trim();
-    payload.formattedText = buildQuestionHtml(current.text.trim(), current.statementImages, "Imagem do enunciado");
+  if (toStoredQuestionHtml(current.statementHtml) !== toStoredQuestionHtml(initial.statementHtml)) {
+    payload.text = statementTextForApi(current);
+    payload.formattedText = toStoredQuestionHtml(current.statementHtml);
   }
   if (current.secondStatement.trim() !== initial.secondStatement.trim()) {
     payload.secondStatement = current.secondStatement.trim();

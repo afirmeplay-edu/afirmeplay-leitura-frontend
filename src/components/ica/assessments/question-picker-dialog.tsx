@@ -124,8 +124,8 @@ export function QuestionPickerDialog({
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
             <Input
               className="pl-9"
-              placeholder="Buscar no enunciado"
-              aria-label="Buscar no enunciado"
+              placeholder="Buscar por nome ou enunciado"
+              aria-label="Buscar por nome ou enunciado"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               autoFocus
@@ -160,6 +160,7 @@ export function QuestionPickerDialog({
                 const already = selectedIds.has(question.id);
                 const expanded = expandedId === question.id;
                 const statement = questionStatement(question) || "(sem enunciado)";
+                const name = question.title?.trim();
                 return (
                   <li
                     key={question.id}
@@ -170,6 +171,7 @@ export function QuestionPickerDialog({
                   >
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
                       <div className="min-w-0 flex-1 space-y-1.5">
+                        {name ? <p className="text-sm font-semibold leading-tight">{name}</p> : null}
                         <p className={cn("text-sm", expanded ? "" : "line-clamp-2")}>{statement}</p>
                         <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
                           <OriginBadge origin={question.origin} />

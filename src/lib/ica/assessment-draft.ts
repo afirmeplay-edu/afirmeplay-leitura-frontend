@@ -47,6 +47,8 @@ export const SLOT_START = SLOT_LAYOUT.reduce(
 export interface SlotItem {
   questionId: string;
   type: BankQuestionType;
+  /** Nome da questão, quando o banco tiver. */
+  title?: string;
   text: string;
   subjectName: string | null;
   gradeName: string | null;
@@ -100,6 +102,7 @@ export function toSlotItem(question: BankQuestion): SlotItem {
   return {
     questionId: question.id,
     type: normalizeQuestionType(question.type) ?? "multipleChoice",
+    title: question.title?.trim() || undefined,
     text: questionStatement(question) || "(sem enunciado)",
     subjectName: question.subject?.name ?? null,
     gradeName: question.grade?.name ?? null,
