@@ -371,8 +371,8 @@ function TestApplication({ id }: { id: string }) {
           <AlertTriangle className="h-4 w-4" />
           <AlertTitle>Prova do aplicador</AlertTitle>
           <AlertDescription>
-            O PDF do aplicador solicita o modo com megafones. Enquanto o backend não diferenciar os modos, o arquivo
-            pode sair igual ao do aluno. As marcações de ditado ficam na pré-visualização da avaliação.
+            Baixe a prova do aluno (sem marcações) ou a do aplicador (com megafones nos campos que devem ser lidos
+            em voz alta). As marcações também aparecem na pré-visualização da avaliação.
           </AlertDescription>
         </Alert>
       )}

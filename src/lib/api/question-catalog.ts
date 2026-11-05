@@ -1,6 +1,6 @@
 import { api } from "@/lib/api/client";
 import { getApiErrorStatus } from "@/lib/api/errors";
-import { listEducationStages, listGrades } from "@/lib/api/grades";
+import { listAllEducationStages, listGrades } from "@/lib/api/grades";
 import type { EducationStage, Grade } from "@/lib/api/afirme-reading/types";
 
 /**
@@ -115,5 +115,7 @@ export async function listQuestionGrades(): Promise<Grade[]> {
 }
 
 export async function listQuestionEducationStages(): Promise<EducationStage[]> {
-  return listEducationStages();
+  // Banco de questões precisa do catálogo completo; `/education_stages` omite
+  // cursos sem turma vinculada (ex.: Anos iniciais, Educação especial).
+  return listAllEducationStages();
 }

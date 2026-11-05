@@ -605,9 +605,8 @@ function AssessmentBuilder({ id }: { id?: string }) {
           <AlertTriangle className="h-4 w-4" />
           <AlertTitle>Prova do aplicador</AlertTitle>
           <AlertDescription>
-            A prova do aluno e a do aplicador já podem ser baixadas. Os megafones no PDF do aplicador dependem do
-            suporte do backend; até lá, o arquivo pode sair igual ao do aluno. As marcações continuam visíveis na
-            pré-visualização desta tela.
+            Use &quot;Prova do aluno&quot; para o caderno limpo e &quot;Prova do aplicador&quot; para o PDF com
+            megafones nos campos marcados para leitura em voz alta.
           </AlertDescription>
         </Alert>
       ) : null}
