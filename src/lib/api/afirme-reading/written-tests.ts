@@ -192,7 +192,7 @@ async function downloadFile(path: string, fallbackName: string) {
 
 /**
  * PDF do aluno (sem marcações) ou do aplicador (com megafones).
- * Envia `?mode=student|applicator`. Se o backend ainda ignorar o parâmetro, os dois arquivos saem iguais.
+ * Envia `?mode=student|applicator`.
  */
 export async function downloadWrittenTestPdf(
   id: string,
