@@ -71,13 +71,27 @@ export function htmlToPlainText(html: string | null | undefined): string {
     .trim();
 }
 
-/** `src` originais (sem o prefixo `/api`) das imagens do HTML, para preservá-las ao reescrever o enunciado. */
+/** HTML salvo (`/questions/...`) vira URL que o `<img>` consegue carregar (`/api/questions/...`). */
+export function editorHtmlFromStored(html: string | null | undefined) {
+  return (html ?? "").replace(/src=(["'])\/questions\//gi, "src=$1/api/questions/");
+}
+
+/** Tira o prefixo `/api` antes de gravar, no mesmo formato do Afirme Play. */
+export function toStoredQuestionHtml(html: string | null | undefined) {
+  return (html ?? "").replace(/src=(["'])\/api\/questions\//gi, "src=$1/questions/");
+}
+
+/** `src` das imagens do HTML, na ordem do enunciado. Não depende de `window` para o formulário hidratar igual. */
 export function extractImageSources(html: string | null | undefined): string[] {
-  if (!html || typeof window === "undefined") return [];
-  const doc = new DOMParser().parseFromString(html, "text/html");
-  return Array.from(doc.querySelectorAll("img"))
-    .map((img) => img.getAttribute("src") ?? "")
-    .filter((src) => Boolean(resolveQuestionAssetUrl(src)));
+  if (!html) return [];
+  const sources: string[] = [];
+  const pattern = /<img\b[^>]*?\ssrc=["']([^"']+)["']/gi;
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(html))) {
+    const src = match[1] ?? "";
+    if (resolveQuestionAssetUrl(src)) sources.push(src);
+  }
+  return sources;
 }
 
 function escapeHtml(value: string) {

@@ -180,8 +180,10 @@ function QuestionsList() {
       headerClassName: "w-[14rem]",
       render: (question) => {
         const statement = questionStatement(question) || "(sem enunciado)";
+        const name = question.title?.trim();
         return (
           <div className="space-y-1">
+            {name ? <p className="text-sm font-semibold leading-tight">{name}</p> : null}
             <ExpandableStatement text={statement} />
             <Link
               href={ROUTES.ica.questoes.detalhe(question.id)}
@@ -400,7 +402,7 @@ function QuestionsList() {
         columns={columns}
         createHref={canWrite ? ROUTES.ica.questoes.nova : undefined}
         createLabel="Nova questão"
-        searchPlaceholder="Buscar no enunciado"
+        searchPlaceholder="Buscar por nome ou enunciado"
         searchValue={searchInput}
         onSearchChange={setSearchInput}
         rowHref={(question) => ROUTES.ica.questoes.detalhe(question.id)}

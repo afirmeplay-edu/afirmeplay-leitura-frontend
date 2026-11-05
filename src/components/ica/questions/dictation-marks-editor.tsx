@@ -91,7 +91,7 @@ export function DictationMarksEditor({
         <p className="text-xs text-muted-foreground">Marque o que o aplicador deve ler em voz alta.</p>
       ) : null}
       <div className="flex flex-wrap gap-1.5">
-        {toggle(marks.title, "Título", () => toggleBoolean("title"))}
+        {toggle(marks.title, "Nome", () => toggleBoolean("title"))}
         {toggle(marks.statement, "Enunciado", () => toggleBoolean("statement"))}
         {toggle(marks.support, "Apoio", () => toggleBoolean("support"))}
         {Array.from({ length: imageCount }, (_, index) =>

@@ -11,8 +11,7 @@ import { formatSkillLabel, listSkills, type CatalogSkill } from "@/lib/api/quest
 import { SkillSelectItem } from "@/components/ica/questions/skill-select-item";
 import { ROUTES } from "@/config/routes";
 import { ICA_BRAND } from "@/lib/ica/brand";
-import { QUESTION_IMAGE_ACCEPT, QuestionImageError, readQuestionImage } from "@/lib/ica/image-file";
-import { buildQuestionHtml, isDataImageUrl, resolveQuestionAssetUrl } from "@/lib/ica/question-html";
+import { buildQuestionHtml, extractImageSources, htmlToPlainText, isDataImageUrl, resolveQuestionAssetUrl, toStoredQuestionHtml } from "@/lib/ica/question-html";
 import {
   DICTATED_WORD_MAX_LENGTH,
   ICA_QUESTION_TYPES,
@@ -31,7 +30,6 @@ import {
   buildUpdatePayload,
   draftFromQuestion,
   emptyQuestionDraft,
-  hasRichFormatting,
   isDraftDirty,
   optionImageSrc,
   validateQuestionDraft,
@@ -39,6 +37,7 @@ import {
   type QuestionField,
 } from "@/components/ica/questions/question-draft";
 import { QuestionOptionsEditor } from "@/components/ica/questions/question-options-editor";
+import { StatementEditor } from "@/components/ica/questions/statement-editor";
 import { DictationMarkButton } from "@/components/ica/questions/dictation-marks-editor";
 import { QuestionPreview } from "@/components/ica/questions/question-preview";
 import { OriginBadge, ScopeBadge } from "@/components/ica/questions/question-badges";
@@ -52,7 +51,21 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 
 const NONE = "__none__";
-const MAX_STATEMENT_IMAGES = 3;
+const MAX_STATEMENT_IMAGES = 8;
+
+function remapImageMarks(previous: string[], next: string[], marks: number[]) {
+  const nextIndex = new Map(next.map((src, index) => [src, index]));
+  return marks
+    .map((index) => nextIndex.get(previous[index]))
+    .filter((index): index is number => index != null)
+    .sort((left, right) => left - right);
+}
+
+function htmlWithoutImage(html: string, index: number) {
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  doc.body.querySelectorAll("img")[index]?.remove();
+  return doc.body.innerHTML;
+}
 
 type FieldErrors = Partial<Record<QuestionField, string>>;
 
@@ -82,7 +95,6 @@ function FieldError({ message }: { message?: string }) {
 export function QuestionForm({ mode, question, initialType, onSaved }: QuestionFormProps) {
   const router = useRouter();
   const formRef = useRef<HTMLDivElement>(null);
-  const statementFileRef = useRef<HTMLInputElement>(null);
   const { subjects, grades, stages, loading: catalogLoading } = useQuestionCatalog({ withStages: true });
 
   const [initial, setInitial] = useState<QuestionDraft>(() =>
@@ -147,18 +159,29 @@ export function QuestionForm({ mode, question, initialType, onSaved }: QuestionF
     patch({ dictation: { ...draft.dictation, images } });
   }
 
-  async function addStatementImage(file: File | undefined) {
-    if (!file) return;
-    if (draft.statementImages.length >= MAX_STATEMENT_IMAGES) {
-      toast.error(`O enunciado aceita até ${MAX_STATEMENT_IMAGES} imagens.`);
-      return;
-    }
-    try {
-      const dataUrl = await readQuestionImage(file);
-      patch({ statementImages: [...draft.statementImages, dataUrl], imageDescription: "" });
-    } catch (error) {
-      toast.error(error instanceof QuestionImageError ? error.message : "Não foi possível anexar a imagem.");
-    }
+  function applyStatementHtml(html: string) {
+    const images = extractImageSources(html);
+    setDraft((prev) => ({
+      ...prev,
+      statementHtml: html,
+      text: htmlToPlainText(html),
+      statementImages: images,
+      imageDescription: images.join("\n") === prev.statementImages.join("\n") ? prev.imageDescription : "",
+      dictation: {
+        ...prev.dictation,
+        images: remapImageMarks(prev.statementImages, images, prev.dictation.images),
+      },
+    }));
+    setErrors((prev) => {
+      const next = { ...prev };
+      delete next.text;
+      delete next.statementImages;
+      return next;
+    });
+  }
+
+  function removeStatementImage(index: number) {
+    applyStatementHtml(htmlWithoutImage(draft.statementHtml, index));
   }
 
   function focusField(field: QuestionField) {
@@ -199,7 +222,7 @@ export function QuestionForm({ mode, question, initialType, onSaved }: QuestionF
       if (!question) return;
       const payload = buildUpdatePayload(initial, draft);
       if (Object.keys(payload).length === 0) {
-        toast.info("Nenhuma alteração para salvar.");
+        toast.success("Questão salva.");
         return;
       }
       const saved = await updateBankQuestion(question.id, payload);
@@ -233,7 +256,7 @@ export function QuestionForm({ mode, question, initialType, onSaved }: QuestionF
     setDescribing(true);
     try {
       if (unsavedImage) {
-        const formattedText = buildQuestionHtml(draft.text, draft.statementImages, "Imagem do enunciado");
+        const formattedText = toStoredQuestionHtml(draft.statementHtml);
         const preview = await previewQuestionImage(formattedText);
         patch({ imageDescription: preview.imageDescription?.trim() ?? "" });
         toast.success(
@@ -295,7 +318,7 @@ export function QuestionForm({ mode, question, initialType, onSaved }: QuestionF
       dictatedWord: draft.type === "dictation" ? draft.dictatedWord.trim() || null : null,
       imageDescription: draft.type === "dictation" ? draft.imageDescription.trim() || null : null,
       text: draft.text,
-      formattedText: buildQuestionHtml(draft.text, draft.statementImages),
+      formattedText: draft.statementHtml,
       secondStatement: draft.secondStatement,
       formattedSolution: draft.solution.trim() ? buildQuestionHtml(draft.solution) : "",
       options: (draft.type === "multipleChoice" ? draft.options : []).map((option, index) => ({
@@ -410,33 +433,27 @@ export function QuestionForm({ mode, question, initialType, onSaved }: QuestionF
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-end gap-2">
+            <div className="flex items-end gap-2" data-field="title">
               <div className="min-w-0 flex-1 space-y-2">
-                <Label htmlFor="questao-titulo">Título</Label>
+                <Label htmlFor="questao-nome">Nome da questão *</Label>
                 <Input
-                  id="questao-titulo"
+                  id="questao-nome"
                   value={draft.title}
-                  onChange={(event) => patch({ title: event.target.value })}
-                  placeholder="Opcional"
+                  maxLength={255}
+                  onChange={(event) => patch({ title: event.target.value }, ["title"])}
+                  placeholder="Ex.: Palavras com a letra B"
+                  aria-invalid={Boolean(errors.title)}
                   disabled={busy}
                 />
+                <FieldError message={errors.title} />
               </div>
               <DictationMarkButton
                 active={draft.dictation.title}
-                label="o título"
+                label="o nome da questão"
                 disabled={busy}
                 onClick={() => flipDictation("title")}
               />
             </div>
-            {question && hasRichFormatting(question.formattedText) ? (
-              <Alert>
-                <Info className="h-4 w-4" />
-                <AlertDescription className="text-xs">
-                  Este enunciado tem formatação (negrito, tabelas…) que o editor não reproduz. Se você alterar o texto ou
-                  as imagens, ele será salvo como texto simples com as imagens.
-                </AlertDescription>
-              </Alert>
-            ) : null}
             <div className="space-y-2" data-field="text">
               <div className="flex items-center justify-between gap-2">
                 <Label htmlFor="questao-enunciado">Enunciado *</Label>
@@ -447,10 +464,10 @@ export function QuestionForm({ mode, question, initialType, onSaved }: QuestionF
                   onClick={() => flipDictation("statement")}
                 />
               </div>
-              <Textarea
+              <StatementEditor
                 id="questao-enunciado"
-                value={draft.text}
-                onChange={(event) => patch({ text: event.target.value }, ["text"])}
+                value={draft.statementHtml}
+                onChange={applyStatementHtml}
                 placeholder={
                   draft.type === "dictation"
                     ? "Ex.: Escreva a palavra que a professora vai ditar."
@@ -458,40 +475,15 @@ export function QuestionForm({ mode, question, initialType, onSaved }: QuestionF
                       ? "Ex.: Escreva um bilhete para um colega convidando-o para a festa da escola."
                       : "Ex.: Qual palavra começa com a mesma letra de BOLA?"
                 }
-                className="min-h-[110px]"
-                aria-invalid={Boolean(errors.text)}
+                invalid={Boolean(errors.text)}
                 disabled={busy}
+                maxImages={MAX_STATEMENT_IMAGES}
+                onImageError={(message) => toast.error(message)}
               />
               <FieldError message={errors.text} />
             </div>
 
             <div className="space-y-2" data-field="statementImages">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <Label>{imageDictation ? "Figura do enunciado *" : "Imagens do enunciado"}</Label>
-                <input
-                  ref={statementFileRef}
-                  type="file"
-                  accept={QUESTION_IMAGE_ACCEPT}
-                  className="sr-only"
-                  tabIndex={-1}
-                  aria-hidden
-                  onChange={(event) => {
-                    void addStatementImage(event.target.files?.[0]);
-                    event.target.value = "";
-                  }}
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-9"
-                  disabled={busy || draft.statementImages.length >= MAX_STATEMENT_IMAGES}
-                  onClick={() => statementFileRef.current?.click()}
-                >
-                  <ImagePlus className="h-4 w-4" />
-                  Anexar imagem
-                </Button>
-              </div>
               {draft.statementImages.length ? (
                 <ul className="flex flex-wrap gap-3">
                   {draft.statementImages.map((src, index) => {
@@ -508,17 +500,7 @@ export function QuestionForm({ mode, question, initialType, onSaved }: QuestionF
                           size="icon"
                           variant="outline"
                           className="absolute -right-2 -top-2 h-7 w-7 rounded-full bg-background"
-                          onClick={() =>
-                            patch({
-                              statementImages: draft.statementImages.filter((_, current) => current !== index),
-                              dictation: {
-                                ...draft.dictation,
-                                images: draft.dictation.images
-                                  .filter((current) => current !== index)
-                                  .map((current) => (current > index ? current - 1 : current)),
-                              },
-                            })
-                          }
+                          onClick={() => removeStatementImage(index)}
                           disabled={busy}
                           aria-label={`Remover imagem ${index + 1} do enunciado`}
                         >
@@ -535,13 +517,9 @@ export function QuestionForm({ mode, question, initialType, onSaved }: QuestionF
                     );
                   })}
                 </ul>
-              ) : (
-                <p className="text-xs text-muted-foreground">
-                  {imageDictation
-                    ? "A foto sai na prova. PNG, JPG, GIF ou WEBP até 1 MB."
-                    : `Opcional. PNG, JPG, GIF ou WEBP até 1 MB (até ${MAX_STATEMENT_IMAGES}).`}
-                </p>
-              )}
+              ) : imageDictation ? (
+                <p className="text-xs text-muted-foreground">Insira a figura no enunciado. Ela sai na prova.</p>
+              ) : null}
               <FieldError message={errors.statementImages} />
             </div>
 

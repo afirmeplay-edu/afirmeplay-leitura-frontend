@@ -46,7 +46,7 @@ export function QuestionPreview({ question, showAnswer = true, showMeta = true, 
       {question.title?.trim() ? (
         <div className="flex items-start gap-2">
           <p className="flex-1 font-semibold">{question.title}</p>
-          {marks.title ? <Mark label="Título" /> : null}
+          {marks.title ? <Mark label="Nome" /> : null}
         </div>
       ) : null}
       <div className="space-y-2 text-sm leading-relaxed text-foreground">

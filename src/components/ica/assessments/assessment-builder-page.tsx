@@ -403,8 +403,12 @@ function AssessmentBuilder({ id }: { id?: string }) {
         setSaved((current) => (current ? { ...current, meta: savedMeta } : current));
       }
       if (questionsChanged) latest = await setWrittenTestQuestions(id as string, toQuestionRefs(draft, overflow));
+      if (!metaChanged && !questionsChanged) {
+        toast.success("Avaliação salva.");
+        return;
+      }
       if (latest) applyDetail(latest);
-      toast.success(latest ? "Alterações salvas." : "Nada para salvar.");
+      toast.success("Avaliação salva.");
     } catch (err) {
       toast.error(normalizeApiError(err, "Não foi possível salvar a avaliação.").message);
     } finally {
@@ -553,7 +557,7 @@ function AssessmentBuilder({ id }: { id?: string }) {
             variant={isNew || dirty ? "default" : "outline"}
             className="w-full sm:w-auto"
             onClick={() => void handleSave()}
-            disabled={busy !== null || (!isNew && !dirty)}
+            disabled={busy !== null}
           >
             {busy === "save" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
             Salvar
@@ -822,7 +826,10 @@ function AssessmentBuilder({ id }: { id?: string }) {
                             <div className="flex min-w-0 flex-1 items-start gap-3">
                               <SlotNumber number={number} type={type} />
                               <div className="min-w-0 flex-1 space-y-1">
-                                <p className="line-clamp-2 text-sm font-medium" title={slot.text}>
+                                {slot.title ? (
+                                  <p className="text-sm font-semibold leading-tight">{slot.title}</p>
+                                ) : null}
+                                <p className={cn("line-clamp-2 text-sm", slot.title ? "text-muted-foreground" : "font-medium")} title={slot.text}>
                                   {slot.text}
                                 </p>
                                 {!slot.missing ? (
