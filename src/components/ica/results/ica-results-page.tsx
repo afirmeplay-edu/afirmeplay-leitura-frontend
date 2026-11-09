@@ -332,7 +332,7 @@ function IcaResultsContent() {
       <PageHeader
         brand={ICA_BRAND}
         title="Resultados ICA"
-        description="Participação, proficiência da correção finalizada, corte ≥ 743, níveis e notas 0–10."
+        description="Participação, proficiência, níveis e notas."
         icon={BarChart3}
       >
         {writtenTestId ? (
@@ -343,7 +343,7 @@ function IcaResultsContent() {
         ) : null}
       </PageHeader>
 
-      <SectionCard title="Filtros" description="Recorte territorial e classificação. A prova escrita do município é resolvida automaticamente.">
+      <SectionCard title="Filtros" description="Filtre por escola, série, turma e status.">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <SelectFilter
             label="Escola"
@@ -592,7 +592,7 @@ function IcaResultsContent() {
       {view === "visao" ? (
         <SectionCard
           title="Diagnóstico (IAD)"
-          description="Aptos com nota ≥ 70 e travas de leitura ≥ 11, palavras ≥ 2 e texto ≥ 7. Este índice não é o status de alfabetização."
+          description="Indicador de aptidão no recorte atual."
         >
           <div className="grid gap-3 sm:grid-cols-3">
             <div className="rounded-xl border p-4">
@@ -612,25 +612,25 @@ function IcaResultsContent() {
       ) : null}
 
       {view === "visao" ? (
-        <SectionCard title="Agrupamento do recorte" description="Escolas, séries ou turmas devolvidos para os filtros atuais.">
+        <SectionCard title="Agrupamento" description="Resumo conforme os filtros selecionados.">
           <GroupTable rows={aggregateRows} mode="recorte" loading={loading && !dashboard} />
         </SectionCard>
       ) : null}
 
       {view === "escolas" ? (
-        <SectionCard title="Indicadores por escola" description="Valores agregados devolvidos para o recorte atual.">
+        <SectionCard title="Indicadores por escola" description="Resumo por escola.">
           <GroupTable rows={rowsOf(dashboard, "escola")} mode="escolas" loading={loading && !dashboard} detailed />
         </SectionCard>
       ) : null}
 
       {view === "series" ? (
-        <SectionCard title="Indicadores por série" description="Valores agregados devolvidos para o recorte atual.">
+        <SectionCard title="Indicadores por série" description="Resumo por série.">
           <GroupTable rows={rowsOf(dashboard, "serie")} mode="series" loading={loading && !dashboard} detailed />
         </SectionCard>
       ) : null}
 
       {view === "turmas" ? (
-        <SectionCard title="Indicadores por turma" description="Valores agregados devolvidos para o recorte atual.">
+        <SectionCard title="Indicadores por turma" description="Resumo por turma.">
           <GroupTable rows={rowsOf(dashboard, "turma")} mode="turmas" loading={loading && !dashboard} detailed />
         </SectionCard>
       ) : null}
@@ -638,7 +638,7 @@ function IcaResultsContent() {
       {view === "alunos" || (view === "visao" && students.length > 0) ? (
         <SectionCard
           title={view === "alunos" ? "Relação individual de estudantes" : "Estudantes do recorte"}
-          description="Valores da correção finalizada. Sem correção, a proficiência fica vazia e o status é Não avaliado. Clique em um estudante para ver os itens e o desempenho por habilidade no recorte individual."
+          description="Clique em um estudante para ver os detalhes."
           actions={
             studentId !== ALL ? (
               <Button variant="outline" size="sm" onClick={() => setStudentId(ALL)}>

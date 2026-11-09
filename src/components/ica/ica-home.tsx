@@ -18,7 +18,7 @@ const STEPS = [
   {
     icon: Library,
     title: "Cadastre ou reutilize questões",
-    text: "Múltipla escolha, ditado e produção escrita. As do Afirme Play aparecem como somente leitura.",
+    text: "Múltipla escolha, ditado e produção escrita.",
   },
   {
     icon: ClipboardCheck,

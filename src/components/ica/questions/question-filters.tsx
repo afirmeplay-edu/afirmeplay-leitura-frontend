@@ -125,7 +125,7 @@ export function QuestionFilters({
           { value: ALL, label: "Todas" },
           ...(Object.keys(QUESTION_ORIGIN_LABEL) as BankQuestionOrigin[]).map((origin) => ({
             value: origin,
-            label: origin === "afirme_ler" ? "Afirme Educacional" : "Afirme Play",
+            label: origin === "afirme_ler" ? "Educacional" : "Não editáveis",
           })),
         ]}
       />
