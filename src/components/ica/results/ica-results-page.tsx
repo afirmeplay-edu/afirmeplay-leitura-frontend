@@ -30,6 +30,7 @@ import { IcaCityScope } from "@/components/ica/ica-city-scope";
 import { IcaSkillsSection } from "@/components/ica/results/ica-skills-section";
 import { IcaStudentItemsTable } from "@/components/ica/results/ica-student-items-table";
 import { PageHeader } from "@/components/layout/page-header";
+import { AvaliacaoPicker } from "@/components/shared/avaliacao-picker";
 import { ChipFilter } from "@/components/shared/chip-filter";
 import { NotaDesempenhoCard } from "@/components/shared/nota-desempenho-card";
 import { PageShell } from "@/components/shared/page-shell";
@@ -50,6 +51,7 @@ import {
   classifyIcaProficienciaNivel,
   getProficiencyLevelStyle,
 } from "@/lib/colors/proficiency-levels";
+import { WRITTEN_TEST_STATUS_LABEL } from "@/lib/ica/written-tests";
 import { cn } from "@/lib/utils";
 
 const ALL = "all";
@@ -434,19 +436,23 @@ function IcaResultsContent() {
 
         {tests.length > 1 ? (
           <div className="mt-4 max-w-md space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Instrumento (avançado)</Label>
-            <Select value={writtenTestId || ALL} onValueChange={(value) => setWrittenTestId(value === ALL ? "" : value)}>
-              <SelectTrigger className="h-10">
-                <SelectValue placeholder="Prova escrita publicada" />
-              </SelectTrigger>
-              <SelectContent>
-                {tests.map((item) => (
-                  <SelectItem key={item.id} value={item.id}>
-                    {item.title}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <AvaliacaoPicker
+              label="Instrumento (avançado)"
+              value={writtenTestId}
+              options={tests.map((item) => ({
+                id: item.id,
+                titulo: item.title,
+                status: item.status,
+                serieIds: item.gradeIds,
+                tags: [
+                  WRITTEN_TEST_STATUS_LABEL[item.status],
+                  item.totalQuestions ? `${item.totalQuestions} questões` : null,
+                ].filter((tag): tag is string => Boolean(tag)),
+              }))}
+              series={gradeOptions.map((item) => ({ id: item.id, nome: item.name }))}
+              onChange={setWrittenTestId}
+              placeholder="Prova escrita publicada"
+            />
             <p className="text-xs text-muted-foreground">
               Só aparece quando há mais de uma prova escrita publicada no município.
             </p>

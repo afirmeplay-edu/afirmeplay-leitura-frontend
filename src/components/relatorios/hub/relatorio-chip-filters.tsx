@@ -1,6 +1,7 @@
 "use client";
 
 import { Eraser } from "lucide-react";
+import { AvaliacaoPicker } from "@/components/shared/avaliacao-picker";
 import { ChipFilter } from "@/components/shared/chip-filter";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -85,25 +86,29 @@ export function RelatorioChipFilters() {
           </Select>
         </Field>
 
-        <Field label="Avaliação">
-          <Select
-            value={val(filtros.avaliacaoId)}
-            onValueChange={(v) => setFiltros({ avaliacaoId: fromVal(v), turmaId: "" })}
-            disabled={catalogLoading}
-          >
-            <SelectTrigger className="h-10">
-              <SelectValue placeholder="Selecione" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={TODOS}>Todas</SelectItem>
-              {avaliacoes.map((a) => (
-                <SelectItem key={a.id} value={a.id}>
-                  {a.titulo}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
+        <AvaliacaoPicker
+          value={filtros.avaliacaoId}
+          options={avaliacoes.map((a) => ({
+            id: a.id,
+            titulo: a.titulo,
+            status: a.status,
+            serieIds: a.serieIds,
+            tags: [
+              a.edicaoLabel || EDICAO_LABEL[a.edicao],
+              a.ano ? String(a.ano) : null,
+            ].filter((tag): tag is string => Boolean(tag)),
+          }))}
+          series={catalog.series.filter((s) => s.id).map((s) => ({ id: s.id, nome: s.nome }))}
+          onChange={(id) => setFiltros({ avaliacaoId: id, turmaId: "" })}
+          disabled={catalogLoading}
+          allowClear
+          clearLabel="Todas"
+          placeholder="Selecione"
+          emptyMessage="Nenhuma avaliação neste recorte."
+          municipioLabel={
+            municipios.find((m) => m.id === filtros.municipioId)?.nome ?? null
+          }
+        />
 
         <Field label="Município">
           <Select

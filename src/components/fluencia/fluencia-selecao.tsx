@@ -41,6 +41,7 @@ import { ROUTES } from "@/config/routes";
 import { useAuthStore } from "@/stores/auth-store";
 import { AdminCityPicker } from "@/components/auth/admin-city-picker";
 import { PageHeader } from "@/components/layout/page-header";
+import { AvaliacaoPicker } from "@/components/shared/avaliacao-picker";
 import { PageShell } from "@/components/shared/page-shell";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -651,31 +652,42 @@ export function FluenciaSelecao({ variant = "oficial" }: FluenciaSelecaoProps) {
         <CardContent className="grid gap-6 pt-6 md:grid-cols-2">
           {!isPractice ? (
             <div className="space-y-2 md:col-span-2">
-              <Label>Avaliação</Label>
-              <Select
-                value={evaluationId || undefined}
-                onValueChange={setEvaluationId}
+              <AvaliacaoPicker
+                value={evaluationId}
+                options={evaluations.map((item) => ({
+                  id: item.id,
+                  titulo: item.title,
+                  serieIds: [
+                    ...(item.gradeIds ?? []),
+                    item.gradeId,
+                  ].filter((id): id is string => Boolean(id)),
+                  tags: [getEvaluationKindLabel(item)].filter(Boolean),
+                }))}
+                series={Array.from(
+                  new Map(
+                    evaluations.flatMap((item) => {
+                      const grades = item.grades?.length
+                        ? item.grades
+                        : item.grade
+                          ? [item.grade]
+                          : [];
+                      return grades
+                        .filter((grade) => grade?.id)
+                        .map((grade) => [grade.id, { id: grade.id, nome: grade.name ?? "Série" }] as const);
+                    })
+                  ).values()
+                )}
+                onChange={setEvaluationId}
                 disabled={!cityReady || loadingTexts}
-              >
-                <SelectTrigger>
-                  <SelectValue
-                    placeholder={
-                      loadingTexts
-                        ? "Carregando avaliações..."
-                        : evaluations.length
-                          ? "Selecione a avaliação"
-                          : "Crie uma avaliação primeiro"
-                    }
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  {evaluations.map((item) => (
-                    <SelectItem key={item.id} value={item.id}>
-                      {item.title} — {getEvaluationKindLabel(item)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                placeholder={
+                  loadingTexts
+                    ? "Carregando avaliações..."
+                    : evaluations.length
+                      ? "Selecione a avaliação"
+                      : "Crie uma avaliação primeiro"
+                }
+                emptyMessage="Crie uma avaliação primeiro."
+              />
               {evaluationDetail?.readingText?.title ? (
                 <p className="text-xs text-muted-foreground">
                   Texto e listas vêm da avaliação: {evaluationDetail.readingText.title}

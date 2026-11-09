@@ -119,6 +119,15 @@ export type {
   IcaNivelItem,
   IcaSkillMap,
 } from "@/lib/api/afirme-reading/ica-results";
+export {
+  getAcertosNiveisFiltros,
+  getAcertosNiveisRelatorio,
+} from "@/lib/api/afirme-reading/acertos-niveis";
+export type {
+  AcertosNiveisFiltrosCatalog,
+  AcertosNiveisQuery,
+  AcertosNiveisRelatorio,
+} from "@/lib/api/afirme-reading/acertos-niveis";
 export type {
   WordList,
   WordListKind,

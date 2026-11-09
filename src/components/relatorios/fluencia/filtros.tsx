@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AvaliacaoPicker } from "@/components/shared/avaliacao-picker";
 import { ChipFilter } from "@/components/shared/chip-filter";
 import { useRelatorioFluencia } from "@/lib/relatorios-fluencia/store";
 import { avaliacoesDoFiltro, EDICAO_LABEL, type EdicaoCode, type TurnoCode } from "@/lib/relatorios-fluencia/types";
@@ -96,29 +97,30 @@ export function RelatorioFiltros() {
           </Select>
         </Field>
 
-        <Field label="Avaliação">
-          <Select
-            value={filtros.avaliacaoId || undefined}
-            onValueChange={(v) => setFiltros({ avaliacaoId: v })}
-            disabled={catalogLoading || avaliacoes.length === 0}
-          >
-            <SelectTrigger>
-              <SelectValue
-                placeholder={
-                  avaliacoes.length === 0 ? "Nenhuma avaliação neste recorte" : "Selecione a avaliação"
-                }
-              />
-            </SelectTrigger>
-            <SelectContent>
-              {avaliacoes.map((a) => (
-                <SelectItem key={a.id} value={a.id}>
-                  {a.titulo}
-                  {a.status ? ` · ${statusLabel(a.status)}` : ""}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
+        <AvaliacaoPicker
+          value={filtros.avaliacaoId}
+          options={avaliacoes.map((a) => ({
+            id: a.id,
+            titulo: a.titulo,
+            status: a.status,
+            serieIds: a.serieIds,
+            tags: [
+              a.edicaoLabel || EDICAO_LABEL[a.edicao],
+              a.status ? statusLabel(a.status) : null,
+              a.ano ? String(a.ano) : null,
+            ].filter((tag): tag is string => Boolean(tag)),
+          }))}
+          series={catalog.series.filter((s) => s.id).map((s) => ({ id: s.id, nome: s.nome }))}
+          onChange={(id) => setFiltros({ avaliacaoId: id })}
+          disabled={catalogLoading || avaliacoes.length === 0}
+          placeholder={
+            avaliacoes.length === 0 ? "Nenhuma avaliação neste recorte" : "Selecione a avaliação"
+          }
+          emptyMessage="Nenhuma avaliação neste recorte."
+          municipioLabel={
+            municipios.find((m) => m.id === filtros.municipioId)?.nome ?? null
+          }
+        />
 
         <Field label="Rede">
           <Select value={val(filtros.redeId)} onValueChange={(v) => setFiltros({ redeId: fromVal(v) })}>

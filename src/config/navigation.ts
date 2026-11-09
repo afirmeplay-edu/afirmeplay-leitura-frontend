@@ -180,6 +180,7 @@ export const NAV_ICA: NavCategory[] = [
         children: [
           { href: I.resultados, label: "Painel ICA", exact: true },
           { href: I.relatorios.niveis, label: "Níveis Inep" },
+          { href: I.relatorios.acertosNiveis, label: "Acertos e níveis" },
         ],
       },
     ],

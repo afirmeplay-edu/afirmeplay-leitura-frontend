@@ -37,6 +37,7 @@ import {
 import { AdminCityPicker } from "@/components/auth/admin-city-picker";
 import { DashboardPanorama } from "@/components/dashboard/dashboard-panorama";
 import { PageHeader } from "@/components/layout/page-header";
+import { AvaliacaoPicker } from "@/components/shared/avaliacao-picker";
 import { PageShell } from "@/components/shared/page-shell";
 import { PerfilLeitorBadge } from "@/components/shared/perfil-leitor-badge";
 import { SectionCard } from "@/components/shared/section-card";
@@ -311,30 +312,29 @@ export function ResultadosDashboard() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="resultados-avaliacao" className="text-xs text-muted-foreground">
-                  Avaliação
-                </Label>
-                <Select
-                  value={avaliacaoId || undefined}
-                  onValueChange={(value) => {
-                    setAvaliacaoId(value);
-                    setEscolaId("");
-                  }}
-                  disabled={catalogLoading || avaliacoesDoAno.length === 0}
-                >
-                  <SelectTrigger id="resultados-avaliacao" className="h-10">
-                    <SelectValue placeholder={avaliacoesDoAno.length ? "Selecione a avaliação" : "Nenhuma avaliação no ano"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {avaliacoesDoAno.map((item) => (
-                      <SelectItem key={item.id} value={item.id}>
-                        {item.titulo} · {item.edicaoLabel ?? EDICAO_LABEL[item.edicao]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <AvaliacaoPicker
+                value={avaliacaoId}
+                options={avaliacoesDoAno.map((item) => ({
+                  id: item.id,
+                  titulo: item.titulo,
+                  status: item.status,
+                  serieIds: item.serieIds,
+                  tags: [
+                    item.edicaoLabel ?? EDICAO_LABEL[item.edicao],
+                    item.ano ? String(item.ano) : null,
+                  ].filter((tag): tag is string => Boolean(tag)),
+                }))}
+                series={catalog.series.filter((s) => s.id).map((s) => ({ id: s.id, nome: s.nome }))}
+                onChange={(id) => {
+                  setAvaliacaoId(id);
+                  setEscolaId("");
+                }}
+                disabled={catalogLoading || avaliacoesDoAno.length === 0}
+                placeholder={
+                  avaliacoesDoAno.length ? "Selecione a avaliação" : "Nenhuma avaliação no ano"
+                }
+                emptyMessage="Nenhuma avaliação neste ano."
+              />
               <div className="space-y-1.5">
                 <Label htmlFor="resultados-escola" className="text-xs text-muted-foreground">
                   Escola

@@ -16,17 +16,17 @@ import { ROUTES } from "@/config/routes";
 import { ICA_BRAND } from "@/lib/ica/brand";
 import { IcaCityScope } from "@/components/ica/ica-city-scope";
 import { PageHeader } from "@/components/layout/page-header";
+import { AvaliacaoPicker } from "@/components/shared/avaliacao-picker";
 import { ChipFilter } from "@/components/shared/chip-filter";
 import { PageShell } from "@/components/shared/page-shell";
 import { ProficiencyLevelCards } from "@/components/shared/proficiency-level-cards";
 import { SectionCard } from "@/components/shared/section-card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getProficiencyLevelStyle } from "@/lib/colors/proficiency-levels";
+import { WRITTEN_TEST_STATUS_LABEL } from "@/lib/ica/written-tests";
 import { cn } from "@/lib/utils";
 
 const ALL = "all";
@@ -144,22 +144,22 @@ function IcaLevelsReportContent() {
         </div>
         {tests.length > 1 ? (
           <div className="mt-4 max-w-md space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Instrumento (avançado)</Label>
-            <Select
-              value={writtenTestId || ALL}
-              onValueChange={(value) => setWrittenTestId(value === ALL ? "" : value)}
-            >
-              <SelectTrigger className="h-10">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {tests.map((item) => (
-                  <SelectItem key={item.id} value={item.id}>
-                    {item.title}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <AvaliacaoPicker
+              label="Instrumento (avançado)"
+              value={writtenTestId}
+              options={tests.map((item) => ({
+                id: item.id,
+                titulo: item.title,
+                status: item.status,
+                serieIds: item.gradeIds,
+                tags: [
+                  WRITTEN_TEST_STATUS_LABEL[item.status],
+                  item.totalQuestions ? `${item.totalQuestions} questões` : null,
+                ].filter((tag): tag is string => Boolean(tag)),
+              }))}
+              onChange={setWrittenTestId}
+              placeholder="Prova escrita publicada"
+            />
           </div>
         ) : null}
       </SectionCard>
