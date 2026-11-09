@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ChipFilter } from "@/components/shared/chip-filter";
 import { useRelatorioFluencia } from "@/lib/relatorios-fluencia/store";
 import { avaliacoesDoFiltro, EDICAO_LABEL, type EdicaoCode, type TurnoCode } from "@/lib/relatorios-fluencia/types";
 import { Eraser } from "lucide-react";
@@ -89,21 +90,6 @@ export function RelatorioFiltros() {
               {catalog.anos.map((a) => (
                 <SelectItem key={a} value={String(a)}>
                   {a}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
-
-        <Field label="Edição">
-          <Select value={filtros.edicao} onValueChange={(v) => setFiltros({ edicao: v as EdicaoCode })}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {edicoes.map((e) => (
-                <SelectItem key={e.id} value={e.id}>
-                  {e.label}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -226,21 +212,31 @@ export function RelatorioFiltros() {
           </Select>
         </Field>
 
-        <Field label="Turno">
-          <Select value={val(filtros.turno)} onValueChange={(v) => setFiltros({ turno: fromVal(v) })}>
-            <SelectTrigger>
-              <SelectValue placeholder="Todos" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={TODOS}>Todos</SelectItem>
-              {turnos.map((t) => (
-                <SelectItem key={t} value={t}>
-                  {t}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
+      </div>
+
+      <div className="space-y-3">
+        <ChipFilter
+          label="Edição"
+          value={filtros.edicao}
+          onChange={(value) => setFiltros({ edicao: value as EdicaoCode, avaliacaoId: "", turmaId: "" })}
+          allValue="__none__"
+          options={edicoes.map((e) => ({
+            value: e.id,
+            label: e.label || EDICAO_LABEL[e.id as EdicaoCode] || e.id,
+          }))}
+        />
+        {turnos.length ? (
+          <ChipFilter
+            label="Turno"
+            value={val(filtros.turno)}
+            onChange={(value) => setFiltros({ turno: fromVal(value) as TurnoCode | "", turmaId: "" })}
+            allValue={TODOS}
+            options={[
+              { value: TODOS, label: "Todos" },
+              ...turnos.map((t) => ({ value: t, label: t })),
+            ]}
+          />
+        ) : null}
       </div>
     </div>
   );

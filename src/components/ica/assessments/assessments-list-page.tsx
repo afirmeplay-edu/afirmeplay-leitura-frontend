@@ -27,8 +27,7 @@ import { DataListPage, type DataListColumn } from "@/components/shared/data-list
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ChipFilter } from "@/components/shared/chip-filter";
 
 const PER_PAGE = 20;
 const ALL = "__all__";
@@ -234,21 +233,17 @@ function AssessmentsList() {
         toolbar={
           <div className="space-y-4">
           {draftCard}
-          <div className="max-w-xs space-y-1.5">
-            <Label htmlFor="avaliacoes-status" className="text-xs text-muted-foreground">
-              Status
-            </Label>
-            <Select value={status || ALL} onValueChange={(value) => setStatus(value === ALL ? "" : (value as WrittenTestStatus))}>
-              <SelectTrigger id="avaliacoes-status" className="h-10">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={ALL}>Todos</SelectItem>
-                <SelectItem value="rascunho">Rascunho</SelectItem>
-                <SelectItem value="publicada">Publicada</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          <ChipFilter
+            label="Status"
+            value={status || ALL}
+            allValue={ALL}
+            onChange={(value) => setStatus(value === ALL ? "" : (value as WrittenTestStatus))}
+            options={[
+              { value: ALL, label: "Todos" },
+              { value: "rascunho", label: WRITTEN_TEST_STATUS_LABEL.rascunho },
+              { value: "publicada", label: WRITTEN_TEST_STATUS_LABEL.publicada },
+            ]}
+          />
           </div>
         }
         loading={loading}

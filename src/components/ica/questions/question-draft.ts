@@ -8,7 +8,7 @@ import type {
   DictationMarks,
   UpdateBankQuestionPayload,
 } from "@/lib/api/afirme-reading/types";
-import { normalizeDictationMarks } from "@/lib/ica/dictation-marks";
+import { hasDictationMarks, normalizeDictationMarks } from "@/lib/ica/dictation-marks";
 import {
   buildQuestionHtml,
   editorHtmlFromStored,
@@ -273,8 +273,8 @@ export function buildCreatePayload(draft: QuestionDraft): CreateBankQuestionPayl
     subjectId: draft.subjectId,
     grade: draft.gradeId,
     value: parseValue(draft.value),
-    dictationMarks: payloadDictation(draft),
   };
+  // Produção escrita e ditado nunca enviam `options`. Megafones só quando há marca ativa.
   if (draft.type === "multipleChoice") payload.options = draft.options.map(toOptionPayload);
   if (draft.type === "dictation") {
     payload.stimulus = draft.stimulus;
@@ -283,6 +283,8 @@ export function buildCreatePayload(draft: QuestionDraft): CreateBankQuestionPayl
       payload.imageDescription = draft.imageDescription.trim();
     }
   }
+  const marks = payloadDictation(draft);
+  if (hasDictationMarks(marks)) payload.dictationMarks = marks;
   if (draft.secondStatement.trim()) payload.secondStatement = draft.secondStatement.trim();
   if (draft.educationStageId) payload.educationStageId = draft.educationStageId;
   if (QUESTION_DIFFICULTIES.includes(draft.difficulty as BankQuestionDifficulty)) {
@@ -302,7 +304,10 @@ export function buildUpdatePayload(initial: QuestionDraft, current: QuestionDraf
   const payload: UpdateBankQuestionPayload = {};
 
   if (current.title.trim() !== initial.title.trim()) payload.title = current.title.trim();
-  if (!same(current.dictation, initial.dictation)) payload.dictationMarks = payloadDictation(current);
+  if (!same(current.dictation, initial.dictation)) {
+    const marks = payloadDictation(current);
+    payload.dictationMarks = hasDictationMarks(marks) ? marks : null;
+  }
   if (toStoredQuestionHtml(current.statementHtml) !== toStoredQuestionHtml(initial.statementHtml)) {
     payload.text = statementTextForApi(current);
     payload.formattedText = toStoredQuestionHtml(current.statementHtml);

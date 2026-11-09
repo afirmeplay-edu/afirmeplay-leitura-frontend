@@ -18,6 +18,7 @@ import { getApiErrorMessage } from "@/lib/api/errors";
 import { AdminCityPicker } from "@/components/auth/admin-city-picker";
 import { PageHeader } from "@/components/layout/page-header";
 import { PageShell } from "@/components/shared/page-shell";
+import { ChipFilter } from "@/components/shared/chip-filter";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
@@ -187,23 +188,17 @@ export function RevisaoLeituraGuiadaPage() {
       <AdminCityPicker onCityReadyChange={handleCityReadyChange} />
 
       <section className="surface-panel grid gap-4 p-4 sm:grid-cols-2">
-        <div className="space-y-2">
-          <Label>Status</Label>
-          <Select
-            value={statusFilter}
-            onValueChange={(value) => setStatusFilter(value as StatusFilter)}
-            disabled={!cityReady}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="finalizada">Finalizadas</SelectItem>
-              <SelectItem value="em_andamento">Em andamento</SelectItem>
-              <SelectItem value="all">Todas</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+        <ChipFilter
+          label="Status"
+          value={statusFilter}
+          onChange={(value) => setStatusFilter(value as StatusFilter)}
+          className={cn(!cityReady && "pointer-events-none opacity-60")}
+          options={[
+            { value: "finalizada", label: "Finalizadas" },
+            { value: "em_andamento", label: "Em andamento" },
+            { value: "all", label: "Todas" },
+          ]}
+        />
         <div className="space-y-2">
           <Label>Texto</Label>
           <Select

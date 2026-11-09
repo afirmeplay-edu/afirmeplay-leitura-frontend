@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { createBankQuestion, describeQuestionImage, previewQuestionImage, updateBankQuestion } from "@/lib/api/afirme-reading/questions";
 import type { BankQuestion, BankQuestionType } from "@/lib/api/afirme-reading/types";
 import { normalizeApiError } from "@/lib/api/errors";
+import { normalizeQuestionSaveError } from "@/lib/ica/question-save-errors";
 import { formatSkillLabel, listSkills, type CatalogSkill } from "@/lib/api/question-catalog";
 import { SkillPickerField } from "@/components/ica/questions/skill-picker-field";
 import { ROUTES } from "@/config/routes";
@@ -232,7 +233,7 @@ export function QuestionForm({ mode, question, initialType, onSaved }: QuestionF
       onSaved?.(saved);
       toast.success("Questão atualizada.");
     } catch (error) {
-      toast.error(normalizeApiError(error, "Não foi possível salvar a questão.").message);
+      toast.error(normalizeQuestionSaveError(error).message);
     } finally {
       setSaving(false);
     }

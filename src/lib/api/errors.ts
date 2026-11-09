@@ -101,7 +101,8 @@ const STATUS_FALLBACK: Record<number, string> = {
   403: "Você não tem permissão para esta ação.",
   404: "Registro não encontrado.",
   422: "Sua sessão expirou. Entre novamente.",
-  500: "Erro interno ao processar a solicitação.",
+  500: "Não foi possível concluir no servidor. Tente de novo; se continuar, avise o suporte.",
+  503: "Serviço temporariamente indisponível. Tente novamente em instantes.",
 };
 
 /** Normalizador único para toasts: mensagem do backend → fallback por status → fallback da tela. */
