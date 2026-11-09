@@ -484,7 +484,7 @@ export function CriarAvaliacaoPage() {
       <PageHeader
         icon={PlusCircle}
         title={editingId ? "Editar Avaliação" : "Criar Avaliação"}
-        description="Instrumento de fluência leitora: escola, séries, turmas, texto e as duas listas de palavras."
+        description="Defina escola, séries, turmas, texto e as listas de palavras."
       />
 
       <AdminCityPicker onCityReadyChange={handleCityReadyChange} />

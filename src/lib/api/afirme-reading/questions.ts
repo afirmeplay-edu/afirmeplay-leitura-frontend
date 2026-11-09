@@ -1,4 +1,4 @@
-import type { AxiosRequestConfig } from "axios";
+import axios, { type AxiosRequestConfig } from "axios";
 import { afirmeReadingApi } from "@/lib/api/afirme-reading/client";
 import type {
   BankQuestion,
@@ -11,6 +11,42 @@ import type {
   DictationMarks,
   UpdateBankQuestionPayload,
 } from "@/lib/api/afirme-reading/types";
+
+async function blobErrorToJson(error: unknown) {
+  if (axios.isAxiosError(error) && error.response?.data instanceof Blob) {
+    try {
+      error.response.data = JSON.parse(await error.response.data.text());
+    } catch {
+      /* mantém o corpo original */
+    }
+  }
+  return error;
+}
+
+function filenameFromDisposition(header: unknown, fallback: string) {
+  if (typeof header !== "string") return fallback;
+  const utf8 = /filename\*=UTF-8''([^;]+)/i.exec(header);
+  if (utf8) {
+    try {
+      return decodeURIComponent(utf8[1]);
+    } catch {
+      /* usa o nome simples */
+    }
+  }
+  const plain = /filename="?([^";]+)"?/i.exec(header);
+  return plain?.[1] ?? fallback;
+}
+
+function saveBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
 
 function emptyPagination(page: number, perPage: number, total: number): BankQuestionPagination {
   const pages = perPage > 0 ? Math.ceil(total / perPage) : 0;
@@ -89,10 +125,33 @@ export interface ImportDocxConfirmationQuestion {
   dictationMarks: DictationMarks;
 }
 
+/** Baixa o modelo DOCX com série, disciplina e blocos vazios. */
+export async function downloadQuestionsImportTemplate(options: {
+  gradeId: string;
+  subjectId: string;
+  count: number;
+}) {
+  try {
+    const response = await afirmeReadingApi.get<Blob>("/questions/import/template", {
+      responseType: "blob",
+      params: {
+        grade: options.gradeId,
+        subjectId: options.subjectId,
+        count: options.count,
+      },
+    });
+    saveBlob(
+      response.data,
+      filenameFromDisposition(response.headers?.["content-disposition"], "modelo_importacao_questoes.docx")
+    );
+  } catch (error) {
+    throw await blobErrorToJson(error);
+  }
+}
+
 /**
  * O mesmo multipart faz prévia (`commit=false`) e confirmação (`commit=true`).
  * `grade` e `subjectId` valem para os blocos que não trazem esses dados.
- * `confirmation` grava os megafones ajustados na prévia, pelo índice do bloco.
  */
 export async function importQuestionsDocx(
   file: File,

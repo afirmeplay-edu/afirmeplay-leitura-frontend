@@ -40,7 +40,6 @@ export function QuestionPreviewSheet({ question, onOpenChange, footer }: Questio
               <SheetDescription>
                 {answer || "Sem gabarito definido"}
                 {question.createdBy?.name ? ` · Criada por ${question.createdBy.name}` : ""}
-                {question.version ? ` · Versão ${question.version}` : ""}
               </SheetDescription>
             </SheetHeader>
             <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto p-6">

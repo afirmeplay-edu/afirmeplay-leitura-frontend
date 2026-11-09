@@ -59,7 +59,7 @@ export function OriginBadge({
   compact?: boolean;
 }) {
   const play = origin === "afirme_play";
-  const label = compact ? (play ? "Play" : "Educacional") : (QUESTION_ORIGIN_LABEL[origin] ?? origin);
+  const label = compact ? (play ? "Bloqueada" : "Educacional") : (QUESTION_ORIGIN_LABEL[origin] ?? origin);
   return (
     <span
       title={QUESTION_ORIGIN_LABEL[origin] ?? origin}

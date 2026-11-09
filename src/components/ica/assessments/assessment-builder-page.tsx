@@ -525,10 +525,10 @@ function AssessmentBuilder({ id }: { id?: string }) {
         title={isNew ? "Nova avaliação" : draft.title || "Avaliação"}
         description={
           isNew
-            ? "Monte a prova com 19 itens. Até o primeiro salvamento, a montagem fica como rascunho neste navegador."
+            ? "Monte a prova com 19 itens."
             : published
               ? `Publicada${formatDateTime(detail?.publishedAt) ? ` em ${formatDateTime(detail?.publishedAt)}` : ""}.`
-              : "Rascunho salvo no servidor. Publique quando as 19 questões estiverem prontas."
+              : "Rascunho. Publique quando as 19 questões estiverem prontas."
         }
         icon={ClipboardCheck}
       >
@@ -575,7 +575,7 @@ function AssessmentBuilder({ id }: { id?: string }) {
           <Button variant="outline" asChild className="w-full sm:w-auto">
             <Link href={ROUTES.ica.questoes.importar}>
               <FileInput className="h-4 w-4" />
-              Importar DOCX
+              Importar questões
             </Link>
           </Button>
         ) : null}
@@ -618,7 +618,7 @@ function AssessmentBuilder({ id }: { id?: string }) {
           <AlertTitle>Prova do aplicador</AlertTitle>
           <AlertDescription>
             Use &quot;Prova do aluno&quot; para o caderno limpo e &quot;Prova do aplicador&quot; para o PDF com
-            megafones nos campos marcados para leitura em voz alta.
+            as marcações de leitura em voz alta.
           </AlertDescription>
         </Alert>
       ) : null}
@@ -626,7 +626,7 @@ function AssessmentBuilder({ id }: { id?: string }) {
       {readOnly && detail ? (
         <Alert>
           <Lock className="h-4 w-4" />
-          <AlertTitle>{published ? "Avaliação publicada" : "Somente leitura"}</AlertTitle>
+          <AlertTitle>{published ? "Avaliação publicada" : "Não editável"}</AlertTitle>
           <AlertDescription>
             {published
               ? "Dados e questões não podem mais ser alterados. Use \"Aplicação e cartões\" para aplicar às turmas e gerar os cartões-resposta."
@@ -863,7 +863,7 @@ function AssessmentBuilder({ id }: { id?: string }) {
                                 {!slot.missing && slot.preview ? (
                                   <details className="mt-3 rounded-lg border border-dashed bg-muted/20 p-3">
                                     <summary className="cursor-pointer text-xs font-semibold text-brand-highlight">
-                                      Pré-visualizar e ajustar megafones
+                                      Pré-visualizar e ajustar leitura em voz alta
                                     </summary>
                                     <div className="mt-3 space-y-3">
                                       <QuestionPreview
@@ -1040,7 +1040,7 @@ function AssessmentBuilder({ id }: { id?: string }) {
         open={confirm === "reset"}
         onOpenChange={(open) => !open && setConfirm(null)}
         title="Descartar o rascunho?"
-        description="As questões escolhidas e os dados da avaliação serão apagados deste navegador."
+        description="As questões escolhidas e os dados da avaliação serão apagados."
         confirmLabel="Descartar"
         variant="destructive"
         onConfirm={resetDraft}
@@ -1058,7 +1058,7 @@ function AssessmentBuilder({ id }: { id?: string }) {
         open={confirm === "delete"}
         onOpenChange={(open) => !open && setConfirm(null)}
         title="Excluir a avaliação?"
-        description="O rascunho será removido do servidor. Esta ação não pode ser desfeita."
+        description="Esta ação não pode ser desfeita."
         confirmLabel="Excluir"
         variant="destructive"
         icon={Trash2}

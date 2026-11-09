@@ -43,7 +43,7 @@ function QuestionReadOnlyView({ question, reason }: { question: BankQuestion; re
       </PageHeader>
       <Alert>
         <Lock className="h-4 w-4" />
-        <AlertTitle>Somente leitura</AlertTitle>
+        <AlertTitle>Não editável</AlertTitle>
         <AlertDescription>{reason}</AlertDescription>
       </Alert>
       <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
@@ -51,7 +51,6 @@ function QuestionReadOnlyView({ question, reason }: { question: BankQuestion; re
         <OriginBadge origin={question.origin} />
         <ScopeBadge scope={question.scopeType} />
         {question.createdBy?.name ? <span>Criada por {question.createdBy.name}</span> : null}
-        {question.version ? <span>· Versão {question.version}</span> : null}
       </div>
       <Card>
         <CardContent className="pt-6">
