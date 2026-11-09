@@ -410,7 +410,15 @@ function AssessmentBuilder({ id }: { id?: string }) {
       if (latest) applyDetail(latest);
       toast.success("Avaliação salva.");
     } catch (err) {
-      toast.error(normalizeApiError(err, "Não foi possível salvar a avaliação.").message);
+      const normalized = normalizeApiError(err, "Não foi possível salvar a avaliação.");
+      const message = /plano insuficiente|não tem acesso/i.test(normalized.message)
+        ? "Este município não tem o Afirme Educacional (leitura) liberado."
+        : /identificar o município|contexto de município/i.test(normalized.message)
+          ? "Selecione o município antes de salvar a avaliação."
+          : /erro interno|não foi possível concluir no servidor/i.test(normalized.message)
+            ? "Não foi possível salvar a avaliação no servidor. Tente de novo; se continuar, avise o suporte."
+            : normalized.message;
+      toast.error(message);
     } finally {
       setBusy(null);
     }

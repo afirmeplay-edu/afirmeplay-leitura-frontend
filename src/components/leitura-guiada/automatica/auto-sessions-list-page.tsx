@@ -17,8 +17,7 @@ import { PageShell } from "@/components/shared/page-shell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ChipFilter } from "@/components/shared/chip-filter";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
@@ -92,24 +91,19 @@ export function AutoSessionsListPage() {
       ) : (
         <Card>
           <CardContent className="space-y-4 pt-6">
-            <div className="max-w-xs space-y-1.5">
-              <Label htmlFor="auto-status" className="text-xs text-muted-foreground">
-                Status
-              </Label>
-              <Select value={status || ALL} onValueChange={(value) => setStatus(value === ALL ? "" : (value as GuidedAutoStatus))}>
-                <SelectTrigger id="auto-status" className="h-10">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={ALL}>Todos</SelectItem>
-                  {STATUSES.map((option) => (
-                    <SelectItem key={option} value={option}>
-                      {GUIDED_AUTO_STATUS_LABEL[option]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <ChipFilter
+              label="Status"
+              value={status || ALL}
+              allValue={ALL}
+              onChange={(value) => setStatus(value === ALL ? "" : (value as GuidedAutoStatus))}
+              options={[
+                { value: ALL, label: "Todos" },
+                ...STATUSES.map((option) => ({
+                  value: option,
+                  label: GUIDED_AUTO_STATUS_LABEL[option],
+                })),
+              ]}
+            />
 
             {loading ? (
               <div className="space-y-2">

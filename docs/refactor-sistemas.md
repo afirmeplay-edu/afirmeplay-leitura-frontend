@@ -172,10 +172,10 @@ Fonte: `afirmeplay_backend/app/afirme_ler/CONTRATO_QUESTOES.md` e `routes/questi
 
 ### Pendências de backend (não serão simuladas)
 
-- P1: API de avaliações ICA (salvar construtor) — inexistente.
-- P2: Tipos de questão aberta e produção textual — inexistentes no banco do Afirme Ler.
-- P3: Aplicação e correção (cartão-resposta) e Resultados do ICA — inexistentes.
-- P4: Branch das rotas `/afirme-reading/questions` ainda não mergida; até lá as telas do banco recebem 404.
+- P1: ~~API de avaliações ICA~~ — resolvido (`/afirme-reading/written-tests`, 19 itens).
+- P2: ~~Produção textual inexistente~~ — resolvido (`text_production` / bilhete no banco e no construtor).
+- P3: Aplicação e correção (cartão-resposta) e Resultados do ICA — parcialmente entregue; acompanhar ambiente.
+- P4: ~~Branch de `/afirme-reading/questions`~~ — resolvido.
 - P5: Imagem de questão é pública e não filtra escopo/município — observação de segurança para o backend, sem ação no frontend.
 
 ### Decisões do usuário após a Fase 0
@@ -361,8 +361,8 @@ Principal: Início · Conteúdo: **Banco de questões** (Criar questão, Listar 
 - Edição: PUT só com campos alterados; `options` vai inteiro se qualquer alternativa mudar; campos opcionais limpos vão como `null`. `solution` nunca é enviado.
 - Somente leitura previsível: origem `afirme_play` ou papel sem escrita (`aplicador`) → tela de visualização, botão "Editar" desabilitado com tooltip. O escopo fino (quem criou) fica com o backend; o 403 aparece em toast.
 - Aviso de alterações não salvas: `beforeunload`, clique em links internos (captura) e navegação programática via `confirmNavigation()`. `Ctrl/Cmd + Enter` salva.
-- **Construtor**: 16 fechadas (teal) · 3 abertas (âmbar) · 1 produção textual (rosa), com número e rótulo de tipo; contador ao vivo + barra de progresso; seletor em `Dialog` (busca, filtros, pré-visualização inline, "Adicionar", duplicatas bloqueadas, pré-filtra pela série/disciplina da avaliação); trocar/remover; reordenar com setas acessíveis e animação FLIP (Web Animations API, respeita `prefers-reduced-motion`); abertas/produção bloqueadas "Aguardando suporte…"; "Salvar" desabilitado com tooltip; rascunho no `localStorage` por município (`ica_assessment_draft:<cityId>`), com "Descartar rascunho".
-- Estado "pronta" só com os 20 itens; como abertas/produção não existem, a tela mostra "Múltipla escolha completa" quando as 16 estão preenchidas.
+- **Construtor**: 16 múltipla escolha · 2 ditados · 1 bilhete (produção escrita), com número e rótulo de tipo; contador ao vivo + barra de progresso; seletor em `Dialog`; trocar/remover; reordenar; rascunho no `localStorage` por município até o primeiro salvamento.
+- Estado "pronta" com os 19 itens (padrão alinhado ao backend `REQUIRED_QUESTIONS = 19`).
 
 ### Relatório da Etapa 5
 
@@ -401,10 +401,10 @@ Principal: Início · Conteúdo: **Banco de questões** (Criar questão, Listar 
 
 | # | Pendência | Impacto no front |
 |---|---|---|
-| P1 | API de avaliações do ICA | "Salvar" do construtor desabilitado; lista de avaliações vazia |
-| P2 | Tipos de questão aberta e produção textual | Slots 17–20 bloqueados |
-| P3 | Aplicação e correção (cartão-resposta) e Resultados | Itens "Em breve" no menu |
-| P4 | Merge da branch de `/afirme-reading/questions` | Telas do banco recebem 404 até lá |
+| P1 | ~~API de avaliações do ICA~~ | Resolvido (`written-tests`) |
+| P2 | ~~Tipos aberta/produção~~ | Resolvido (`dictation` + `text_production`; 16+2+1) |
+| P3 | Aplicação e correção (cartão-resposta) e Resultados | Em evolução no menu ICA |
+| P4 | ~~Merge de `/afirme-reading/questions`~~ | Resolvido |
 | P5 | Rota de imagem `/questions/<id>/images/<id>` é pública e não filtra escopo/município | Observação de segurança |
 | P6 | Confirmar como o PUT trata `difficulty: null`, `skills: null` e imagens já salvas reenviadas como objeto/`src="/questions/..."` | Limpar campos opcionais e editar enunciado com imagem existente |
 | P7 | Rotas próprias do Afirme Ler para disciplinas/habilidades (hoje usa as do Play) | Só troca a implementação de `question-catalog.ts` |
@@ -430,9 +430,9 @@ Principal: Início · Conteúdo: **Banco de questões** (Criar questão, Listar 
 | Regra de edição (`user_can_modify`) | GLOBAL só admin; CITY só admin/tecadm do município; PRIVATE só admin e o dono → **front passou a prever** (antes só bloqueava Play/aplicador) |
 | `isCorrect` na resposta | O formatter (`normalize_alternatives_with_correct`) também marca alternativa cujo texto seja igual ao gabarito → **front passou a usar a letra de `correct_answer`** |
 | `/skills/subject/:id` e `/skills/grade/:id` | Respondem **404** quando vazio → **front passou a tratar como lista vazia** (antes mostrava erro) |
-| Tipos aberta/produção | O banco tem tipos discursivos (`essay`, `aberta`, `open`…, `DISCURSIVE_TYPES`), mas a rota do Afirme Ler aceita só múltipla escolha (P2 continua) |
-| Avaliação ICA | Não existe rota em `/afirme-reading`; `POST /test` do Play recusa questões do Afirme Ler (P1 continua) |
-| Aplicação/correção | O Play tem cartão-resposta (`answer_sheet_routes`, `answer_sheet_import`) e prova subjetiva (`subjective_tests`), nenhum ligado ao Afirme Ler (P3 continua) |
+| Tipos aberta/produção | Afirme Ler aceita `multipleChoice`, `dictation` e `text_production` (P2 resolvido) |
+| Avaliação ICA | `POST/PUT /afirme-reading/written-tests` com padrão 16+2+1 (P1 resolvido) |
+| Aplicação/correção | Fluxos ICA de aplicação/correção existem no front; acompanhar estabilidade no ambiente (P3) |
 
 ---
 

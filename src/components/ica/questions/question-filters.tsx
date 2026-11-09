@@ -80,17 +80,6 @@ export function QuestionFilters({
       options: grades.map((grade) => ({ value: grade.id, label: grade.name })),
       apply: (next) => ({ gradeId: next }),
     },
-    {
-      id: "origem",
-      label: "Origem",
-      current: value.origin,
-      allLabel: "Todas as origens",
-      options: (Object.keys(QUESTION_ORIGIN_LABEL) as BankQuestionOrigin[]).map((origin) => ({
-        value: origin,
-        label: QUESTION_ORIGIN_LABEL[origin],
-      })),
-      apply: (next) => ({ origin: next as BankQuestionOrigin | "" }),
-    },
   ];
 
   return (
@@ -127,7 +116,21 @@ export function QuestionFilters({
         ]}
       />
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <ChipFilter
+        label="Origem"
+        value={value.origin || ALL}
+        allValue={ALL}
+        onChange={(next) => onChange({ origin: next === ALL ? "" : (next as BankQuestionOrigin) })}
+        options={[
+          { value: ALL, label: "Todas" },
+          ...(Object.keys(QUESTION_ORIGIN_LABEL) as BankQuestionOrigin[]).map((origin) => ({
+            value: origin,
+            label: origin === "afirme_ler" ? "Afirme Educacional" : "Afirme Play",
+          })),
+        ]}
+      />
+
+      <div className="grid gap-3 sm:grid-cols-2">
         {selectFields.map((field) => {
           const htmlId = `${idPrefix}-${field.id}`;
           return (

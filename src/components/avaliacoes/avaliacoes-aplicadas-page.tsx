@@ -23,13 +23,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { ChipFilter } from "@/components/shared/chip-filter";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
@@ -157,18 +151,18 @@ export function AvaliacoesAplicadasPage() {
             disabled={!cityReady}
           />
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Select value={kindFilter} onValueChange={setKindFilter}>
-            <SelectTrigger className="w-48 rounded-xl">
-              <SelectValue placeholder="Tipo" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos os tipos</SelectItem>
-              <SelectItem value="entrada">Avaliação de Entrada</SelectItem>
-              <SelectItem value="formativa">Avaliação Formativa</SelectItem>
-              <SelectItem value="saida">Avaliação de Saída</SelectItem>
-            </SelectContent>
-          </Select>
+        <div className="flex flex-wrap items-center gap-3">
+          <ChipFilter
+            label="Tipo"
+            value={kindFilter}
+            onChange={setKindFilter}
+            options={[
+              { value: "all", label: "Todos" },
+              { value: "entrada", label: "Entrada" },
+              { value: "formativa", label: "Formativa" },
+              { value: "saida", label: "Saída" },
+            ]}
+          />
           <Button
             type="button"
             variant="outline"

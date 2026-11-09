@@ -69,6 +69,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ChipFilter } from "@/components/shared/chip-filter";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
@@ -347,41 +348,37 @@ export function ListarAvaliacaoPage() {
             disabled={!cityReady}
           />
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Select value={typeFilter} onValueChange={setTypeFilter}>
-            <SelectTrigger className="w-40">
-              <SelectValue placeholder="Tipo" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
-              <SelectItem value="entrada">Avaliação de Entrada</SelectItem>
-              <SelectItem value="formativa">Avaliação Formativa</SelectItem>
-              <SelectItem value="saida">Avaliação de Saída</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-36">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
-              {Object.entries(STATUS_LABEL).map(([value, label]) => (
-                <SelectItem key={value} value={value}>
-                  {label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={listFilter} onValueChange={setListFilter}>
-            <SelectTrigger className="w-44">
-              <SelectValue placeholder="Lista" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas</SelectItem>
-              <SelectItem value="conhecidas">Palavras conhecidas</SelectItem>
-              <SelectItem value="pouco-comuns">Palavras pouco comuns</SelectItem>
-            </SelectContent>
-          </Select>
+        <div className="flex flex-wrap items-center gap-3">
+          <ChipFilter
+            label="Tipo"
+            value={typeFilter}
+            onChange={setTypeFilter}
+            options={[
+              { value: "all", label: "Todos" },
+              { value: "entrada", label: "Entrada" },
+              { value: "formativa", label: "Formativa" },
+              { value: "saida", label: "Saída" },
+            ]}
+          />
+          <ChipFilter
+            label="Status"
+            value={statusFilter}
+            onChange={setStatusFilter}
+            options={[
+              { value: "all", label: "Todos" },
+              ...Object.entries(STATUS_LABEL).map(([value, label]) => ({ value, label })),
+            ]}
+          />
+          <ChipFilter
+            label="Lista"
+            value={listFilter}
+            onChange={setListFilter}
+            options={[
+              { value: "all", label: "Todas" },
+              { value: "conhecidas", label: "Conhecidas" },
+              { value: "pouco-comuns", label: "Pouco comuns" },
+            ]}
+          />
           <Select value={gradeFilter} onValueChange={setGradeFilter}>
             <SelectTrigger className="w-36">
               <SelectValue placeholder="Série" />
