@@ -19,9 +19,9 @@ export const QUESTION_TYPE_LABEL: Record<BankQuestionType, string> = {
 };
 
 export const QUESTION_TYPE_HINT: Record<BankQuestionType, string> = {
-  multipleChoice: "2 a 8 alternativas, uma correta. O gabarito é a letra marcada.",
-  dictation: "Palavra falada ou figura. A palavra e a descrição da figura não saem na prova.",
-  text_production: "Comando de produção (ex.: bilhete). Sem gabarito; a correção fica com o professor.",
+  multipleChoice: "De 2 a 8 alternativas, com uma correta.",
+  dictation: "Palavra falada ou figura.",
+  text_production: "Comando de produção, como um bilhete.",
 };
 
 /** Limite do contrato para `dictatedWord`. */
@@ -95,8 +95,8 @@ export const QUESTION_DIFFICULTIES: BankQuestionDifficulty[] = [
 ];
 
 export const QUESTION_ORIGIN_LABEL: Record<BankQuestionOrigin, string> = {
-  afirme_ler: "Afirme Educacional",
-  afirme_play: "Afirme Play · somente leitura",
+  afirme_ler: "Educacional",
+  afirme_play: "Não editável",
 };
 
 export const QUESTION_SCOPE_LABEL: Record<ScopeType, string> = {
@@ -127,13 +127,13 @@ export function readOnlyReason(
   question: Pick<BankQuestion, "origin" | "scopeType" | "createdBy"> | null,
   user: { id?: string | null; role?: string | null } | null | undefined
 ): string | null {
-  if (question && isPlayQuestion(question)) return "Questões do Afirme Play são somente leitura no Afirme Educacional.";
+  if (question && isPlayQuestion(question)) return "Esta questão não pode ser editada aqui.";
   const role = normalizeRole(user?.role);
   if (!canWriteIca(role)) return "Seu perfil pode visualizar, mas não cadastrar ou editar questões.";
   if (!question || role === "admin") return null;
-  if (question.scopeType === "GLOBAL") return "Questões globais só podem ser editadas por administradores.";
+  if (question.scopeType === "GLOBAL") return "Esta questão só pode ser editada por administradores.";
   if (question.scopeType === "CITY" && role !== "tecadm") {
-    return "Questões do município só podem ser editadas pelo administrador ou pelo técnico do município.";
+    return "Esta questão só pode ser editada pelo administrador ou pelo técnico do município.";
   }
   if (question.scopeType === "PRIVATE" && question.createdBy?.id && user?.id && question.createdBy.id !== user.id) {
     return "Só quem criou esta questão pode editá-la.";

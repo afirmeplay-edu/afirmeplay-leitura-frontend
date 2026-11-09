@@ -4,8 +4,7 @@ import { normalizeApiError, type NormalizedApiError } from "@/lib/api/errors";
 const QUESTION_SAVE_COPY: Array<{ test: (message: string, status: number | null) => boolean; message: string }> = [
   {
     test: (message) => /migraç|desatualizado|dictation_marks|writing_stimulus|writing_reference/i.test(message),
-    message:
-      "O banco está desatualizado para o Afirme Educacional. Peça ao suporte para aplicar as migrações das questões.",
+    message: "Não foi possível salvar. Tente de novo ou fale com o suporte.",
   },
   {
     test: (message) => /plano insuficiente|não tem acesso a esta funcionalidade|afirme_reading/i.test(message),

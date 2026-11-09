@@ -79,9 +79,9 @@ interface QuestionFormProps {
 }
 
 const TYPE_DESCRIPTION: Record<BankQuestionType, string> = {
-  multipleChoice: "Múltipla escolha para prova em papel com cartão-resposta. O gabarito é calculado pela letra marcada.",
-  dictation: "Ditado por palavra falada ou por figura. A palavra e a descrição não saem na prova.",
-  text_production: "Produção escrita: comando de escrita (ex.: bilhete), sem gabarito.",
+  multipleChoice: "Questão de múltipla escolha.",
+  dictation: "Ditado por palavra falada ou por figura.",
+  text_production: "Comando de produção escrita, como um bilhete.",
 };
 
 function FieldError({ message }: { message?: string }) {
@@ -365,7 +365,6 @@ export function QuestionForm({ mode, question, initialType, onSaved }: QuestionF
         submitLabel={isCreate ? "Criar questão" : "Salvar alterações"}
         submitting={saving}
         submitDisabled={!isCreate && !dirty}
-        footerHint="Ctrl + Enter para salvar"
         bare
         notice={
           question ? (
@@ -373,7 +372,6 @@ export function QuestionForm({ mode, question, initialType, onSaved }: QuestionF
               <OriginBadge origin={question.origin} />
               <ScopeBadge scope={question.scopeType} />
               {question.createdBy?.name ? <span>Criada por {question.createdBy.name}</span> : null}
-              {question.version ? <span>· Versão {question.version}</span> : null}
             </div>
           ) : null
         }
@@ -430,7 +428,7 @@ export function QuestionForm({ mode, question, initialType, onSaved }: QuestionF
           <CardHeader className="pb-3">
             <CardTitle className="text-base">{draft.type === "text_production" ? "Comando de produção" : "Enunciado"}</CardTitle>
             <CardDescription>
-              O megafone ao lado de cada parte marca o que o aplicador deve ler em voz alta. A alternativa tem o mesmo botão na própria linha.
+              Use o botão ao lado de cada parte para marcar o que o aplicador deve ler em voz alta.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -550,7 +548,7 @@ export function QuestionForm({ mode, question, initialType, onSaved }: QuestionF
           <Card data-field="stimulus">
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Como o aluno escreve *</CardTitle>
-              <CardDescription>A palavra falada e a descrição da figura ficam fora da prova impressa.</CardDescription>
+              <CardDescription>A palavra e a descrição da figura não aparecem na prova impressa.</CardDescription>
             </CardHeader>
             <CardContent role="radiogroup" aria-label="Como o aluno escreve" className="grid gap-2 sm:grid-cols-2">
               {(
@@ -587,7 +585,7 @@ export function QuestionForm({ mode, question, initialType, onSaved }: QuestionF
           <Card data-field="dictatedWord">
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Palavra ditada *</CardTitle>
-              <CardDescription>É o que o aplicador lê em voz alta. Uma única palavra, sem espaços. Não sai na prova.</CardDescription>
+              <CardDescription>Uma única palavra, sem espaços.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-2">
               <Input
@@ -610,10 +608,7 @@ export function QuestionForm({ mode, question, initialType, onSaved }: QuestionF
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Descrição da figura</CardTitle>
-              <CardDescription>
-                A descrição entra na nota e não é impressa. Na foto nova, ela fica no formulário até você salvar. Na foto
-                já gravada, gerar de novo já grava na questão.
-              </CardDescription>
+              <CardDescription>Usada na correção; não aparece na prova impressa.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               {draft.imageDescription ? (
@@ -792,10 +787,7 @@ export function QuestionForm({ mode, question, initialType, onSaved }: QuestionF
                   !draft.subjectId && !draft.gradeId ? "Escolha a disciplina ou a série primeiro" : null
                 }
               />
-              <p className="text-xs text-muted-foreground">
-                Catálogo compartilhado com o Afirme Play. Indicar a habilidade habilita o desempenho por habilidade nos
-                Resultados ICA.
-              </p>
+              <p className="text-xs text-muted-foreground">Opcional. Usada nos resultados por habilidade.</p>
               {!skillsLoading && (draft.subjectId || draft.gradeId) && skills.length === 0 ? (
                 <p className="text-xs text-muted-foreground">Nenhuma habilidade cadastrada para esse recorte.</p>
               ) : null}

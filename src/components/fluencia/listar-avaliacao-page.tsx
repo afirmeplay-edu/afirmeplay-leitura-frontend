@@ -266,7 +266,7 @@ export function ListarAvaliacaoPage() {
       <PageHeader
         icon={List}
         title="Listar Avaliação"
-        description="Acompanhe as avaliações de fluência criadas. Clique em Aplicar para testar com um aluno."
+        description="Avaliações de fluência criadas. Clique em Aplicar para iniciar com um aluno."
       />
 
       <AdminCityPicker onCityReadyChange={handleCityReadyChange} />

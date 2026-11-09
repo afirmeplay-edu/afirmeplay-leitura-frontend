@@ -102,7 +102,7 @@ export function IcaSkillsSection({
   return (
     <SectionCard
       title="Desempenho por habilidade"
-      description="Percentual de pontos obtidos nas questões vinculadas a cada habilidade do catálogo BNCC (faixas do Afirme Play: 0–29 / 30–59 / 60–79 / 80–100). Independente dos cortes de proficiência ICA (0–1000)."
+      description="Percentual de acertos por habilidade."
     >
       {loading ? (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">

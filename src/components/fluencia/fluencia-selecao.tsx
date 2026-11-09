@@ -631,18 +631,10 @@ export function FluenciaSelecao({ variant = "oficial" }: FluenciaSelecaoProps) {
 
       <Alert className="border-l-4 border-l-brand-highlight">
         <Info className="h-4 w-4 text-brand-highlight" />
-        <AlertDescription className="space-y-2 text-sm">
-          <p className="font-medium">{isPractice ? "Sobre esta prática" : "Sobre esta avaliação"}</p>
-          <p>
-            {isPractice
-              ? "Pratique lista de palavras conhecidas, palavras pouco comuns e texto narrativo. O professor ouve o áudio e marca manualmente."
-              : "Avaliação individual. São 3 questões: lista de palavras, lista de palavras pouco comuns e leitura de texto narrativo com perguntas de compreensão. O professor ouve a gravação e classifica cada palavra."}
-          </p>
-          <p>
-            {isPractice
-              ? "Tempo: 60 segundos para cada lista de palavras."
-              : "Tempo: 60 segundos para cada lista. Ao final, é gerado o Leiturômetro com a classificação ICA."}
-          </p>
+        <AlertDescription className="text-sm">
+          {isPractice
+            ? "Pratique listas de palavras e texto narrativo. Tempo: 60 segundos por lista."
+            : "Três partes: duas listas de palavras (60 segundos cada) e leitura de texto com compreensão."}
         </AlertDescription>
       </Alert>
 

@@ -175,7 +175,7 @@ export const NAV_ICA: NavCategory[] = [
       {
         href: I.resultados,
         label: "Resultados",
-        description: "Participação, proficiência, corte ≥ 743 e níveis",
+        description: "Participação, proficiência e níveis",
         icon: BarChart3,
         children: [
           { href: I.resultados, label: "Painel ICA", exact: true },
@@ -259,7 +259,7 @@ export const DASHBOARD_SHORTCUTS: Record<AppSystem, DashboardShortcut[]> = {
     {
       href: I.resultados,
       label: "Resultados ICA",
-      description: "Participação, proficiência e corte ≥ 743",
+      description: "Participação, proficiência e níveis",
       accent: "blue",
       icon: BarChart3,
     },

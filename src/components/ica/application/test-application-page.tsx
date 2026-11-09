@@ -261,7 +261,7 @@ function TestApplication({ id }: { id: string }) {
       const run = await createAnswerSheets(id, sheetClass === ALL_CLASSES ? null : sheetClass);
       previousStatus.current.set(run.id, run.status);
       setRuns((current) => [run, ...current.filter((item) => item.id !== run.id)]);
-      toast.success("Geração dos cartões iniciada. A lista atualiza sozinha.");
+      toast.success("Geração dos cartões iniciada.");
     } catch (error) {
       const normalized = normalizeApiError(error, "Não foi possível gerar os cartões-resposta.");
       toast.error(normalized.message);
@@ -371,15 +371,14 @@ function TestApplication({ id }: { id: string }) {
           <AlertTriangle className="h-4 w-4" />
           <AlertTitle>Prova do aplicador</AlertTitle>
           <AlertDescription>
-            Baixe a prova do aluno (sem marcações) ou a do aplicador (com megafones nos campos que devem ser lidos
-            em voz alta). As marcações também aparecem na pré-visualização da avaliação.
+            Baixe a prova do aluno (sem marcações) ou a do aplicador (com as partes a ler em voz alta).
           </AlertDescription>
         </Alert>
       )}
 
       <SectionCard
         title="Turmas"
-        description="Turmas do público da avaliação. Agende o início (e o fim, se quiser) no fuso do município."
+        description="Agende o início e, se quiser, o fim da aplicação para cada turma."
         icon={Users}
       >
         {classes.length === 0 ? (
@@ -519,7 +518,7 @@ function TestApplication({ id }: { id: string }) {
 
       <SectionCard
         title="Cartões-resposta"
-        description="Um PDF por aluno com QR Code, gerado em segundo plano para as turmas com aplicação."
+        description="Um PDF por aluno, gerado para as turmas com aplicação."
         icon={Download}
       >
         <div className="space-y-5">
