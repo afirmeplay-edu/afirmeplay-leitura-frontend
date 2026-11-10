@@ -67,4 +67,4 @@ jobs:
                   export API_DISCOVERY_REMOTE_URL=${{secrets.API_DISCOVERY_REMOTE_URL}}
 
                   docker compose -f docker-compose-dev.yml pull
-                  docker compose -f docker-compose-dev.yml up -d
+                  docker compose -f docker-compose-dev.yml up -d --force-recreate
