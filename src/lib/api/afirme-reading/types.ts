@@ -882,8 +882,15 @@ export interface QuestionDocxImportSummary {
   failed?: number;
 }
 
+export interface QuestionDocxImportFormContext {
+  gradeId?: string | null;
+  subjects?: Array<{ id: string; name: string }>;
+  allowedSubjectIds?: string[] | null;
+}
+
 export interface QuestionDocxImportPreview {
   mode: "preview";
+  form?: QuestionDocxImportFormContext | null;
   summary: QuestionDocxImportSummary;
   questions: ImportedDocxQuestion[];
 }
