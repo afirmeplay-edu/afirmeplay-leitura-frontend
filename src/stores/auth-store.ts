@@ -206,7 +206,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         token,
         user: enrichedUser,
         loginSlug: normalizedSlug || enrichedUser.city_slug,
-        loginCityId: null,
+        loginCityId: getSelectedCityId(),
       });
 
       localStorage.setItem("token", token);

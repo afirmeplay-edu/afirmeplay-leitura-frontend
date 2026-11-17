@@ -51,15 +51,6 @@ O arquivo `.env` **nao deve ser versionado** (ja esta no `.gitignore`). Use `.en
 | `NEXT_PUBLIC_API_BASE_URL` | URL base do backend (proxy `/api` no Next) | `http://localhost:5000` |
 | `NEXT_PUBLIC_DEBUG_MODE` | Logs extras no client | `false` |
 
-### Opcionais (server-side)
-
-| Variavel | Descricao |
-|----------|-----------|
-| `API_DISCOVERY_REMOTE_URL` | API da VPS central para discovery de municipios. Padrao: `https://prod-api.afirmeplay.com.br` |
-| `CITIES_DATABASE_URL` | Postgres da VPS central para listar `public.city` (recomendado para ver todos os municipios) |
-| `CITIES_DISCOVERY_REGISTRATION` | Usuario admin para fallback via `GET /city/` |
-| `CITIES_DISCOVERY_PASSWORD` | Senha do usuario acima (somente server-side) |
-
 > **Seguranca:** nunca coloque senhas, tokens ou URLs de banco com credenciais em variaveis `NEXT_PUBLIC_*`. Essas variaveis ficam expostas no navegador.
 
 Credenciais de banco, Redis, MinIO, JWT e integracoes externas pertencem ao `.env` do **backend**, nao deste repositorio.
@@ -67,9 +58,9 @@ Credenciais de banco, Redis, MinIO, JWT e integracoes externas pertencem ao `.en
 ## Fluxo de login
 
 1. O usuario escolhe o municipio no dropdown (mesmo dominio).
-2. O slug e salvo em `localStorage` (`selected_slug`) — nao ha redirect por subdominio.
-3. A autenticacao usa `POST /login/` via proxy `/api`, com JWT persistido no client.
-4. Rotas do Afirme Ler enviam `Authorization: Bearer` e `X-City-Slug` a partir do slug salvo.
+2. O slug (e o id) sao salvos em `localStorage` — nao ha redirect por subdominio.
+3. A autenticacao usa `POST /login/` via proxy `/api`, com `citySlug` / `X-City-Slug`.
+4. Rotas do Afirme Ler enviam `Authorization: Bearer` e `X-City-Slug` / `X-City-ID` a partir do contexto salvo.
 
 Exemplo de acesso em desenvolvimento:
 
@@ -79,13 +70,13 @@ http://localhost:3000/login
 
 ## Listagem de municipios
 
-A rota interna `GET /api/discovery/cities` busca municipios nesta ordem:
+O login consome a rota publica do backend (sem JWT):
 
-1. Tabela `public.city` no Postgres (`CITIES_DATABASE_URL`)
-2. `GET /city/` na VPS central ou no backend local (se `CITIES_DISCOVERY_*` estiver configurado)
-3. Catalogo mobile `/mobile/v1/available-cities` na VPS central (fallback)
+```text
+GET /afirme-reading/discovery/cities
+```
 
-A entrada meta `afirme` (VPS central) e excluida da lista, pois nao e um municipio de login valido.
+No browser isso passa pelo proxy do Next (`/api` → `NEXT_PUBLIC_API_BASE_URL`). A lista vem de `public.city` filtrada pela feature `afirme_reading`.
 
 ## Estrutura do projeto
 
@@ -94,7 +85,7 @@ src/
   app/
     (public)/login/              # Tela de login
     (private)/app/               # Area autenticada
-    api/discovery/cities/        # API interna de municipios
+    api/login/                     # Proxy de login
     layout.tsx, page.tsx, globals.css
   components/
     auth/                          # AuthGuard, login, redirects
@@ -103,9 +94,8 @@ src/
     ui/                            # Componentes shadcn
   config/navigation.ts             # Menu da sidebar
   lib/
-    api/                           # Cliente HTTP
-    city-domain.ts                 # Helpers de municipio (slug no client)
-    server/cities-discovery.ts     # Discovery server-side
+    api/                           # Cliente HTTP (inclui discovery de municipios)
+    city-domain.ts                 # Helpers de municipio (slug/id no client)
     env.ts                         # Variaveis de servidor
   stores/auth-store.ts             # Estado de autenticacao (Zustand)
 public/                            # Logos e assets estaticos
@@ -136,9 +126,9 @@ Depois, faca hard refresh no navegador (`Ctrl+Shift+R`).
 
 ### Municipios nao aparecem ou lista incompleta
 
-- Confirme que o backend local esta rodando.
-- Configure `CITIES_DATABASE_URL` apontando para o Postgres da VPS central, **ou**
-- Configure `CITIES_DISCOVERY_REGISTRATION` / `CITIES_DISCOVERY_PASSWORD` com um usuario admin valido.
+- Confirme que o backend esta rodando em `NEXT_PUBLIC_API_BASE_URL`.
+- Teste `GET /afirme-reading/discovery/cities` diretamente na API (sem Authorization).
+- Reinicie a API apos publicar a rota de discovery do Afirme Reading.
 
 ### Erro de login / CORS
 
