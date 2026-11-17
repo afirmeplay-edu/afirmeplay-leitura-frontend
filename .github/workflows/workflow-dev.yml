@@ -64,7 +64,6 @@ jobs:
                   export COMPOSE_PROJECT_NAME=afirme-ler-dev
                   export VERSION=$(cat VERSION)
                   export NEXT_PUBLIC_API_BASE_URL=${{secrets.NEXT_PUBLIC_API_BASE_URL}}
-                  export API_DISCOVERY_REMOTE_URL=${{secrets.API_DISCOVERY_REMOTE_URL}}
 
                   docker compose -f docker-compose-dev.yml pull
                   docker compose -f docker-compose-dev.yml up -d --force-recreate
