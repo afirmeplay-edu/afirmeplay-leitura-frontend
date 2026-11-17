@@ -517,7 +517,7 @@ export function QuestionForm({ mode, question, initialType, onSaved }: QuestionF
                   })}
                 </ul>
               ) : imageDictation ? (
-                <p className="text-xs text-muted-foreground">Insira a figura no enunciado. Ela sai na prova.</p>
+                <p className="text-xs text-muted-foreground">Insira a figura no enunciado. Ela sai só na prova do aplicador.</p>
               ) : null}
               <FieldError message={errors.statementImages} />
             </div>
@@ -548,12 +548,14 @@ export function QuestionForm({ mode, question, initialType, onSaved }: QuestionF
           <Card data-field="stimulus">
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Como o aluno escreve *</CardTitle>
-              <CardDescription>A palavra e a descrição da figura não aparecem na prova impressa.</CardDescription>
+              <CardDescription>
+                Palavra e figura saem só na prova do aplicador. A descrição da figura não aparece na prova impressa.
+              </CardDescription>
             </CardHeader>
             <CardContent role="radiogroup" aria-label="Como o aluno escreve" className="grid gap-2 sm:grid-cols-2">
               {(
                 [
-                  { value: "word" as const, title: "Palavra falada", hint: "O aplicador dita. O aluno escreve no cartão." },
+                  { value: "word" as const, title: "Palavra falada", hint: "O aplicador dita. O aluno escreve nas linhas da prova." },
                   { value: "image" as const, title: "Figura", hint: "O aluno nomeia a foto. A descrição é gerada depois." },
                 ]
               ).map((option) => {
