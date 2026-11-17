@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { ChevronLeft, ChevronRight, Eye, FilePlus2, Library, Pencil, RefreshCw, SearchX } from "lucide-react";
+import { ChevronLeft, ChevronRight, Eye, FileInput, FilePlus2, Library, Pencil, RefreshCw, SearchX } from "lucide-react";
 import { toast } from "sonner";
 import { listBankQuestions } from "@/lib/api/afirme-reading/questions";
 import type { BankQuestion, BankQuestionOrigin, BankQuestionPagination } from "@/lib/api/afirme-reading/types";
@@ -402,6 +402,16 @@ function QuestionsList() {
         columns={columns}
         createHref={canWrite ? ROUTES.ica.questoes.nova : undefined}
         createLabel="Nova questão"
+        headerActions={
+          canWrite ? (
+            <Button variant="outline" asChild className="w-full sm:w-auto">
+              <Link href={ROUTES.ica.questoes.importar}>
+                <FileInput className="mr-2 h-4 w-4" />
+                Importar questões
+              </Link>
+            </Button>
+          ) : undefined
+        }
         searchPlaceholder="Buscar por nome ou enunciado"
         searchValue={searchInput}
         onSearchChange={setSearchInput}
