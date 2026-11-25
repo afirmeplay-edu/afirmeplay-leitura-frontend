@@ -80,7 +80,7 @@ const TECH_ID_LABEL_RE = /\b(SubjectId|GradeId|subjectId|gradeId|subject_id|grad
 
 /** Remove UUIDs/rótulos técnicos de mensagens mostradas ao usuário. */
 function humanizeImportError(message: string): string {
-  let text = message
+  const text = message
     .replace(UUID_RE, "")
     .replace(TECH_ID_LABEL_RE, "")
     .replace(/\s{2,}/g, " ")
