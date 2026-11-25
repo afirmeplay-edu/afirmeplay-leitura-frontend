@@ -125,20 +125,53 @@ export interface ImportDocxConfirmationQuestion {
   dictationMarks: DictationMarks;
 }
 
-/** Baixa o modelo DOCX com série, disciplina e blocos vazios. */
+/** 1 disciplina → subjectId; N → subjectIds CSV (+ subjectId default = primeira). */
+export function buildQuestionImportSubjectParams(subjectIds: string[]): {
+  subjectId?: string;
+  subjectIds?: string;
+} | null {
+  const unique = [...new Set(subjectIds.filter(Boolean))];
+  if (unique.length === 0) return null;
+  if (unique.length === 1) return { subjectId: unique[0] };
+  return { subjectId: unique[0], subjectIds: unique.join(",") };
+}
+
+export function buildQuestionImportCountsParam(
+  selectedSubjectIds: string[],
+  countsBySubject: Record<string, number>
+): string | null {
+  if (selectedSubjectIds.length === 0) return null;
+  const parts: string[] = [];
+  for (const id of selectedSubjectIds) {
+    const qty = countsBySubject[id];
+    if (!Number.isInteger(qty) || qty < 1) return null;
+    parts.push(`${id}:${qty}`);
+  }
+  return parts.join(",");
+}
+
+/** Baixa o modelo DOCX com série, disciplinas e blocos vazios por counts. */
 export async function downloadQuestionsImportTemplate(options: {
   gradeId: string;
-  subjectId: string;
-  count: number;
+  subjectIds: string[];
+  counts: string;
 }) {
   try {
+    const params: Record<string, string | number> = {
+      grade: options.gradeId,
+      counts: options.counts,
+    };
+    const subjectParams = buildQuestionImportSubjectParams(options.subjectIds);
+    if (subjectParams?.subjectIds) {
+      params.subjectIds = subjectParams.subjectIds;
+      if (subjectParams.subjectId) params.subjectId = subjectParams.subjectId;
+    } else if (subjectParams?.subjectId) {
+      params.subjectId = subjectParams.subjectId;
+    }
+
     const response = await afirmeReadingApi.get<Blob>("/questions/import/template", {
       responseType: "blob",
-      params: {
-        grade: options.gradeId,
-        subjectId: options.subjectId,
-        count: options.count,
-      },
+      params,
     });
     saveBlob(
       response.data,
@@ -151,7 +184,7 @@ export async function downloadQuestionsImportTemplate(options: {
 
 /**
  * O mesmo multipart faz prévia (`commit=false`) e confirmação (`commit=true`).
- * `grade` e `subjectId` valem para os blocos que não trazem esses dados.
+ * `grade` e `subjectId`/`subjectIds` valem para defaults e whitelist.
  */
 export async function importQuestionsDocx(
   file: File,
@@ -159,6 +192,7 @@ export async function importQuestionsDocx(
     commit?: boolean;
     gradeId?: string;
     subjectId?: string;
+    subjectIds?: string[];
     indexes?: number[];
     questions?: ImportDocxConfirmationQuestion[];
   } = {}
@@ -167,7 +201,13 @@ export async function importQuestionsDocx(
   form.append("file", file);
   form.append("commit", options.commit ? "true" : "false");
   if (options.gradeId) form.append("grade", options.gradeId);
-  if (options.subjectId) form.append("subjectId", options.subjectId);
+
+  const subjectParams = buildQuestionImportSubjectParams(
+    options.subjectIds?.length ? options.subjectIds : options.subjectId ? [options.subjectId] : []
+  );
+  if (subjectParams?.subjectId) form.append("subjectId", subjectParams.subjectId);
+  if (subjectParams?.subjectIds) form.append("subjectIds", subjectParams.subjectIds);
+
   if (options.indexes?.length) form.append("indexes", options.indexes.join(","));
   if (options.questions) form.append("confirmation", JSON.stringify({ questions: options.questions }));
   const { data } = await afirmeReadingApi.postForm<QuestionDocxImportPreview | QuestionDocxImportCommitResult>(

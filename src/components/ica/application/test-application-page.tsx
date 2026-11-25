@@ -371,7 +371,7 @@ function TestApplication({ id }: { id: string }) {
           <AlertTriangle className="h-4 w-4" />
           <AlertTitle>Prova do aplicador</AlertTitle>
           <AlertDescription>
-            Baixe a prova do aluno (sem marcações) ou a do aplicador (com as partes a ler em voz alta).
+            Baixe a prova do aluno (sem marcações nem estímulo do ditado) ou a do aplicador (com megafones e a palavra/figura do ditado).
           </AlertDescription>
         </Alert>
       )}

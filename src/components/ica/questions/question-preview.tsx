@@ -78,7 +78,7 @@ export function QuestionPreview({ question, showAnswer = true, showMeta = true, 
         <div className="flex items-start gap-3 rounded-xl border border-dashed px-3 py-2.5 text-sm">
           <ImageIcon className="mt-0.5 h-4 w-4 shrink-0 text-brand-highlight" aria-hidden />
           <div className="min-w-0 space-y-1">
-            <p className="text-muted-foreground">O aluno escreve o nome da figura. A foto sai na prova. A descrição não sai.</p>
+            <p className="text-muted-foreground">O aluno escreve o nome da figura. A foto sai só na prova do aplicador. A descrição não sai.</p>
             {showAnswer ? (
               <p className="font-semibold text-emerald-700">
                 {question.imageDescription ? `Descrição: ${question.imageDescription}` : "Descrição ainda não gerada"}
@@ -92,7 +92,7 @@ export function QuestionPreview({ question, showAnswer = true, showMeta = true, 
         <div className="flex items-start gap-3 rounded-xl border border-dashed px-3 py-2.5 text-sm">
           <Mic className="mt-0.5 h-4 w-4 shrink-0 text-brand-highlight" aria-hidden />
           <div className="min-w-0 space-y-1">
-            <p className="text-muted-foreground">O aluno escreve a palavra ditada no cartão-resposta. A palavra não sai na prova.</p>
+            <p className="text-muted-foreground">O aluno escreve a palavra ditada nas linhas da prova. A palavra sai só na prova do aplicador.</p>
             {showAnswer ? (
               <p className="font-semibold text-emerald-700">
                 {question.dictatedWord ? `Palavra ditada: ${question.dictatedWord}` : "Palavra ditada não informada"}

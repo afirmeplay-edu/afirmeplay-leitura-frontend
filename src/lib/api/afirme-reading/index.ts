@@ -23,6 +23,8 @@ export {
   getBankQuestion,
   createBankQuestion,
   updateBankQuestion,
+  buildQuestionImportCountsParam,
+  buildQuestionImportSubjectParams,
   downloadQuestionsImportTemplate,
   importQuestionsDocx,
 } from "@/lib/api/afirme-reading/questions";

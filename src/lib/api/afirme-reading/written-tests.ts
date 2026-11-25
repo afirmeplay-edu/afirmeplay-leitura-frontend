@@ -191,8 +191,8 @@ async function downloadFile(path: string, fallbackName: string) {
 }
 
 /**
- * PDF do aluno (sem marcações) ou do aplicador (com megafones).
- * Envia `?mode=student|applicator`.
+ * PDF do aluno (sem marcações nem estímulo do ditado) ou do aplicador
+ * (megafones + palavra/figura do ditado). Envia `?mode=student|applicator`.
  */
 export async function downloadWrittenTestPdf(
   id: string,

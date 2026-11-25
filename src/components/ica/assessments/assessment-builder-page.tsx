@@ -733,8 +733,8 @@ function AssessmentBuilder({ id }: { id?: string }) {
             <AlertTriangle className="h-4 w-4" />
             <AlertTitle>Prova do aplicador</AlertTitle>
             <AlertDescription>
-              Use &quot;Prova do aluno&quot; para o caderno limpo e &quot;Prova do aplicador&quot; para o PDF com as
-              marcações de leitura em voz alta.
+              Use &quot;Prova do aluno&quot; para o caderno limpo e &quot;Prova do aplicador&quot; para o PDF com
+              megafones e o estímulo do ditado (palavra ou figura).
             </AlertDescription>
           </Alert>
         ) : null}
